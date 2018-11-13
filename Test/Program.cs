@@ -1,0 +1,81 @@
+﻿/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+Copyright © 2018 chibayuki@foxmail.com
+
+Com性能测试
+Version 1.0.0.0
+
+This file is part of "Com性能测试" (ComPerformanceTest)
+
+"Com性能测试" (ComPerformanceTest) is released under the GPLv3 license
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace Test
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            TestResult.Clear();
+            TestResult.Log("[Com.Properties.AssemblyVersion] 18.9.28.2200");
+
+            TestProgress.Reset();
+            TestProgress.Report(0);
+
+            //
+
+            ClassPerformanceTestBase[] TestClass = new ClassPerformanceTestBase[]
+            {
+                new AnimationTest(),
+                new BitOperationTest(),
+                new BitSetTest(),
+                new ColorManipulationTest(),
+                new ColorXTest(),
+                new ComplexTest(),
+                new DateTimeXTest(),
+                new GeometryTest(),
+                new IOTest(),
+                new MatrixTest(),
+                new Painting2DTest(),
+                new Painting3DTest(),
+                new PointDTest(),
+                new PointD3DTest(),
+                new PointD4DTest(),
+                new PointD5DTest(),
+                new PointD6DTest(),
+                new StatisticsTest(),
+                new TextTest(),
+                new VectorTest()
+            };
+
+            for (int i = 0; i < TestClass.Length; i++)
+            {
+                TestClass[i].Run();
+            }
+
+            //
+
+            string filePath = TestResult.Save(Environment.CurrentDirectory);
+
+            TestProgress.Report(0);
+
+            if (!string.IsNullOrEmpty(filePath))
+            {
+                Console.WriteLine("Test completed. Log file has been saved at \"" + filePath + "\".");
+            }
+            else
+            {
+                Console.WriteLine("Test completed.");
+            }
+
+            //
+
+            Console.ReadKey();
+        }
+    }
+}
