@@ -64,7 +64,7 @@ namespace Test
 
             TestProgress.Report(0);
 
-            TestProgress.ClearRedundance();
+            TestProgress.ClearExtra();
 
             if (!string.IsNullOrEmpty(filePath))
             {

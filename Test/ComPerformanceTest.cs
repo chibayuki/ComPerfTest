@@ -96,7 +96,7 @@ namespace Test
             Console.Write(new string(' ', _FullWidth));
             Console.SetCursorPosition(2, 3);
             Console.ForegroundColor = ConsoleColor.DarkCyan;
-            Console.Write((progress * 100).ToString("N0") + "% completed");
+            Console.Write((int)(progress * 100) + "% completed");
             Console.ForegroundColor = ConsoleColor.Black;
             Console.SetCursorPosition(0, 5);
             Console.WindowTop = 0;
@@ -124,7 +124,7 @@ namespace Test
             Console.WindowTop = 0;
         }
 
-        public static void ClearRedundance() // 清理冗余输出
+        public static void ClearExtra() // 清理额外输出
         {
             Console.BackgroundColor = ConsoleColor.White;
             Console.ForegroundColor = ConsoleColor.Black;
@@ -368,7 +368,7 @@ namespace Test
 
             TestProgress.Report(1);
 
-            TestProgress.ClearRedundance();
+            TestProgress.ClearExtra();
 
             Console.ForegroundColor = ConsoleColor.DarkMagenta;
             Console.Write("Latest result: ");
@@ -17012,7 +17012,7 @@ namespace Test
                     Com.Vector result = Com.Vector.NonVector;
                 };
 
-                ExecuteTest(method, "Com.Vector.NonVector.get()");
+                ExecuteTest(method, "Com.Vector.NonVector.get()", "dimension at 32");
             }
         }
 
@@ -17400,7 +17400,7 @@ namespace Test
                     Com.Matrix result = vector.ToMatrix();
                 };
 
-                ExecuteTest(method, "Com.Vector.ToMatrix()");
+                ExecuteTest(method, "Com.Vector.ToMatrix()", "dimension at 32");
             }
 
             // ToArray
@@ -17413,7 +17413,7 @@ namespace Test
                     double[] result = vector.ToArray();
                 };
 
-                ExecuteTest(method, "Com.Vector.ToArray()");
+                ExecuteTest(method, "Com.Vector.ToArray()", "dimension at 32");
             }
         }
 
