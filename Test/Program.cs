@@ -64,13 +64,21 @@ namespace Test
 
             TestProgress.Report(0);
 
+            TestProgress.ClearRedundance();
+
             if (!string.IsNullOrEmpty(filePath))
             {
-                Console.WriteLine("Test completed. Log file has been saved at \"" + filePath + "\".");
+                Console.ForegroundColor = ConsoleColor.DarkMagenta;
+                Console.Write("Test completed. Log file has been saved at \"");
+                Console.ForegroundColor = ConsoleColor.DarkYellow;
+                Console.Write(filePath);
+                Console.ForegroundColor = ConsoleColor.DarkMagenta;
+                Console.Write("\". Press any key to exit.");
             }
             else
             {
-                Console.WriteLine("Test completed.");
+                Console.ForegroundColor = ConsoleColor.DarkMagenta;
+                Console.Write("Test completed. Press any key to exit.");
             }
 
             //

@@ -70,10 +70,12 @@ namespace Test
         }
     }
 
-    static class TestProgress
+    static class TestProgress // 测试进度
     {
         private const int _TotalMemberCount = 1363; // 成员总数量
         private static int _CompletedMemberCount = 0; // 已测试成员数量
+
+        private static int _FullWidth => Math.Max(10, Math.Min(Console.WindowWidth * 3 / 4, 100)); // 进度条宽度
 
         //
 
@@ -83,34 +85,61 @@ namespace Test
 
             double progress = (double)_CompletedMemberCount / _TotalMemberCount;
 
-            //
-
-            char[] progressBar = new char[25];
-
-            for (int i = 0; i < progressBar.Length; i++)
-            {
-                if ((double)(i + 1) / progressBar.Length <= progress)
-                {
-                    progressBar[i] = '■';
-                }
-                else
-                {
-                    progressBar[i] = '□';
-                }
-            }
-
-            Console.Clear();
-            Console.WriteLine("Executing Test");
-            Console.WriteLine();
-            Console.WriteLine(new string(progressBar) + "  " + (progress * 100).ToString("N1") + "% Completed");
-            Console.WriteLine();
+            Console.SetCursorPosition(2, 2);
+            Console.BackgroundColor = ConsoleColor.Gray;
+            Console.Write(new string(' ', _FullWidth));
+            Console.SetCursorPosition(2, 2);
+            Console.BackgroundColor = ConsoleColor.DarkCyan;
+            Console.Write(new string(' ', (int)(progress * _FullWidth)));
+            Console.BackgroundColor = ConsoleColor.White;
+            Console.SetCursorPosition(2, 3);
+            Console.Write(new string(' ', _FullWidth));
+            Console.SetCursorPosition(2, 3);
+            Console.ForegroundColor = ConsoleColor.DarkCyan;
+            Console.Write((progress * 100).ToString("N0") + "% completed");
+            Console.ForegroundColor = ConsoleColor.Black;
+            Console.SetCursorPosition(0, 5);
+            Console.WindowTop = 0;
         }
 
         public static void Reset() // 重置测试进度
         {
             _CompletedMemberCount = 0;
 
+            Console.ForegroundColor = ConsoleColor.Black;
+            Console.BackgroundColor = ConsoleColor.White;
             Console.Clear();
+            Console.ForegroundColor = ConsoleColor.DarkCyan;
+            Console.Write("Executing test");
+            Console.ForegroundColor = ConsoleColor.Black;
+            Console.SetCursorPosition(2, 2);
+            Console.BackgroundColor = ConsoleColor.Gray;
+            Console.Write(new string(' ', _FullWidth));
+            Console.BackgroundColor = ConsoleColor.White;
+            Console.SetCursorPosition(2, 3);
+            Console.ForegroundColor = ConsoleColor.DarkCyan;
+            Console.Write("0% completed");
+            Console.ForegroundColor = ConsoleColor.Black;
+            Console.SetCursorPosition(0, 5);
+            Console.WindowTop = 0;
+        }
+
+        public static void ClearRedundance() // 清理冗余输出
+        {
+            Console.BackgroundColor = ConsoleColor.White;
+            Console.ForegroundColor = ConsoleColor.Black;
+
+            int bottom = Console.WindowHeight;
+            string blank = new string(' ', Console.WindowWidth);
+
+            for (int i = 5; i < bottom; i++)
+            {
+                Console.SetCursorPosition(0, i);
+                Console.Write(blank);
+            }
+
+            Console.SetCursorPosition(0, 5);
+            Console.WindowTop = 0;
         }
     }
 
@@ -120,7 +149,7 @@ namespace Test
 
         //
 
-        private static string _GetScientificNotationString(double value, int significance, bool useNaturalExpression, bool useMagnitudeOrderCode, string unit)
+        private static string _GetScientificNotationString(double value, int significance, bool useNaturalExpression, bool useMagnitudeOrderCode, string unit) // 科学记数法
         {
             const string _PositiveMagnitudeOrderCode = "kMGTPEZY";
             const string _NegativeMagnitudeOrderCode = "mμnpfazy";
@@ -238,7 +267,7 @@ namespace Test
 
         //
 
-        protected static void ExecuteTest(Action method, string methodName, string comment) // 执行方法测试
+        protected static void ExecuteTest(Action method, string methodName, string comment) // 执行测试
         {
             string result = string.Empty;
 
@@ -339,10 +368,15 @@ namespace Test
 
             TestProgress.Report(1);
 
-            Console.WriteLine("Latest result: " + result);
+            TestProgress.ClearRedundance();
+
+            Console.ForegroundColor = ConsoleColor.DarkMagenta;
+            Console.Write("Latest result: ");
+            Console.ForegroundColor = ConsoleColor.DarkYellow;
+            Console.Write(result);
         }
 
-        protected static void ExecuteTest(Action method, string methodName) // 执行方法测试
+        protected static void ExecuteTest(Action method, string methodName) // 执行测试
         {
             ExecuteTest(method, methodName, string.Empty);
         }
