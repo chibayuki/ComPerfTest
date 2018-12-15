@@ -2,7 +2,7 @@
 Copyright © 2018 chibayuki@foxmail.com
 
 Com性能测试
-Version 1.0.0.0
+Version 18.12.15.2040
 
 This file is part of "Com性能测试" (ComPerformanceTest)
 
@@ -44,7 +44,7 @@ namespace Test
                 }
 
                 DateTime dt = DateTime.Now;
-                string fileName = string.Concat("ComPerfTestLog_", (dt.Year % 100).ToString("D2"), dt.Month.ToString("D2"), dt.Day.ToString("D2"), ((int)dt.TimeOfDay.TotalMilliseconds).ToString("D8"), ".log");
+                string fileName = string.Concat("ComPerfTestLog_", (dt.Year % 100).ToString("D2"), dt.Month.ToString("D2"), dt.Day.ToString("D2"), dt.Hour.ToString("D2"), dt.Minute.ToString("D2"), dt.Second.ToString("D2"), dt.Millisecond.ToString("D3"), ".log");
 
                 filePath = Path.Combine(fileDir, fileName);
 
@@ -62,7 +62,7 @@ namespace Test
             return filePath;
         }
 
-        public static void Clear()
+        public static void Clear() // 清除测试结果
         {
             _ResultList.Clear();
 
@@ -124,7 +124,7 @@ namespace Test
             Console.WindowTop = 0;
         }
 
-        public static void ClearExtra() // 清理额外输出
+        public static void ClearExtra() // 清除额外输出
         {
             Console.BackgroundColor = ConsoleColor.White;
             Console.ForegroundColor = ConsoleColor.Black;
@@ -267,15 +267,15 @@ namespace Test
 
         //
 
-        protected static void ExecuteTest(Action method, string methodName, string comment) // 执行测试
+        protected static void ExecuteTest(Action method, string memberName, string comment) // 执行测试
         {
             string result = string.Empty;
 
             if (method != null)
             {
-                if (methodName == null)
+                if (memberName == null)
                 {
-                    methodName = string.Empty;
+                    memberName = string.Empty;
                 }
 
                 if (comment == null)
@@ -357,11 +357,11 @@ namespace Test
 
                 double msPerCycle = totalMS / cycle;
 
-                result = string.Concat("[", methodName, "] ", _GetScientificNotationString(msPerCycle / 1000, 4, true, true, "s"), ", ", _GetScientificNotationString(1000 / msPerCycle, 4, true, true, "Hz"), (comment.Length > 0 ? ", " + comment : string.Empty));
+                result = string.Concat("[", memberName, "] ", _GetScientificNotationString(msPerCycle / 1000, 4, true, true, "s"), ", ", _GetScientificNotationString(1000 / msPerCycle, 4, true, true, "Hz"), (comment.Length > 0 ? ", " + comment : string.Empty));
             }
             else
             {
-                result = string.Concat("[", methodName, "] Untested", (comment.Length > 0 ? ", " + comment : string.Empty));
+                result = string.Concat("[", memberName, "] Untested", (comment.Length > 0 ? ", " + comment : string.Empty));
             }
 
             TestResult.Log(result);
@@ -376,9 +376,9 @@ namespace Test
             Console.Write(result);
         }
 
-        protected static void ExecuteTest(Action method, string methodName) // 执行测试
+        protected static void ExecuteTest(Action method, string memberName) // 执行测试
         {
-            ExecuteTest(method, methodName, string.Empty);
+            ExecuteTest(method, memberName, string.Empty);
         }
 
         //
