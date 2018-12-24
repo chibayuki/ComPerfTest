@@ -1,6 +1,6 @@
 ﻿Copyright © 2018 chibayuki@foxmail.com
 
 Com性能测试
-Version 18.12.15.2040
+Version 18.12.24.2200
 
 "Com性能测试" (ComPerformanceTest) is released under the GPLv3 license, see GPLv3.txt for more information.
