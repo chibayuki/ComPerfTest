@@ -2,7 +2,7 @@
 Copyright © 2018 chibayuki@foxmail.com
 
 Com性能测试
-Version 18.12.24.2200
+Version 19.4.13.0000
 
 This file is part of "Com性能测试" (ComPerformanceTest)
 
@@ -44,7 +44,7 @@ namespace Test
                 }
 
                 DateTime dt = DateTime.Now;
-                string fileName = string.Concat("ComPerfTestLog_", (dt.Year % 100).ToString("D2"), dt.Month.ToString("D2"), dt.Day.ToString("D2"), dt.Hour.ToString("D2"), dt.Minute.ToString("D2"), dt.Second.ToString("D2"), dt.Millisecond.ToString("D3"), ".log");
+                string fileName = string.Concat("ComPerfTestLog_", (dt.Year % 100).ToString("D2"), dt.Month.ToString("D2"), dt.Day.ToString("D2"), dt.Hour.ToString("D2"), dt.Minute.ToString("D2"), dt.Second.ToString("D2"), dt.Millisecond.ToString("D3"), ".csv");
 
                 filePath = Path.Combine(fileDir, fileName);
 
@@ -72,7 +72,7 @@ namespace Test
 
     static class TestProgress // 测试进度
     {
-        private const int _TotalMemberCount = 1363; // 成员总数量
+        private const int _TotalMemberCount = 1703; // 成员总数量
         private static int _CompletedMemberCount = 0; // 已测试成员数量
 
         private static int _FullWidth => Math.Max(10, Math.Min(Console.WindowWidth * 3 / 4, 100)); // 进度条宽度
@@ -85,6 +85,9 @@ namespace Test
 
             double progress = (double)_CompletedMemberCount / _TotalMemberCount;
 
+            Console.SetCursorPosition(0, 0);
+            Console.ForegroundColor = ConsoleColor.DarkCyan;
+            Console.Write("Executing test (" + _CompletedMemberCount + " of " + _TotalMemberCount + ")");
             Console.SetCursorPosition(2, 2);
             Console.BackgroundColor = ConsoleColor.Gray;
             Console.Write(new string(' ', _FullWidth));
@@ -109,8 +112,9 @@ namespace Test
             Console.ForegroundColor = ConsoleColor.Black;
             Console.BackgroundColor = ConsoleColor.White;
             Console.Clear();
+            Console.SetCursorPosition(0, 0);
             Console.ForegroundColor = ConsoleColor.DarkCyan;
-            Console.Write("Executing test");
+            Console.Write("Executing test (0 of " + _TotalMemberCount + ")");
             Console.ForegroundColor = ConsoleColor.Black;
             Console.SetCursorPosition(2, 2);
             Console.BackgroundColor = ConsoleColor.Gray;
@@ -145,125 +149,13 @@ namespace Test
 
     class ClassPerformanceTestBase // 类性能测试类的基类
     {
-        private const int _MSOfPerMember = 500; // 被测试类每个成员的最短执行时长的毫秒数
-
-        //
-
-        private static string _GetScientificNotationString(double value, int significance, bool useNaturalExpression, bool useMagnitudeOrderCode, string unit) // 科学记数法
-        {
-            const string _PositiveMagnitudeOrderCode = "kMGTPEZY";
-            const string _NegativeMagnitudeOrderCode = "mμnpfazy";
-
-            try
-            {
-                if (double.IsNaN(value) || double.IsInfinity(value))
-                {
-                    return "N/A";
-                }
-                else
-                {
-                    string part1 = string.Empty, part2 = string.Empty, part3 = string.Empty, part4 = string.Empty;
-
-                    int sign = Math.Sign(value);
-
-                    part1 = (sign < 0 ? "-" : string.Empty);
-
-                    value = Math.Abs(value);
-
-                    significance = Math.Max(0, significance);
-
-                    int exp = (int)Math.Floor(Math.Log10(value));
-
-                    if (significance > 0)
-                    {
-                        exp -= (significance - 1);
-
-                        value = Math.Round(value / Math.Pow(10, exp));
-                    }
-                    else
-                    {
-                        value /= Math.Pow(10, exp);
-                    }
-
-                    while (value >= 10)
-                    {
-                        value /= 10;
-                        exp++;
-                    }
-
-                    if (useMagnitudeOrderCode)
-                    {
-                        if (exp >= -24 && exp < 27)
-                        {
-                            int mod = 0;
-
-                            if (exp >= 0)
-                            {
-                                mod = exp % 3;
-                            }
-                            else
-                            {
-                                mod = (-exp) % 3;
-
-                                if (mod > 0)
-                                {
-                                    mod = 3 - mod;
-                                }
-                            }
-
-                            if (mod > 0)
-                            {
-                                value *= Math.Pow(10, mod);
-                            }
-
-                            part2 = (significance > 0 ? value.ToString("N" + Math.Max(0, significance - 1 - mod)) : value.ToString());
-
-                            int mag = 0;
-
-                            if (exp >= 0)
-                            {
-                                mag = exp / 3;
-                            }
-                            else
-                            {
-                                mag = (exp + 1) / 3 - 1;
-                            }
-
-                            string magCode = (mag > 0 ? _PositiveMagnitudeOrderCode[mag - 1].ToString() : (mag < 0 ? _NegativeMagnitudeOrderCode[-mag - 1].ToString() : string.Empty));
-
-                            if (string.IsNullOrEmpty(unit))
-                            {
-                                part3 = magCode;
-                                part4 = string.Empty;
-                            }
-                            else
-                            {
-                                part3 = " " + magCode;
-                                part4 = unit;
-                            }
-                        }
-                        else
-                        {
-                            part2 = (significance > 0 ? value.ToString("N" + Math.Max(0, significance - 1)) : value.ToString());
-                            part3 = (useNaturalExpression ? "×10^" + exp : (exp > 0 ? "E+" + exp : "E" + exp));
-                            part4 = (string.IsNullOrEmpty(unit) ? string.Empty : " " + unit);
-                        }
-                    }
-                    else
-                    {
-                        part2 = (significance > 0 ? value.ToString("N" + Math.Max(0, significance - 1)) : value.ToString());
-                        part3 = (exp == 0 ? string.Empty : (useNaturalExpression ? "×10^" + exp : (exp > 0 ? "E+" + exp : "E" + exp)));
-                        part4 = (string.IsNullOrEmpty(unit) ? string.Empty : " " + unit);
-                    }
-
-                    return string.Concat(part1, part2, part3, part4);
-                }
-            }
-            catch
-            {
-                return string.Empty;
-            }
-        }
+        private const int _MSOfPerMember =
+#if DEBUG
+            10
+#else
+            500
+#endif
+            ; // 被测试类每个成员的最短执行时长的毫秒数
 
         //
 
@@ -271,20 +163,22 @@ namespace Test
         {
             string result = string.Empty;
 
-            if (method != null)
+            if (memberName == null)
             {
-                if (memberName == null)
-                {
-                    memberName = string.Empty;
-                }
+                memberName = string.Empty;
+            }
 
-                if (comment == null)
-                {
-                    comment = string.Empty;
-                }
+            if (comment == null)
+            {
+                comment = string.Empty;
+            }
 
-                //
-
+            if (method == null)
+            {
+                result = string.Concat("[", memberName.Replace(',', ';'), "], Untested", (comment.Length > 0 ? ", " + comment.Replace(',', ';') : string.Empty));
+            }
+            else
+            {
                 double tryMS = _MSOfPerMember * 0.1;
                 int tryCycle = 1;
                 int cycle = 0;
@@ -357,11 +251,7 @@ namespace Test
 
                 double msPerCycle = totalMS / cycle;
 
-                result = string.Concat("[", memberName, "] ", _GetScientificNotationString(msPerCycle / 1000, 4, true, true, "s"), ", ", _GetScientificNotationString(1000 / msPerCycle, 4, true, true, "Hz"), (comment.Length > 0 ? ", " + comment : string.Empty));
-            }
-            else
-            {
-                result = string.Concat("[", memberName, "] Untested", (comment.Length > 0 ? ", " + comment : string.Empty));
+                result = string.Concat("[", memberName.Replace(',', ';'), "], ", Com.Text.GetScientificNotationString(msPerCycle / 1000, 4, true, true, "s").Replace('μ', 'u'), ", ", Com.Text.GetScientificNotationString(1000 / msPerCycle, 4, true, true, "Hz").Replace('μ', 'u'), (comment.Length > 0 ? ", " + comment.Replace(',', ';') : string.Empty));
             }
 
             TestResult.Log(result);
@@ -478,7 +368,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    byte result = Com.BitOperation.GetBinary8WithSingleBit1(bit);
+                    _ = Com.BitOperation.GetBinary8WithSingleBit1(bit);
                 };
 
                 ExecuteTest(method, "Com.BitOperation.GetBinary8WithSingleBit1(int)");
@@ -489,7 +379,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    byte result = Com.BitOperation.GetBinary8WithSingleBit0(bit);
+                    _ = Com.BitOperation.GetBinary8WithSingleBit0(bit);
                 };
 
                 ExecuteTest(method, "Com.BitOperation.GetBinary8WithSingleBit0(int)");
@@ -537,7 +427,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = Com.BitOperation.BinaryHasBit(bin, bit);
+                    _ = Com.BitOperation.BinaryHasBit(bin, bit);
                 };
 
                 ExecuteTest(method, "Com.BitOperation.BinaryHasBit(byte, int)");
@@ -548,7 +438,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    int result = Com.BitOperation.GetBit1CountOfBinary(bin);
+                    _ = Com.BitOperation.GetBit1CountOfBinary(bin);
                 };
 
                 ExecuteTest(method, "Com.BitOperation.GetBit1CountOfBinary(byte)");
@@ -559,7 +449,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    int result = Com.BitOperation.GetBit0CountOfBinary(bin);
+                    _ = Com.BitOperation.GetBit0CountOfBinary(bin);
                 };
 
                 ExecuteTest(method, "Com.BitOperation.GetBit0CountOfBinary(byte)");
@@ -570,7 +460,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    List<int> result = Com.BitOperation.GetBit1IndexOfBinary(bin);
+                    _ = Com.BitOperation.GetBit1IndexOfBinary(bin);
                 };
 
                 ExecuteTest(method, "Com.BitOperation.GetBit1IndexOfBinary(byte)");
@@ -581,7 +471,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    List<int> result = Com.BitOperation.GetBit0IndexOfBinary(bin);
+                    _ = Com.BitOperation.GetBit0IndexOfBinary(bin);
                 };
 
                 ExecuteTest(method, "Com.BitOperation.GetBit0IndexOfBinary(byte)");
@@ -594,7 +484,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    ushort result = Com.BitOperation.GetBinary16WithSingleBit1(bit);
+                    _ = Com.BitOperation.GetBinary16WithSingleBit1(bit);
                 };
 
                 ExecuteTest(method, "Com.BitOperation.GetBinary16WithSingleBit1(int)");
@@ -605,7 +495,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    ushort result = Com.BitOperation.GetBinary16WithSingleBit0(bit);
+                    _ = Com.BitOperation.GetBinary16WithSingleBit0(bit);
                 };
 
                 ExecuteTest(method, "Com.BitOperation.GetBinary16WithSingleBit0(int)");
@@ -653,7 +543,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = Com.BitOperation.BinaryHasBit(bin, bit);
+                    _ = Com.BitOperation.BinaryHasBit(bin, bit);
                 };
 
                 ExecuteTest(method, "Com.BitOperation.BinaryHasBit(ushort, int)");
@@ -664,7 +554,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    int result = Com.BitOperation.GetBit1CountOfBinary(bin);
+                    _ = Com.BitOperation.GetBit1CountOfBinary(bin);
                 };
 
                 ExecuteTest(method, "Com.BitOperation.GetBit1CountOfBinary(ushort)");
@@ -675,7 +565,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    int result = Com.BitOperation.GetBit0CountOfBinary(bin);
+                    _ = Com.BitOperation.GetBit0CountOfBinary(bin);
                 };
 
                 ExecuteTest(method, "Com.BitOperation.GetBit0CountOfBinary(ushort)");
@@ -686,7 +576,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    List<int> result = Com.BitOperation.GetBit1IndexOfBinary(bin);
+                    _ = Com.BitOperation.GetBit1IndexOfBinary(bin);
                 };
 
                 ExecuteTest(method, "Com.BitOperation.GetBit1IndexOfBinary(ushort)");
@@ -697,7 +587,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    List<int> result = Com.BitOperation.GetBit0IndexOfBinary(bin);
+                    _ = Com.BitOperation.GetBit0IndexOfBinary(bin);
                 };
 
                 ExecuteTest(method, "Com.BitOperation.GetBit0IndexOfBinary(ushort)");
@@ -710,7 +600,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    uint result = Com.BitOperation.GetBinary32WithSingleBit1(bit);
+                    _ = Com.BitOperation.GetBinary32WithSingleBit1(bit);
                 };
 
                 ExecuteTest(method, "Com.BitOperation.GetBinary32WithSingleBit1(int)");
@@ -721,7 +611,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    uint result = Com.BitOperation.GetBinary32WithSingleBit0(bit);
+                    _ = Com.BitOperation.GetBinary32WithSingleBit0(bit);
                 };
 
                 ExecuteTest(method, "Com.BitOperation.GetBinary32WithSingleBit0(int)");
@@ -769,7 +659,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = Com.BitOperation.BinaryHasBit(bin, bit);
+                    _ = Com.BitOperation.BinaryHasBit(bin, bit);
                 };
 
                 ExecuteTest(method, "Com.BitOperation.BinaryHasBit(uint, int)");
@@ -780,7 +670,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    int result = Com.BitOperation.GetBit1CountOfBinary(bin);
+                    _ = Com.BitOperation.GetBit1CountOfBinary(bin);
                 };
 
                 ExecuteTest(method, "Com.BitOperation.GetBit1CountOfBinary(uint)");
@@ -791,7 +681,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    int result = Com.BitOperation.GetBit0CountOfBinary(bin);
+                    _ = Com.BitOperation.GetBit0CountOfBinary(bin);
                 };
 
                 ExecuteTest(method, "Com.BitOperation.GetBit0CountOfBinary(uint)");
@@ -802,7 +692,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    List<int> result = Com.BitOperation.GetBit1IndexOfBinary(bin);
+                    _ = Com.BitOperation.GetBit1IndexOfBinary(bin);
                 };
 
                 ExecuteTest(method, "Com.BitOperation.GetBit1IndexOfBinary(uint)");
@@ -813,7 +703,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    List<int> result = Com.BitOperation.GetBit0IndexOfBinary(bin);
+                    _ = Com.BitOperation.GetBit0IndexOfBinary(bin);
                 };
 
                 ExecuteTest(method, "Com.BitOperation.GetBit0IndexOfBinary(uint)");
@@ -826,7 +716,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    ulong result = Com.BitOperation.GetBinary64WithSingleBit1(bit);
+                    _ = Com.BitOperation.GetBinary64WithSingleBit1(bit);
                 };
 
                 ExecuteTest(method, "Com.BitOperation.GetBinary64WithSingleBit1(int)");
@@ -837,7 +727,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    ulong result = Com.BitOperation.GetBinary64WithSingleBit0(bit);
+                    _ = Com.BitOperation.GetBinary64WithSingleBit0(bit);
                 };
 
                 ExecuteTest(method, "Com.BitOperation.GetBinary64WithSingleBit0(int)");
@@ -885,7 +775,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = Com.BitOperation.BinaryHasBit(bin, bit);
+                    _ = Com.BitOperation.BinaryHasBit(bin, bit);
                 };
 
                 ExecuteTest(method, "Com.BitOperation.BinaryHasBit(ulong, int)");
@@ -896,7 +786,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    int result = Com.BitOperation.GetBit1CountOfBinary(bin);
+                    _ = Com.BitOperation.GetBit1CountOfBinary(bin);
                 };
 
                 ExecuteTest(method, "Com.BitOperation.GetBit1CountOfBinary(ulong)");
@@ -907,7 +797,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    int result = Com.BitOperation.GetBit0CountOfBinary(bin);
+                    _ = Com.BitOperation.GetBit0CountOfBinary(bin);
                 };
 
                 ExecuteTest(method, "Com.BitOperation.GetBit0CountOfBinary(ulong)");
@@ -918,7 +808,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    List<int> result = Com.BitOperation.GetBit1IndexOfBinary(bin);
+                    _ = Com.BitOperation.GetBit1IndexOfBinary(bin);
                 };
 
                 ExecuteTest(method, "Com.BitOperation.GetBit1IndexOfBinary(ulong)");
@@ -929,7 +819,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    List<int> result = Com.BitOperation.GetBit0IndexOfBinary(bin);
+                    _ = Com.BitOperation.GetBit0IndexOfBinary(bin);
                 };
 
                 ExecuteTest(method, "Com.BitOperation.GetBit0IndexOfBinary(ulong)");
@@ -944,11 +834,11 @@ namespace Test
 
     sealed class BitSetTest : ClassPerformanceTestBase
     {
-        private static Com.BitSet _GetRandomBitSet(int length)
+        private static Com.BitSet _GetRandomBitSet(int size)
         {
-            if (length > 0)
+            if (size > 0)
             {
-                bool[] array = new bool[length];
+                bool[] array = new bool[size];
 
                 for (int i = 0; i < array.Length; i++)
                 {
@@ -975,7 +865,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.BitSet bitSet = new Com.BitSet(length);
+                    _ = new Com.BitSet(length);
                 };
 
                 ExecuteTest(method, "Com.BitSet.BitSet(int)", "size at 1024 bits");
@@ -987,48 +877,93 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.BitSet bitSet = new Com.BitSet(length, bitValue);
+                    _ = new Com.BitSet(length, bitValue);
                 };
 
                 ExecuteTest(method, "Com.BitSet.BitSet(int, bool)", "size at 1024 bits");
             }
 
             {
-                bool[] array = new bool[1024];
+                bool[] values = new bool[1024];
 
-                for (int i = 0; i < array.Length; i++)
+                for (int i = 0; i < values.Length; i++)
                 {
                     if (Com.Statistics.RandomInteger() % 2 == 0)
                     {
-                        array[i] = true;
+                        values[i] = true;
                     }
                 }
 
                 Action method = () =>
                 {
-                    Com.BitSet bitSet = new Com.BitSet(array);
+                    _ = new Com.BitSet(values);
                 };
 
                 ExecuteTest(method, "Com.BitSet.BitSet(bool[])", "size at 1024 bits");
             }
 
             {
-                int[] array = new int[1024];
+                byte[] values = new byte[1024];
 
-                for (int i = 0; i < array.Length; i++)
+                for (int i = 0; i < values.Length; i++)
                 {
-                    if (Com.Statistics.RandomInteger() % 2 == 0)
-                    {
-                        array[i] = 1;
-                    }
+                    values[i] = (byte)Com.Statistics.RandomInteger(byte.MaxValue);
                 }
 
                 Action method = () =>
                 {
-                    Com.BitSet bitSet = new Com.BitSet(array);
+                    _ = new Com.BitSet(values);
                 };
 
-                ExecuteTest(method, "Com.BitSet.BitSet(int[])", "size at 1024 bits");
+                ExecuteTest(method, "Com.BitSet.BitSet(byte[])", "size at 1024 bits");
+            }
+
+            {
+                ushort[] values = new ushort[1024];
+
+                for (int i = 0; i < values.Length; i++)
+                {
+                    values[i] = (ushort)Com.Statistics.RandomInteger(ushort.MaxValue);
+                }
+
+                Action method = () =>
+                {
+                    _ = new Com.BitSet(values);
+                };
+
+                ExecuteTest(method, "Com.BitSet.BitSet(ushort[])", "size at 1024 bits");
+            }
+
+            {
+                uint[] values = new uint[1024];
+
+                for (int i = 0; i < values.Length; i++)
+                {
+                    values[i] = (uint)(((long)Com.Statistics.RandomInteger() * Com.Statistics.RandomInteger()) % uint.MaxValue);
+                }
+
+                Action method = () =>
+                {
+                    _ = new Com.BitSet(values);
+                };
+
+                ExecuteTest(method, "Com.BitSet.BitSet(uint[])", "size at 1024 bits");
+            }
+
+            {
+                ulong[] values = new ulong[1024];
+
+                for (int i = 0; i < values.Length; i++)
+                {
+                    values[i] = (((ulong)Com.Statistics.RandomInteger()) << 32) + (ulong)Com.Statistics.RandomInteger();
+                }
+
+                Action method = () =>
+                {
+                    _ = new Com.BitSet(values);
+                };
+
+                ExecuteTest(method, "Com.BitSet.BitSet(ulong[])", "size at 1024 bits");
             }
         }
 
@@ -1042,7 +977,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = bitSet[index];
+                    _ = bitSet[index];
                 };
 
                 ExecuteTest(method, "Com.BitSet.this[int].get()", "size at 1024 bits");
@@ -1068,10 +1003,32 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = bitSet.IsEmpty;
+                    _ = bitSet.IsEmpty;
                 };
 
                 ExecuteTest(method, "Com.BitSet.IsEmpty.get()", "size at 1024 bits");
+            }
+
+            {
+                Com.BitSet bitSet = new Com.BitSet(1024);
+
+                Action method = () =>
+                {
+                    _ = bitSet.IsReadOnly;
+                };
+
+                ExecuteTest(method, "Com.BitSet.IsReadOnly.get()", "size at 1024 bits");
+            }
+
+            {
+                Com.BitSet bitSet = new Com.BitSet(1024);
+
+                Action method = () =>
+                {
+                    _ = bitSet.IsFixedSize;
+                };
+
+                ExecuteTest(method, "Com.BitSet.IsFixedSize.get()", "size at 1024 bits");
             }
 
             // Size
@@ -1081,7 +1038,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    int result = bitSet.Size;
+                    _ = bitSet.Size;
                 };
 
                 ExecuteTest(method, "Com.BitSet.Size.get()", "size at 1024 bits");
@@ -1104,21 +1061,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    int result = bitSet.Count;
+                    _ = bitSet.Count;
                 };
 
                 ExecuteTest(method, "Com.BitSet.Count.get()", "size at 1024 bits");
-            }
-
-            {
-                Com.BitSet bitSet = new Com.BitSet(1024);
-
-                Action method = () =>
-                {
-                    int result = bitSet.Length;
-                };
-
-                ExecuteTest(method, "Com.BitSet.Length.get()", "size at 1024 bits");
             }
 
             // Capacity
@@ -1128,7 +1074,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    int result = bitSet.Capacity;
+                    _ = bitSet.Capacity;
                 };
 
                 ExecuteTest(method, "Com.BitSet.Capacity.get()", "size at 1024 bits");
@@ -1137,7 +1083,16 @@ namespace Test
 
         protected override void StaticProperty()
         {
+            // Empty
 
+            {
+                Action method = () =>
+                {
+                    _ = Com.BitSet.Empty;
+                };
+
+                ExecuteTest(method, "Com.BitSet.Empty.get()");
+            }
         }
 
         protected override void Method()
@@ -1146,11 +1101,11 @@ namespace Test
 
             {
                 Com.BitSet bitSet = _GetRandomBitSet(1024);
-                object obj = (object)bitSet.Copy();
+                object obj = bitSet.Copy();
 
                 Action method = () =>
                 {
-                    bool result = bitSet.Equals(obj);
+                    _ = bitSet.Equals(obj);
                 };
 
                 ExecuteTest(method, "Com.BitSet.Equals(object)", "size at 1024 bits");
@@ -1161,7 +1116,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    int result = bitSet.GetHashCode();
+                    _ = bitSet.GetHashCode();
                 };
 
                 ExecuteTest(method, "Com.BitSet.GetHashCode()", "size at 1024 bits");
@@ -1172,7 +1127,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    string result = bitSet.ToString();
+                    _ = bitSet.ToString();
                 };
 
                 ExecuteTest(method, "Com.BitSet.ToString()", "size at 1024 bits");
@@ -1186,10 +1141,36 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = left.Equals(right);
+                    _ = left.Equals(right);
                 };
 
                 ExecuteTest(method, "Com.BitSet.Equals(Com.BitSet)", "size at 1024 bits");
+            }
+
+            // CompareTo
+
+            {
+                Com.BitSet left = _GetRandomBitSet(1024);
+                object right = left.Copy();
+
+                Action method = () =>
+                {
+                    _ = left.CompareTo(right);
+                };
+
+                ExecuteTest(method, "Com.BitSet.CompareTo(object)", "size at 1024 bits");
+            }
+
+            {
+                Com.BitSet left = _GetRandomBitSet(1024);
+                Com.BitSet right = left.Copy();
+
+                Action method = () =>
+                {
+                    _ = left.CompareTo(right);
+                };
+
+                ExecuteTest(method, "Com.BitSet.CompareTo(Com.BitSet)", "size at 1024 bits");
             }
 
             // Copy
@@ -1199,10 +1180,140 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.BitSet result = bitSet.Copy();
+                    _ = bitSet.Copy();
                 };
 
                 ExecuteTest(method, "Com.BitSet.Copy()", "size at 1024 bits");
+            }
+
+            // 检索
+
+            {
+                Com.BitSet bitSet = _GetRandomBitSet(1024);
+                bool item1 = true;
+                bool item2 = false;
+
+                Action method = () =>
+                {
+                    int result1 = bitSet.IndexOf(item1);
+                    int result2 = bitSet.IndexOf(item2);
+                };
+
+                ExecuteTest(method, "Com.BitSet.IndexOf(bool)", "size at 1024 bits, search for both true and false bit");
+            }
+
+            {
+                Com.BitSet bitSet = _GetRandomBitSet(1024);
+                bool item1 = true;
+                bool item2 = false;
+                int startIndex = 0;
+
+                Action method = () =>
+                {
+                    int result1 = bitSet.IndexOf(item1, startIndex);
+                    int result2 = bitSet.IndexOf(item2, startIndex);
+                };
+
+                ExecuteTest(method, "Com.BitSet.IndexOf(bool, int)", "size at 1024 bits, search for both true and false bit");
+            }
+
+            {
+                Com.BitSet bitSet = _GetRandomBitSet(1024);
+                bool item1 = true;
+                bool item2 = false;
+                int startIndex = 0;
+                int count = 1024;
+
+                Action method = () =>
+                {
+                    int result1 = bitSet.IndexOf(item1, startIndex, count);
+                    int result2 = bitSet.IndexOf(item2, startIndex, count);
+                };
+
+                ExecuteTest(method, "Com.BitSet.IndexOf(bool, int, int)", "size at 1024 bits, search for both true and false bit");
+            }
+
+            {
+                Com.BitSet bitSet = _GetRandomBitSet(1024);
+                bool item1 = true;
+                bool item2 = false;
+
+                Action method = () =>
+                {
+                    int result1 = bitSet.LastIndexOf(item1);
+                    int result2 = bitSet.LastIndexOf(item2);
+                };
+
+                ExecuteTest(method, "Com.BitSet.LastIndexOf(bool)", "size at 1024 bits, search for both true and false bit");
+            }
+
+            {
+                Com.BitSet bitSet = _GetRandomBitSet(1024);
+                bool item1 = true;
+                bool item2 = false;
+                int startIndex = 1023;
+
+                Action method = () =>
+                {
+                    int result1 = bitSet.LastIndexOf(item1, startIndex);
+                    int result2 = bitSet.LastIndexOf(item2, startIndex);
+                };
+
+                ExecuteTest(method, "Com.BitSet.LastIndexOf(bool, int)", "size at 1024 bits, search for both true and false bit");
+            }
+
+            {
+                Com.BitSet bitSet = _GetRandomBitSet(1024);
+                bool item1 = true;
+                bool item2 = false;
+                int startIndex = 1023;
+                int count = 1024;
+
+                Action method = () =>
+                {
+                    int result1 = bitSet.LastIndexOf(item1, startIndex, count);
+                    int result2 = bitSet.LastIndexOf(item2, startIndex, count);
+                };
+
+                ExecuteTest(method, "Com.BitSet.LastIndexOf(bool, int, int)", "size at 1024 bits, search for both true and false bit");
+            }
+
+            {
+                Com.BitSet bitSet = _GetRandomBitSet(1024);
+                bool item1 = true;
+                bool item2 = false;
+
+                Action method = () =>
+                {
+                    bool result1 = bitSet.Contains(item1);
+                    bool result2 = bitSet.Contains(item2);
+                };
+
+                ExecuteTest(method, "Com.BitSet.Contains(bool)", "size at 1024 bits, search for both true and false bit");
+            }
+
+            // ToArray，ToList
+
+            {
+                Com.BitSet bitSet = _GetRandomBitSet(1024);
+
+                Action method = () =>
+                {
+                    _ = bitSet.ToArray();
+                };
+
+                ExecuteTest(method, "Com.BitSet.ToArray()", "size at 1024 bits");
+            }
+
+            {
+                Com.BitSet bitSet = _GetRandomBitSet(1024);
+
+                Action method = () =>
+                {
+                    _ = bitSet.ToList();
+                };
+
+                ExecuteTest(method, "Com.BitSet.ToList()", "size at 1024 bits");
             }
 
             // Trim
@@ -1228,7 +1339,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = bitSet.Get(index);
+                    _ = bitSet.Get(index);
                 };
 
                 ExecuteTest(method, "Com.BitSet.Get(int)", "size at 1024 bits");
@@ -1335,7 +1446,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    int result = bitSet.TrueBitCount();
+                    _ = bitSet.TrueBitCount();
                 };
 
                 ExecuteTest(method, "Com.BitSet.TrueBitCount()", "size at 1024 bits");
@@ -1346,7 +1457,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    int result = bitSet.FalseBitCount();
+                    _ = bitSet.FalseBitCount();
                 };
 
                 ExecuteTest(method, "Com.BitSet.FalseBitCount()", "size at 1024 bits");
@@ -1357,7 +1468,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    int[] result = bitSet.TrueBitIndex();
+                    _ = bitSet.TrueBitIndex();
                 };
 
                 ExecuteTest(method, "Com.BitSet.TrueBitIndex()", "size at 1024 bits");
@@ -1368,13 +1479,13 @@ namespace Test
 
                 Action method = () =>
                 {
-                    int[] result = bitSet.FalseBitIndex();
+                    _ = bitSet.FalseBitIndex();
                 };
 
                 ExecuteTest(method, "Com.BitSet.FalseBitIndex()", "size at 1024 bits");
             }
 
-            // Logical
+            // 位运算
 
             {
                 Com.BitSet left = _GetRandomBitSet(1024);
@@ -1382,7 +1493,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.BitSet result = left.And(right);
+                    _ = left.And(right);
                 };
 
                 ExecuteTest(method, "Com.BitSet.And(Com.BitSet)", "size at 1024 bits");
@@ -1394,7 +1505,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.BitSet result = left.Or(right);
+                    _ = left.Or(right);
                 };
 
                 ExecuteTest(method, "Com.BitSet.Or(Com.BitSet)", "size at 1024 bits");
@@ -1406,7 +1517,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.BitSet result = left.Xor(right);
+                    _ = left.Xor(right);
                 };
 
                 ExecuteTest(method, "Com.BitSet.Xor(Com.BitSet)", "size at 1024 bits");
@@ -1417,47 +1528,23 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.BitSet result = bitSet.Not();
+                    _ = bitSet.Not();
                 };
 
                 ExecuteTest(method, "Com.BitSet.Not()", "size at 1024 bits");
             }
 
-            // ToArray
+            // 字符串
 
             {
                 Com.BitSet bitSet = _GetRandomBitSet(1024);
 
                 Action method = () =>
                 {
-                    bool[] result = bitSet.ToBoolArray();
+                    _ = bitSet.ToBinaryString();
                 };
 
-                ExecuteTest(method, "Com.BitSet.ToBoolArray()", "size at 1024 bits");
-            }
-
-            {
-                Com.BitSet bitSet = _GetRandomBitSet(1024);
-
-                Action method = () =>
-                {
-                    int[] result = bitSet.ToIntArray();
-                };
-
-                ExecuteTest(method, "Com.BitSet.ToIntArray()", "size at 1024 bits");
-            }
-
-            // ToBitString
-
-            {
-                Com.BitSet bitSet = _GetRandomBitSet(1024);
-
-                Action method = () =>
-                {
-                    string result = bitSet.ToBitString();
-                };
-
-                ExecuteTest(method, "Com.BitSet.ToBitString()", "size at 1024 bits");
+                ExecuteTest(method, "Com.BitSet.ToBinaryString()", "size at 1024 bits");
             }
         }
 
@@ -1470,7 +1557,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = Com.BitSet.IsNullOrEmpty(bitSet);
+                    _ = Com.BitSet.IsNullOrEmpty(bitSet);
                 };
 
                 ExecuteTest(method, "Com.BitSet.IsNullOrEmpty(Com.BitSet)", "size at 1024 bits");
@@ -1484,10 +1571,24 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = Com.BitSet.Equals(left, right);
+                    _ = Com.BitSet.Equals(left, right);
                 };
 
                 ExecuteTest(method, "Com.BitSet.Equals(Com.BitSet, Com.BitSet)", "size at 1024 bits");
+            }
+
+            // Compare
+
+            {
+                Com.BitSet left = _GetRandomBitSet(1024);
+                Com.BitSet right = left.Copy();
+
+                Action method = () =>
+                {
+                    _ = Com.BitSet.Compare(left, right);
+                };
+
+                ExecuteTest(method, "Com.BitSet.Compare(Com.BitSet, Com.BitSet)", "size at 1024 bits");
             }
         }
 
@@ -1501,7 +1602,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = (left == right);
+                    _ = (left == right);
                 };
 
                 ExecuteTest(method, "Com.BitSet.operator ==(Com.BitSet, Com.BitSet)", "size at 1024 bits");
@@ -1513,10 +1614,107 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = (left != right);
+                    _ = (left != right);
                 };
 
                 ExecuteTest(method, "Com.BitSet.operator !=(Com.BitSet, Com.BitSet)", "size at 1024 bits");
+            }
+
+            {
+                Com.BitSet left = _GetRandomBitSet(1024);
+                Com.BitSet right = left.Copy();
+
+                Action method = () =>
+                {
+                    _ = (left < right);
+                };
+
+                ExecuteTest(method, "Com.BitSet.operator <(Com.BitSet, Com.BitSet)", "size at 1024 bits");
+            }
+
+            {
+                Com.BitSet left = _GetRandomBitSet(1024);
+                Com.BitSet right = left.Copy();
+
+                Action method = () =>
+                {
+                    _ = (left > right);
+                };
+
+                ExecuteTest(method, "Com.BitSet.operator >(Com.BitSet, Com.BitSet)", "size at 1024 bits");
+            }
+
+            {
+                Com.BitSet left = _GetRandomBitSet(1024);
+                Com.BitSet right = left.Copy();
+
+                Action method = () =>
+                {
+                    _ = (left <= right);
+                };
+
+                ExecuteTest(method, "Com.BitSet.operator <=(Com.BitSet, Com.BitSet)", "size at 1024 bits");
+            }
+
+            {
+                Com.BitSet left = _GetRandomBitSet(1024);
+                Com.BitSet right = left.Copy();
+
+                Action method = () =>
+                {
+                    _ = (left >= right);
+                };
+
+                ExecuteTest(method, "Com.BitSet.operator >=(Com.BitSet, Com.BitSet)", "size at 1024 bits");
+            }
+
+            // 运算
+
+            {
+                Com.BitSet left = _GetRandomBitSet(1024);
+                Com.BitSet right = left.Copy();
+
+                Action method = () =>
+                {
+                    _ = left & right;
+                };
+
+                ExecuteTest(method, "Com.BitSet.operator &(Com.BitSet, Com.BitSet)", "size at 1024 bits");
+            }
+
+            {
+                Com.BitSet left = _GetRandomBitSet(1024);
+                Com.BitSet right = left.Copy();
+
+                Action method = () =>
+                {
+                    _ = left | right;
+                };
+
+                ExecuteTest(method, "Com.BitSet.operator |(Com.BitSet, Com.BitSet)", "size at 1024 bits");
+            }
+
+            {
+                Com.BitSet left = _GetRandomBitSet(1024);
+                Com.BitSet right = left.Copy();
+
+                Action method = () =>
+                {
+                    _ = left ^ right;
+                };
+
+                ExecuteTest(method, "Com.BitSet.operator ^(Com.BitSet, Com.BitSet)", "size at 1024 bits");
+            }
+
+            {
+                Com.BitSet right = _GetRandomBitSet(1024);
+
+                Action method = () =>
+                {
+                    _ = ~right;
+                };
+
+                ExecuteTest(method, "Com.BitSet.operator ~(Com.BitSet)", "size at 1024 bits");
             }
         }
     }
@@ -1545,14 +1743,14 @@ namespace Test
 
         protected override void StaticMethod()
         {
-            // ColorName
+            // 颜色名
 
             {
                 Com.ColorX color = Com.ColorManipulation.GetRandomColorX();
 
                 Action method = () =>
                 {
-                    string result = Com.ColorManipulation.GetColorName(color);
+                    _ = Com.ColorManipulation.GetColorName(color);
                 };
 
                 ExecuteTest(method, "Com.ColorManipulation.GetColorName(Com.ColorX)");
@@ -1563,18 +1761,18 @@ namespace Test
 
                 Action method = () =>
                 {
-                    string result = Com.ColorManipulation.GetColorName(color);
+                    _ = Com.ColorManipulation.GetColorName(color);
                 };
 
                 ExecuteTest(method, "Com.ColorManipulation.GetColorName(System.Drawing.Color)");
             }
 
-            // RandomColor
+            // 随机色
 
             {
                 Action method = () =>
                 {
-                    Com.ColorX result = Com.ColorManipulation.GetRandomColorX();
+                    _ = Com.ColorManipulation.GetRandomColorX();
                 };
 
                 ExecuteTest(method, "Com.ColorManipulation.GetRandomColorX()");
@@ -1583,7 +1781,7 @@ namespace Test
             {
                 Action method = () =>
                 {
-                    Color result = Com.ColorManipulation.GetRandomColor();
+                    _ = Com.ColorManipulation.GetRandomColor();
                 };
 
                 ExecuteTest(method, "Com.ColorManipulation.GetRandomColor()");
@@ -1596,7 +1794,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX result = Com.ColorManipulation.GetComplementaryColor(color);
+                    _ = Com.ColorManipulation.GetComplementaryColor(color);
                 };
 
                 ExecuteTest(method, "Com.ColorManipulation.GetComplementaryColor(Com.ColorX)");
@@ -1607,7 +1805,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Color result = Com.ColorManipulation.GetComplementaryColor(color);
+                    _ = Com.ColorManipulation.GetComplementaryColor(color);
                 };
 
                 ExecuteTest(method, "Com.ColorManipulation.GetComplementaryColor(System.Drawing.Color)");
@@ -1618,7 +1816,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX result = Com.ColorManipulation.GetGrayscaleColor(color);
+                    _ = Com.ColorManipulation.GetGrayscaleColor(color);
                 };
 
                 ExecuteTest(method, "Com.ColorManipulation.GetGrayscaleColor(Com.ColorX)");
@@ -1629,7 +1827,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Color result = Com.ColorManipulation.GetGrayscaleColor(color);
+                    _ = Com.ColorManipulation.GetGrayscaleColor(color);
                 };
 
                 ExecuteTest(method, "Com.ColorManipulation.GetGrayscaleColor(System.Drawing.Color)");
@@ -1644,7 +1842,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX result = Com.ColorManipulation.BlendByRGB(color1, color2, proportion);
+                    _ = Com.ColorManipulation.BlendByRGB(color1, color2, proportion);
                 };
 
                 ExecuteTest(method, "Com.ColorManipulation.BlendByRGB(Com.ColorX, Com.ColorX, double)");
@@ -1657,7 +1855,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Color result = Com.ColorManipulation.BlendByRGB(color1, color2, proportion);
+                    _ = Com.ColorManipulation.BlendByRGB(color1, color2, proportion);
                 };
 
                 ExecuteTest(method, "Com.ColorManipulation.BlendByRGB(System.Drawing.Color, System.Drawing.Color, double)");
@@ -1670,7 +1868,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX result = Com.ColorManipulation.BlendByHSV(color1, color2, proportion);
+                    _ = Com.ColorManipulation.BlendByHSV(color1, color2, proportion);
                 };
 
                 ExecuteTest(method, "Com.ColorManipulation.BlendByHSV(Com.ColorX, Com.ColorX, double)");
@@ -1683,7 +1881,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Color result = Com.ColorManipulation.BlendByHSV(color1, color2, proportion);
+                    _ = Com.ColorManipulation.BlendByHSV(color1, color2, proportion);
                 };
 
                 ExecuteTest(method, "Com.ColorManipulation.BlendByHSV(System.Drawing.Color, System.Drawing.Color, double)");
@@ -1696,7 +1894,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX result = Com.ColorManipulation.BlendByHSL(color1, color2, proportion);
+                    _ = Com.ColorManipulation.BlendByHSL(color1, color2, proportion);
                 };
 
                 ExecuteTest(method, "Com.ColorManipulation.BlendByHSL(Com.ColorX, Com.ColorX, double)");
@@ -1709,7 +1907,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Color result = Com.ColorManipulation.BlendByHSL(color1, color2, proportion);
+                    _ = Com.ColorManipulation.BlendByHSL(color1, color2, proportion);
                 };
 
                 ExecuteTest(method, "Com.ColorManipulation.BlendByHSL(System.Drawing.Color, System.Drawing.Color, double)");
@@ -1722,7 +1920,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX result = Com.ColorManipulation.BlendByCMYK(color1, color2, proportion);
+                    _ = Com.ColorManipulation.BlendByCMYK(color1, color2, proportion);
                 };
 
                 ExecuteTest(method, "Com.ColorManipulation.BlendByCMYK(Com.ColorX, Com.ColorX, double)");
@@ -1735,7 +1933,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Color result = Com.ColorManipulation.BlendByCMYK(color1, color2, proportion);
+                    _ = Com.ColorManipulation.BlendByCMYK(color1, color2, proportion);
                 };
 
                 ExecuteTest(method, "Com.ColorManipulation.BlendByCMYK(System.Drawing.Color, System.Drawing.Color, double)");
@@ -1748,7 +1946,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX result = Com.ColorManipulation.BlendByLAB(color1, color2, proportion);
+                    _ = Com.ColorManipulation.BlendByLAB(color1, color2, proportion);
                 };
 
                 ExecuteTest(method, "Com.ColorManipulation.BlendByLAB(Com.ColorX, Com.ColorX, double)");
@@ -1761,7 +1959,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Color result = Com.ColorManipulation.BlendByLAB(color1, color2, proportion);
+                    _ = Com.ColorManipulation.BlendByLAB(color1, color2, proportion);
                 };
 
                 ExecuteTest(method, "Com.ColorManipulation.BlendByLAB(System.Drawing.Color, System.Drawing.Color, double)");
@@ -1775,7 +1973,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX result = Com.ColorManipulation.ShiftLightnessByHSV(color, level);
+                    _ = Com.ColorManipulation.ShiftLightnessByHSV(color, level);
                 };
 
                 ExecuteTest(method, "Com.ColorManipulation.ShiftLightnessByHSV(Com.ColorX, double)");
@@ -1787,7 +1985,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Color result = Com.ColorManipulation.ShiftLightnessByHSV(color, level);
+                    _ = Com.ColorManipulation.ShiftLightnessByHSV(color, level);
                 };
 
                 ExecuteTest(method, "Com.ColorManipulation.ShiftLightnessByHSV(System.Drawing.Color, double)");
@@ -1799,7 +1997,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX result = Com.ColorManipulation.ShiftLightnessByHSL(color, level);
+                    _ = Com.ColorManipulation.ShiftLightnessByHSL(color, level);
                 };
 
                 ExecuteTest(method, "Com.ColorManipulation.ShiftLightnessByHSL(Com.ColorX, double)");
@@ -1811,7 +2009,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Color result = Com.ColorManipulation.ShiftLightnessByHSL(color, level);
+                    _ = Com.ColorManipulation.ShiftLightnessByHSL(color, level);
                 };
 
                 ExecuteTest(method, "Com.ColorManipulation.ShiftLightnessByHSL(System.Drawing.Color, double)");
@@ -1823,7 +2021,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX result = Com.ColorManipulation.ShiftLightnessByLAB(color, level);
+                    _ = Com.ColorManipulation.ShiftLightnessByLAB(color, level);
                 };
 
                 ExecuteTest(method, "Com.ColorManipulation.ShiftLightnessByLAB(Com.ColorX, double)");
@@ -1835,7 +2033,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Color result = Com.ColorManipulation.ShiftLightnessByLAB(color, level);
+                    _ = Com.ColorManipulation.ShiftLightnessByLAB(color, level);
                 };
 
                 ExecuteTest(method, "Com.ColorManipulation.ShiftLightnessByLAB(System.Drawing.Color, double)");
@@ -1847,7 +2045,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX result = Com.ColorManipulation.ShiftSaturationByHSV(color, level);
+                    _ = Com.ColorManipulation.ShiftSaturationByHSV(color, level);
                 };
 
                 ExecuteTest(method, "Com.ColorManipulation.ShiftSaturationByHSV(Com.ColorX, double)");
@@ -1859,7 +2057,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Color result = Com.ColorManipulation.ShiftSaturationByHSV(color, level);
+                    _ = Com.ColorManipulation.ShiftSaturationByHSV(color, level);
                 };
 
                 ExecuteTest(method, "Com.ColorManipulation.ShiftSaturationByHSV(System.Drawing.Color, double)");
@@ -1871,7 +2069,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX result = Com.ColorManipulation.ShiftSaturationByHSL(color, level);
+                    _ = Com.ColorManipulation.ShiftSaturationByHSL(color, level);
                 };
 
                 ExecuteTest(method, "Com.ColorManipulation.ShiftSaturationByHSL(Com.ColorX, double)");
@@ -1883,7 +2081,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Color result = Com.ColorManipulation.ShiftSaturationByHSL(color, level);
+                    _ = Com.ColorManipulation.ShiftSaturationByHSL(color, level);
                 };
 
                 ExecuteTest(method, "Com.ColorManipulation.ShiftSaturationByHSL(System.Drawing.Color, double)");
@@ -1905,7 +2103,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX colorX = new Com.ColorX(color);
+                    _ = new Com.ColorX(color);
                 };
 
                 ExecuteTest(method, "Com.ColorX.ColorX(System.Drawing.Color)");
@@ -1916,10 +2114,21 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX colorX = new Com.ColorX(argb);
+                    _ = new Com.ColorX(argb);
                 };
 
                 ExecuteTest(method, "Com.ColorX.ColorX(int)");
+            }
+
+            {
+                string hexCode = Com.ColorManipulation.GetRandomColorX().ARGBHexCode;
+
+                Action method = () =>
+                {
+                    _ = new Com.ColorX(hexCode);
+                };
+
+                ExecuteTest(method, "Com.ColorX.ColorX(string)");
             }
         }
 
@@ -1932,7 +2141,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = colorX.IsEmpty;
+                    _ = colorX.IsEmpty;
                 };
 
                 ExecuteTest(method, "Com.ColorX.IsEmpty.get()");
@@ -1943,7 +2152,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = colorX.IsTransparent;
+                    _ = colorX.IsTransparent;
                 };
 
                 ExecuteTest(method, "Com.ColorX.IsTransparent.get()");
@@ -1956,7 +2165,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = colorX.Opacity;
+                    _ = colorX.Opacity;
                 };
 
                 ExecuteTest(method, "Com.ColorX.Opacity.get()");
@@ -1981,7 +2190,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = colorX.Alpha;
+                    _ = colorX.Alpha;
                 };
 
                 ExecuteTest(method, "Com.ColorX.Alpha.get()");
@@ -2004,7 +2213,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = colorX.Red;
+                    _ = colorX.Red;
                 };
 
                 ExecuteTest(method, "Com.ColorX.Red.get()");
@@ -2027,7 +2236,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = colorX.Green;
+                    _ = colorX.Green;
                 };
 
                 ExecuteTest(method, "Com.ColorX.Green.get()");
@@ -2050,7 +2259,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = colorX.Blue;
+                    _ = colorX.Blue;
                 };
 
                 ExecuteTest(method, "Com.ColorX.Blue.get()");
@@ -2075,7 +2284,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = colorX.Hue_HSV;
+                    _ = colorX.Hue_HSV;
                 };
 
                 ExecuteTest(method, "Com.ColorX.Hue_HSV.get()");
@@ -2098,7 +2307,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = colorX.Saturation_HSV;
+                    _ = colorX.Saturation_HSV;
                 };
 
                 ExecuteTest(method, "Com.ColorX.Saturation_HSV.get()");
@@ -2121,7 +2330,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = colorX.Brightness;
+                    _ = colorX.Brightness;
                 };
 
                 ExecuteTest(method, "Com.ColorX.Brightness.get()");
@@ -2146,7 +2355,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = colorX.Hue_HSL;
+                    _ = colorX.Hue_HSL;
                 };
 
                 ExecuteTest(method, "Com.ColorX.Hue_HSL.get()");
@@ -2169,7 +2378,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = colorX.Saturation_HSL;
+                    _ = colorX.Saturation_HSL;
                 };
 
                 ExecuteTest(method, "Com.ColorX.Saturation_HSL.get()");
@@ -2192,7 +2401,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = colorX.Lightness_HSL;
+                    _ = colorX.Lightness_HSL;
                 };
 
                 ExecuteTest(method, "Com.ColorX.Lightness_HSL.get()");
@@ -2217,7 +2426,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = colorX.Cyan;
+                    _ = colorX.Cyan;
                 };
 
                 ExecuteTest(method, "Com.ColorX.Cyan.get()");
@@ -2240,7 +2449,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = colorX.Magenta;
+                    _ = colorX.Magenta;
                 };
 
                 ExecuteTest(method, "Com.ColorX.Magenta.get()");
@@ -2263,7 +2472,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = colorX.Yellow;
+                    _ = colorX.Yellow;
                 };
 
                 ExecuteTest(method, "Com.ColorX.Yellow.get()");
@@ -2286,7 +2495,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = colorX.Black;
+                    _ = colorX.Black;
                 };
 
                 ExecuteTest(method, "Com.ColorX.Black.get()");
@@ -2311,7 +2520,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = colorX.Lightness_LAB;
+                    _ = colorX.Lightness_LAB;
                 };
 
                 ExecuteTest(method, "Com.ColorX.Lightness_LAB.get()");
@@ -2334,7 +2543,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = colorX.GreenRed;
+                    _ = colorX.GreenRed;
                 };
 
                 ExecuteTest(method, "Com.ColorX.GreenRed.get()");
@@ -2357,7 +2566,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = colorX.BlueYellow;
+                    _ = colorX.BlueYellow;
                 };
 
                 ExecuteTest(method, "Com.ColorX.BlueYellow.get()");
@@ -2382,7 +2591,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD3D result = colorX.RGB;
+                    _ = colorX.RGB;
                 };
 
                 ExecuteTest(method, "Com.ColorX.RGB.get()");
@@ -2405,7 +2614,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD3D result = colorX.HSV;
+                    _ = colorX.HSV;
                 };
 
                 ExecuteTest(method, "Com.ColorX.HSV.get()");
@@ -2428,7 +2637,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD3D result = colorX.HSL;
+                    _ = colorX.HSL;
                 };
 
                 ExecuteTest(method, "Com.ColorX.HSL.get()");
@@ -2451,7 +2660,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD4D result = colorX.CMYK;
+                    _ = colorX.CMYK;
                 };
 
                 ExecuteTest(method, "Com.ColorX.CMYK.get()");
@@ -2474,7 +2683,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD3D result = colorX.LAB;
+                    _ = colorX.LAB;
                 };
 
                 ExecuteTest(method, "Com.ColorX.LAB.get()");
@@ -2499,7 +2708,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX result = colorX.ComplementaryColor;
+                    _ = colorX.ComplementaryColor;
                 };
 
                 ExecuteTest(method, "Com.ColorX.ComplementaryColor.get()");
@@ -2510,7 +2719,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX result = colorX.GrayscaleColor;
+                    _ = colorX.GrayscaleColor;
                 };
 
                 ExecuteTest(method, "Com.ColorX.GrayscaleColor.get()");
@@ -2523,7 +2732,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    string result = colorX.ARGBHexCode;
+                    _ = colorX.ARGBHexCode;
                 };
 
                 ExecuteTest(method, "Com.ColorX.ARGBHexCode.get()");
@@ -2534,7 +2743,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    string result = colorX.RGBHexCode;
+                    _ = colorX.RGBHexCode;
                 };
 
                 ExecuteTest(method, "Com.ColorX.RGBHexCode.get()");
@@ -2552,11 +2761,11 @@ namespace Test
 
             {
                 Com.ColorX colorX = Com.ColorManipulation.GetRandomColorX();
-                object obj = (object)colorX;
+                object obj = colorX;
 
                 Action method = () =>
                 {
-                    bool result = colorX.Equals(obj);
+                    _ = colorX.Equals(obj);
                 };
 
                 ExecuteTest(method, "Com.ColorX.Equals(object)");
@@ -2567,7 +2776,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    int result = colorX.GetHashCode();
+                    _ = colorX.GetHashCode();
                 };
 
                 ExecuteTest(method, "Com.ColorX.GetHashCode()");
@@ -2578,7 +2787,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    string result = colorX.ToString();
+                    _ = colorX.ToString();
                 };
 
                 ExecuteTest(method, "Com.ColorX.ToString()");
@@ -2592,7 +2801,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = left.Equals(right);
+                    _ = left.Equals(right);
                 };
 
                 ExecuteTest(method, "Com.ColorX.Equals(Com.ColorX)");
@@ -2605,7 +2814,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Color result = colorX.ToColor();
+                    _ = colorX.ToColor();
                 };
 
                 ExecuteTest(method, "Com.ColorX.ToColor()");
@@ -2616,7 +2825,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    int result = colorX.ToARGB();
+                    _ = colorX.ToARGB();
                 };
 
                 ExecuteTest(method, "Com.ColorX.ToARGB()");
@@ -2630,7 +2839,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX result = colorX.AtOpacity(value);
+                    _ = colorX.AtOpacity(value);
                 };
 
                 ExecuteTest(method, "Com.ColorX.AtOpacity(double)");
@@ -2644,7 +2853,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX result = colorX.AtAlpha(value);
+                    _ = colorX.AtAlpha(value);
                 };
 
                 ExecuteTest(method, "Com.ColorX.AtAlpha(double)");
@@ -2656,7 +2865,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX result = colorX.AtRed(value);
+                    _ = colorX.AtRed(value);
                 };
 
                 ExecuteTest(method, "Com.ColorX.AtRed(double)");
@@ -2668,7 +2877,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX result = colorX.AtGreen(value);
+                    _ = colorX.AtGreen(value);
                 };
 
                 ExecuteTest(method, "Com.ColorX.AtGreen(double)");
@@ -2680,7 +2889,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX result = colorX.AtBlue(value);
+                    _ = colorX.AtBlue(value);
                 };
 
                 ExecuteTest(method, "Com.ColorX.AtBlue(double)");
@@ -2694,7 +2903,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX result = colorX.AtHue_HSV(value);
+                    _ = colorX.AtHue_HSV(value);
                 };
 
                 ExecuteTest(method, "Com.ColorX.AtHue_HSV(double)");
@@ -2706,7 +2915,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX result = colorX.AtSaturation_HSV(value);
+                    _ = colorX.AtSaturation_HSV(value);
                 };
 
                 ExecuteTest(method, "Com.ColorX.AtSaturation_HSV(double)");
@@ -2718,13 +2927,13 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX result = colorX.AtBrightness(value);
+                    _ = colorX.AtBrightness(value);
                 };
 
                 ExecuteTest(method, "Com.ColorX.AtBrightness(double)");
             }
 
-            // HSL
+            // AtHSL
 
             {
                 Com.ColorX colorX = Com.ColorManipulation.GetRandomColorX();
@@ -2732,7 +2941,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX result = colorX.AtHue_HSL(value);
+                    _ = colorX.AtHue_HSL(value);
                 };
 
                 ExecuteTest(method, "Com.ColorX.AtHue_HSL(double)");
@@ -2744,7 +2953,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX result = colorX.AtSaturation_HSL(value);
+                    _ = colorX.AtSaturation_HSL(value);
                 };
 
                 ExecuteTest(method, "Com.ColorX.AtSaturation_HSL(double)");
@@ -2756,7 +2965,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX result = colorX.AtLightness_HSL(value);
+                    _ = colorX.AtLightness_HSL(value);
                 };
 
                 ExecuteTest(method, "Com.ColorX.AtLightness_HSL(double)");
@@ -2770,7 +2979,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX result = colorX.AtCyan(value);
+                    _ = colorX.AtCyan(value);
                 };
 
                 ExecuteTest(method, "Com.ColorX.AtCyan(double)");
@@ -2782,7 +2991,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX result = colorX.AtMagenta(value);
+                    _ = colorX.AtMagenta(value);
                 };
 
                 ExecuteTest(method, "Com.ColorX.AtMagenta(double)");
@@ -2794,7 +3003,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX result = colorX.AtYellow(value);
+                    _ = colorX.AtYellow(value);
                 };
 
                 ExecuteTest(method, "Com.ColorX.AtYellow(double)");
@@ -2806,7 +3015,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX result = colorX.AtBlack(value);
+                    _ = colorX.AtBlack(value);
                 };
 
                 ExecuteTest(method, "Com.ColorX.AtBlack(double)");
@@ -2820,7 +3029,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX result = colorX.AtLightness_LAB(value);
+                    _ = colorX.AtLightness_LAB(value);
                 };
 
                 ExecuteTest(method, "Com.ColorX.AtLightness_LAB(double)");
@@ -2832,7 +3041,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX result = colorX.AtGreenRed(value);
+                    _ = colorX.AtGreenRed(value);
                 };
 
                 ExecuteTest(method, "Com.ColorX.AtGreenRed(double)");
@@ -2844,7 +3053,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX result = colorX.AtBlueYellow(value);
+                    _ = colorX.AtBlueYellow(value);
                 };
 
                 ExecuteTest(method, "Com.ColorX.AtBlueYellow(double)");
@@ -2861,7 +3070,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = Com.ColorX.Equals(left, right);
+                    _ = Com.ColorX.Equals(left, right);
                 };
 
                 ExecuteTest(method, "Com.ColorX.Equals(Com.ColorX, Com.ColorX)");
@@ -2870,12 +3079,12 @@ namespace Test
             // FromColor
 
             {
-                int alpha = Com.Statistics.RandomInteger();
+                int alpha = Com.Statistics.RandomInteger(255);
                 Color color = Com.ColorManipulation.GetRandomColor();
 
                 Action method = () =>
                 {
-                    Com.ColorX result = Com.ColorX.FromColor(alpha, color);
+                    _ = Com.ColorX.FromColor(alpha, color);
                 };
 
                 ExecuteTest(method, "Com.ColorX.FromColor(int, System.Drawing.Color)");
@@ -2886,7 +3095,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX result = Com.ColorX.FromColor(color);
+                    _ = Com.ColorX.FromColor(color);
                 };
 
                 ExecuteTest(method, "Com.ColorX.FromColor(System.Drawing.Color)");
@@ -2902,7 +3111,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX result = Com.ColorX.FromRGB(alpha, red, green, blue);
+                    _ = Com.ColorX.FromRGB(alpha, red, green, blue);
                 };
 
                 ExecuteTest(method, "Com.ColorX.FromRGB(double, double, double, double)");
@@ -2915,7 +3124,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX result = Com.ColorX.FromRGB(red, green, blue);
+                    _ = Com.ColorX.FromRGB(red, green, blue);
                 };
 
                 ExecuteTest(method, "Com.ColorX.FromRGB( double, double, double)");
@@ -2930,7 +3139,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX result = Com.ColorX.FromRGB(alpha, rgb);
+                    _ = Com.ColorX.FromRGB(alpha, rgb);
                 };
 
                 ExecuteTest(method, "Com.ColorX.FromRGB(double, Com.PointD3D)");
@@ -2944,7 +3153,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX result = Com.ColorX.FromRGB(rgb);
+                    _ = Com.ColorX.FromRGB(rgb);
                 };
 
                 ExecuteTest(method, "Com.ColorX.FromRGB(Com.PointD3D)");
@@ -2955,7 +3164,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX result = Com.ColorX.FromRGB(argb);
+                    _ = Com.ColorX.FromRGB(argb);
                 };
 
                 ExecuteTest(method, "Com.ColorX.FromRGB(int)");
@@ -2971,7 +3180,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX result = Com.ColorX.FromHSV(hue, saturation, brightness, opacity);
+                    _ = Com.ColorX.FromHSV(hue, saturation, brightness, opacity);
                 };
 
                 ExecuteTest(method, "Com.ColorX.FromHSV(double, double, double, double)");
@@ -2984,7 +3193,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX result = Com.ColorX.FromHSV(hue, saturation, brightness);
+                    _ = Com.ColorX.FromHSV(hue, saturation, brightness);
                 };
 
                 ExecuteTest(method, "Com.ColorX.FromHSV(double, double, double)");
@@ -2999,7 +3208,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX result = Com.ColorX.FromHSV(hsv, opacity);
+                    _ = Com.ColorX.FromHSV(hsv, opacity);
                 };
 
                 ExecuteTest(method, "Com.ColorX.FromHSV(Com.PointD3D, double)");
@@ -3013,7 +3222,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX result = Com.ColorX.FromHSV(hsv);
+                    _ = Com.ColorX.FromHSV(hsv);
                 };
 
                 ExecuteTest(method, "Com.ColorX.FromHSV(Com.PointD3D)");
@@ -3029,7 +3238,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX result = Com.ColorX.FromHSL(hue, saturation, lightness, opacity);
+                    _ = Com.ColorX.FromHSL(hue, saturation, lightness, opacity);
                 };
 
                 ExecuteTest(method, "Com.ColorX.FromHSL(double, double, double, double)");
@@ -3042,7 +3251,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX result = Com.ColorX.FromHSL(hue, saturation, lightness);
+                    _ = Com.ColorX.FromHSL(hue, saturation, lightness);
                 };
 
                 ExecuteTest(method, "Com.ColorX.FromHSL(double, double, double)");
@@ -3057,7 +3266,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX result = Com.ColorX.FromHSL(hsl, opacity);
+                    _ = Com.ColorX.FromHSL(hsl, opacity);
                 };
 
                 ExecuteTest(method, "Com.ColorX.FromHSL(Com.PointD3D, double)");
@@ -3071,7 +3280,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX result = Com.ColorX.FromHSL(hsl);
+                    _ = Com.ColorX.FromHSL(hsl);
                 };
 
                 ExecuteTest(method, "Com.ColorX.FromHSL(Com.PointD3D)");
@@ -3088,7 +3297,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX result = Com.ColorX.FromCMYK(cyan, magenta, yellow, black, opacity);
+                    _ = Com.ColorX.FromCMYK(cyan, magenta, yellow, black, opacity);
                 };
 
                 ExecuteTest(method, "Com.ColorX.FromCMYK(double, double, double, double, double)");
@@ -3102,7 +3311,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX result = Com.ColorX.FromCMYK(cyan, magenta, yellow, black);
+                    _ = Com.ColorX.FromCMYK(cyan, magenta, yellow, black);
                 };
 
                 ExecuteTest(method, "Com.ColorX.FromCMYK(double, double, double, double)");
@@ -3118,7 +3327,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX result = Com.ColorX.FromCMYK(cmyk, opacity);
+                    _ = Com.ColorX.FromCMYK(cmyk, opacity);
                 };
 
                 ExecuteTest(method, "Com.ColorX.FromCMYK(Com.PointD4D, double)");
@@ -3133,7 +3342,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX result = Com.ColorX.FromCMYK(cmyk);
+                    _ = Com.ColorX.FromCMYK(cmyk);
                 };
 
                 ExecuteTest(method, "Com.ColorX.FromCMYK(Com.PointD4D)");
@@ -3149,7 +3358,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX result = Com.ColorX.FromLAB(lightness, greenRed, blueYellow, opacity);
+                    _ = Com.ColorX.FromLAB(lightness, greenRed, blueYellow, opacity);
                 };
 
                 ExecuteTest(method, "Com.ColorX.FromLAB(double, double, double, double)");
@@ -3162,7 +3371,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX result = Com.ColorX.FromLAB(lightness, greenRed, blueYellow);
+                    _ = Com.ColorX.FromLAB(lightness, greenRed, blueYellow);
                 };
 
                 ExecuteTest(method, "Com.ColorX.FromLAB(double, double, double)");
@@ -3177,7 +3386,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX result = Com.ColorX.FromLAB(lab, opacity);
+                    _ = Com.ColorX.FromLAB(lab, opacity);
                 };
 
                 ExecuteTest(method, "Com.ColorX.FromLAB(Com.PointD3D, double)");
@@ -3191,7 +3400,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX result = Com.ColorX.FromLAB(lab);
+                    _ = Com.ColorX.FromLAB(lab);
                 };
 
                 ExecuteTest(method, "Com.ColorX.FromLAB(Com.PointD3D)");
@@ -3204,7 +3413,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.ColorX result = Com.ColorX.FromHexCode(hexCode);
+                    _ = Com.ColorX.FromHexCode(hexCode);
                 };
 
                 ExecuteTest(method, "Com.ColorX.FromHexCode(string)");
@@ -3215,7 +3424,7 @@ namespace Test
             {
                 Action method = () =>
                 {
-                    Com.ColorX result = Com.ColorX.RandomColor();
+                    _ = Com.ColorX.RandomColor();
                 };
 
                 ExecuteTest(method, "Com.ColorX.RandomColor()");
@@ -3232,7 +3441,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = (left == right);
+                    _ = (left == right);
                 };
 
                 ExecuteTest(method, "Com.ColorX.operator ==(Com.ColorX, Com.ColorX)");
@@ -3244,10 +3453,34 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = (left != right);
+                    _ = (left != right);
                 };
 
                 ExecuteTest(method, "Com.ColorX.operator !=(Com.ColorX, Com.ColorX)");
+            }
+
+            // 类型转换
+
+            {
+                Com.ColorX color = Com.ColorManipulation.GetRandomColorX();
+
+                Action method = () =>
+                {
+                    _ = (Color)color;
+                };
+
+                ExecuteTest(method, "Com.ColorX.explicit operator System.Drawing.Color(Com.ColorX)");
+            }
+
+            {
+                Color color = Com.ColorManipulation.GetRandomColor();
+
+                Action method = () =>
+                {
+                    _ = (Com.ColorX)color;
+                };
+
+                ExecuteTest(method, "Com.ColorX.implicit operator Com.ColorX(System.Drawing.Color)");
             }
         }
     }
@@ -3265,11 +3498,11 @@ namespace Test
         {
             {
                 double real = Com.Statistics.RandomDouble(-1E18, 1E18);
-                double image = Com.Statistics.RandomDouble(-1E18, 1E18);
+                double imaginary = Com.Statistics.RandomDouble(-1E18, 1E18);
 
                 Action method = () =>
                 {
-                    Com.Complex complex = new Com.Complex(real, image);
+                    _ = new Com.Complex(real, imaginary);
                 };
 
                 ExecuteTest(method, "Com.Complex.Complex(double, double)");
@@ -3280,7 +3513,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Complex complex = new Com.Complex(real);
+                    _ = new Com.Complex(real);
                 };
 
                 ExecuteTest(method, "Com.Complex.Complex(double)");
@@ -3291,7 +3524,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Complex complex = new Com.Complex(pt);
+                    _ = new Com.Complex(pt);
                 };
 
                 ExecuteTest(method, "Com.Complex.Complex(Com.PointD)");
@@ -3307,7 +3540,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = comp.IsNaN;
+                    _ = comp.IsNaN;
                 };
 
                 ExecuteTest(method, "Com.Complex.IsNaN.get()");
@@ -3318,7 +3551,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = comp.IsInfinity;
+                    _ = comp.IsInfinity;
                 };
 
                 ExecuteTest(method, "Com.Complex.IsInfinity.get()");
@@ -3329,7 +3562,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = comp.IsNaNOrInfinity;
+                    _ = comp.IsNaNOrInfinity;
                 };
 
                 ExecuteTest(method, "Com.Complex.IsNaNOrInfinity.get()");
@@ -3340,7 +3573,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = comp.IsZero;
+                    _ = comp.IsZero;
                 };
 
                 ExecuteTest(method, "Com.Complex.IsZero.get()");
@@ -3351,7 +3584,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = comp.IsOne;
+                    _ = comp.IsOne;
                 };
 
                 ExecuteTest(method, "Com.Complex.IsOne.get()");
@@ -3362,10 +3595,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = comp.IsI;
+                    _ = comp.IsImaginaryOne;
                 };
 
-                ExecuteTest(method, "Com.Complex.IsI.get()");
+                ExecuteTest(method, "Com.Complex.IsImaginaryOne.get()");
             }
 
             // 分量
@@ -3375,7 +3608,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = comp.Real;
+                    _ = comp.Real;
                 };
 
                 ExecuteTest(method, "Com.Complex.Real.get()");
@@ -3398,10 +3631,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = comp.Image;
+                    _ = comp.Imaginary;
                 };
 
-                ExecuteTest(method, "Com.Complex.Image.get()");
+                ExecuteTest(method, "Com.Complex.Imaginary.get()");
             }
 
             {
@@ -3410,20 +3643,20 @@ namespace Test
 
                 Action method = () =>
                 {
-                    comp.Image = value;
+                    comp.Imaginary = value;
                 };
 
-                ExecuteTest(method, "Com.Complex.Image.set(double)");
+                ExecuteTest(method, "Com.Complex.Imaginary.set(double)");
             }
 
-            // Mod，Arg，Conj
+            // 模与辐角
 
             {
                 Com.Complex comp = _GetRandomComplex();
 
                 Action method = () =>
                 {
-                    double result = comp.Module;
+                    _ = comp.Module;
                 };
 
                 ExecuteTest(method, "Com.Complex.Module.get()");
@@ -3434,7 +3667,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = comp.ModuleSquared;
+                    _ = comp.ModuleSquared;
                 };
 
                 ExecuteTest(method, "Com.Complex.ModuleSquared.get()");
@@ -3445,10 +3678,23 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = comp.Argument;
+                    _ = comp.Argument;
                 };
 
                 ExecuteTest(method, "Com.Complex.Argument.get()");
+            }
+
+            // 共轭与倒数
+
+            {
+                Com.Complex comp = _GetRandomComplex();
+
+                Action method = () =>
+                {
+                    _ = comp.Conjugate;
+                };
+
+                ExecuteTest(method, "Com.Complex.Conjugate.get()");
             }
 
             {
@@ -3456,10 +3702,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Complex result = comp.Conjugate;
+                    _ = comp.Reciprocal;
                 };
 
-                ExecuteTest(method, "Com.Complex.Conjugate.get()");
+                ExecuteTest(method, "Com.Complex.Reciprocal.get()");
             }
         }
 
@@ -3474,11 +3720,11 @@ namespace Test
 
             {
                 Com.Complex comp = _GetRandomComplex();
-                object obj = (object)comp;
+                object obj = comp;
 
                 Action method = () =>
                 {
-                    bool result = comp.Equals(obj);
+                    _ = comp.Equals(obj);
                 };
 
                 ExecuteTest(method, "Com.Complex.Equals(object)");
@@ -3489,7 +3735,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    int result = comp.GetHashCode();
+                    _ = comp.GetHashCode();
                 };
 
                 ExecuteTest(method, "Com.Complex.GetHashCode()");
@@ -3500,7 +3746,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    string result = comp.ToString();
+                    _ = comp.ToString();
                 };
 
                 ExecuteTest(method, "Com.Complex.ToString()");
@@ -3514,10 +3760,36 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = left.Equals(right);
+                    _ = left.Equals(right);
                 };
 
                 ExecuteTest(method, "Com.Complex.Equals(Com.Complex)");
+            }
+
+            // CompareTo
+
+            {
+                Com.Complex left = _GetRandomComplex();
+                object right = left;
+
+                Action method = () =>
+                {
+                    _ = left.CompareTo(right);
+                };
+
+                ExecuteTest(method, "Com.Complex.CompareTo(object)");
+            }
+
+            {
+                Com.Complex left = _GetRandomComplex();
+                Com.Complex right = left;
+
+                Action method = () =>
+                {
+                    _ = left.CompareTo(right);
+                };
+
+                ExecuteTest(method, "Com.Complex.CompareTo(Com.Complex)");
             }
 
             // To
@@ -3527,7 +3799,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = comp.ToPointD();
+                    _ = comp.ToPointD();
                 };
 
                 ExecuteTest(method, "Com.Complex.ToPointD()");
@@ -3544,10 +3816,24 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = Com.Complex.Equals(left, right);
+                    _ = Com.Complex.Equals(left, right);
                 };
 
                 ExecuteTest(method, "Com.Complex.Equals(Com.Complex, Com.Complex)");
+            }
+
+            // Compare
+
+            {
+                Com.Complex left = _GetRandomComplex();
+                Com.Complex right = left;
+
+                Action method = () =>
+                {
+                    _ = Com.Complex.Compare(left, right);
+                };
+
+                ExecuteTest(method, "Com.Complex.CompareTo(Com.Complex, Com.Complex)");
             }
 
             // From
@@ -3557,10 +3843,22 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Complex result = Com.Complex.FromPointD(pt);
+                    _ = Com.Complex.FromPointD(pt);
                 };
 
                 ExecuteTest(method, "Com.Complex.FromPointD(Com.PointD)");
+            }
+
+            {
+                double module = Com.Statistics.RandomDouble(-1E18, 1E18);
+                double argument = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    Com.Complex complex = Com.Complex.FromPolarCoordinates(module, argument);
+                };
+
+                ExecuteTest(method, "Com.Complex.FromPolarCoordinates(double, double)");
             }
 
             // 幂函数，指数函数，对数函数
@@ -3570,7 +3868,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Complex result = Com.Complex.Sqr(comp);
+                    _ = Com.Complex.Sqr(comp);
                 };
 
                 ExecuteTest(method, "Com.Complex.Sqr(Com.Complex)");
@@ -3581,7 +3879,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Complex result = Com.Complex.Sqrt(comp);
+                    _ = Com.Complex.Sqrt(comp);
                 };
 
                 ExecuteTest(method, "Com.Complex.Sqrt(Com.Complex)");
@@ -3592,7 +3890,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Complex result = Com.Complex.Exp(comp);
+                    _ = Com.Complex.Exp(comp);
                 };
 
                 ExecuteTest(method, "Com.Complex.Exp(Com.Complex)");
@@ -3604,10 +3902,34 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Complex result = Com.Complex.Pow(left, right);
+                    _ = Com.Complex.Pow(left, right);
                 };
 
                 ExecuteTest(method, "Com.Complex.Pow(Com.Complex, Com.Complex)");
+            }
+
+            {
+                Com.Complex left = _GetRandomComplex();
+                double right = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = Com.Complex.Pow(left, right);
+                };
+
+                ExecuteTest(method, "Com.Complex.Pow(Com.Complex, double)");
+            }
+
+            {
+                double left = Com.Statistics.RandomDouble(-1E18, 1E18);
+                Com.Complex right = _GetRandomComplex();
+
+                Action method = () =>
+                {
+                    _ = Com.Complex.Pow(left, right);
+                };
+
+                ExecuteTest(method, "Com.Complex.Pow(double, Com.Complex)");
             }
 
             {
@@ -3615,7 +3937,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Complex result = Com.Complex.Log(comp);
+                    _ = Com.Complex.Log(comp);
                 };
 
                 ExecuteTest(method, "Com.Complex.Log(Com.Complex)");
@@ -3627,10 +3949,34 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Complex result = Com.Complex.Log(left, right);
+                    _ = Com.Complex.Log(left, right);
                 };
 
                 ExecuteTest(method, "Com.Complex.Log(Com.Complex, Com.Complex)");
+            }
+
+            {
+                Com.Complex left = _GetRandomComplex();
+                double right = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = Com.Complex.Log(left, right);
+                };
+
+                ExecuteTest(method, "Com.Complex.Log(Com.Complex, double)");
+            }
+
+            {
+                double left = Com.Statistics.RandomDouble(-1E18, 1E18);
+                Com.Complex right = _GetRandomComplex();
+
+                Action method = () =>
+                {
+                    _ = Com.Complex.Log(left, right);
+                };
+
+                ExecuteTest(method, "Com.Complex.Log(double, Com.Complex)");
             }
 
             // 三角函数
@@ -3640,7 +3986,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Complex result = Com.Complex.Sin(comp);
+                    _ = Com.Complex.Sin(comp);
                 };
 
                 ExecuteTest(method, "Com.Complex.Sin(Com.Complex)");
@@ -3651,7 +3997,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Complex result = Com.Complex.Cos(comp);
+                    _ = Com.Complex.Cos(comp);
                 };
 
                 ExecuteTest(method, "Com.Complex.Cos(Com.Complex)");
@@ -3662,7 +4008,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Complex result = Com.Complex.Tan(comp);
+                    _ = Com.Complex.Tan(comp);
                 };
 
                 ExecuteTest(method, "Com.Complex.Tan(Com.Complex)");
@@ -3673,7 +4019,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Complex result = Com.Complex.Asin(comp);
+                    _ = Com.Complex.Asin(comp);
                 };
 
                 ExecuteTest(method, "Com.Complex.Asin(Com.Complex)");
@@ -3684,7 +4030,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Complex result = Com.Complex.Acos(comp);
+                    _ = Com.Complex.Acos(comp);
                 };
 
                 ExecuteTest(method, "Com.Complex.Acos(Com.Complex)");
@@ -3695,7 +4041,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Complex result = Com.Complex.Atan(comp);
+                    _ = Com.Complex.Atan(comp);
                 };
 
                 ExecuteTest(method, "Com.Complex.Atan(Com.Complex)");
@@ -3706,7 +4052,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Complex result = Com.Complex.Sinh(comp);
+                    _ = Com.Complex.Sinh(comp);
                 };
 
                 ExecuteTest(method, "Com.Complex.Sinh(Com.Complex)");
@@ -3717,7 +4063,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Complex result = Com.Complex.Cosh(comp);
+                    _ = Com.Complex.Cosh(comp);
                 };
 
                 ExecuteTest(method, "Com.Complex.Cosh(Com.Complex)");
@@ -3728,7 +4074,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Complex result = Com.Complex.Tanh(comp);
+                    _ = Com.Complex.Tanh(comp);
                 };
 
                 ExecuteTest(method, "Com.Complex.Tanh(Com.Complex)");
@@ -3739,7 +4085,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Complex result = Com.Complex.Asinh(comp);
+                    _ = Com.Complex.Asinh(comp);
                 };
 
                 ExecuteTest(method, "Com.Complex.Asinh(Com.Complex)");
@@ -3750,7 +4096,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Complex result = Com.Complex.Acosh(comp);
+                    _ = Com.Complex.Acosh(comp);
                 };
 
                 ExecuteTest(method, "Com.Complex.Acosh(Com.Complex)");
@@ -3761,7 +4107,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Complex result = Com.Complex.Atanh(comp);
+                    _ = Com.Complex.Atanh(comp);
                 };
 
                 ExecuteTest(method, "Com.Complex.Atanh(Com.Complex)");
@@ -3774,7 +4120,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Complex result = Com.Complex.Abs(comp);
+                    _ = Com.Complex.Abs(comp);
                 };
 
                 ExecuteTest(method, "Com.Complex.Abs(Com.Complex)");
@@ -3785,7 +4131,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Complex result = Com.Complex.Sign(comp);
+                    _ = Com.Complex.Sign(comp);
                 };
 
                 ExecuteTest(method, "Com.Complex.Sign(Com.Complex)");
@@ -3796,7 +4142,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Complex result = Com.Complex.Ceiling(comp);
+                    _ = Com.Complex.Ceiling(comp);
                 };
 
                 ExecuteTest(method, "Com.Complex.Ceiling(Com.Complex)");
@@ -3807,7 +4153,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Complex result = Com.Complex.Floor(comp);
+                    _ = Com.Complex.Floor(comp);
                 };
 
                 ExecuteTest(method, "Com.Complex.Floor(Com.Complex)");
@@ -3818,7 +4164,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Complex result = Com.Complex.Round(comp);
+                    _ = Com.Complex.Round(comp);
                 };
 
                 ExecuteTest(method, "Com.Complex.Round(Com.Complex)");
@@ -3829,7 +4175,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Complex result = Com.Complex.Truncate(comp);
+                    _ = Com.Complex.Truncate(comp);
                 };
 
                 ExecuteTest(method, "Com.Complex.Truncate(Com.Complex)");
@@ -3841,7 +4187,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Complex result = Com.Complex.Max(left, right);
+                    _ = Com.Complex.Max(left, right);
                 };
 
                 ExecuteTest(method, "Com.Complex.Max(Com.Complex, Com.Complex)");
@@ -3853,7 +4199,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Complex result = Com.Complex.Min(left, right);
+                    _ = Com.Complex.Min(left, right);
                 };
 
                 ExecuteTest(method, "Com.Complex.Min(Com.Complex, Com.Complex)");
@@ -3870,7 +4216,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = (left == right);
+                    _ = (left == right);
                 };
 
                 ExecuteTest(method, "Com.Complex.operator ==(Com.Complex, Com.Complex)");
@@ -3882,7 +4228,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = (left != right);
+                    _ = (left != right);
                 };
 
                 ExecuteTest(method, "Com.Complex.operator !=(Com.Complex, Com.Complex)");
@@ -3894,7 +4240,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = (left < right);
+                    _ = (left < right);
                 };
 
                 ExecuteTest(method, "Com.Complex.operator <(Com.Complex, Com.Complex)");
@@ -3906,7 +4252,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = (left > right);
+                    _ = (left > right);
                 };
 
                 ExecuteTest(method, "Com.Complex.operator >(Com.Complex, Com.Complex)");
@@ -3918,7 +4264,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = (left <= right);
+                    _ = (left <= right);
                 };
 
                 ExecuteTest(method, "Com.Complex.operator <=(Com.Complex, Com.Complex)");
@@ -3930,7 +4276,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = (left >= right);
+                    _ = (left >= right);
                 };
 
                 ExecuteTest(method, "Com.Complex.operator >=(Com.Complex, Com.Complex)");
@@ -3943,7 +4289,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Complex result = +comp;
+                    _ = +comp;
                 };
 
                 ExecuteTest(method, "Com.Complex.operator +(Com.Complex)");
@@ -3954,7 +4300,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Complex result = -comp;
+                    _ = -comp;
                 };
 
                 ExecuteTest(method, "Com.Complex.operator -(Com.Complex)");
@@ -3966,7 +4312,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Complex result = left + right;
+                    _ = left + right;
                 };
 
                 ExecuteTest(method, "Com.Complex.operator +(Com.Complex, Com.Complex)");
@@ -3974,11 +4320,35 @@ namespace Test
 
             {
                 Com.Complex left = _GetRandomComplex();
+                double right = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = left + right;
+                };
+
+                ExecuteTest(method, "Com.Complex.operator +(Com.Complex, double)");
+            }
+
+            {
+                double left = Com.Statistics.RandomDouble(-1E18, 1E18);
                 Com.Complex right = _GetRandomComplex();
 
                 Action method = () =>
                 {
-                    Com.Complex result = left - right;
+                    _ = left + right;
+                };
+
+                ExecuteTest(method, "Com.Complex.operator +(double, Com.Complex)");
+            }
+
+            {
+                Com.Complex left = _GetRandomComplex();
+                Com.Complex right = _GetRandomComplex();
+
+                Action method = () =>
+                {
+                    _ = left - right;
                 };
 
                 ExecuteTest(method, "Com.Complex.operator -(Com.Complex, Com.Complex)");
@@ -3986,14 +4356,26 @@ namespace Test
 
             {
                 Com.Complex left = _GetRandomComplex();
+                double right = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = left - right;
+                };
+
+                ExecuteTest(method, "Com.Complex.operator -(Com.Complex, double)");
+            }
+
+            {
+                double left = Com.Statistics.RandomDouble(-1E18, 1E18);
                 Com.Complex right = _GetRandomComplex();
 
                 Action method = () =>
                 {
-                    Com.Complex result = left * right;
+                    _ = left - right;
                 };
 
-                ExecuteTest(method, "Com.Complex.operator *(Com.Complex, Com.Complex)");
+                ExecuteTest(method, "Com.Complex.operator -(double, Com.Complex)");
             }
 
             {
@@ -4002,10 +4384,94 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Complex result = left / right;
+                    _ = left * right;
+                };
+
+                ExecuteTest(method, "Com.Complex.operator *(Com.Complex, Com.Complex)");
+            }
+
+            {
+                Com.Complex left = _GetRandomComplex();
+                double right = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = left * right;
+                };
+
+                ExecuteTest(method, "Com.Complex.operator *(Com.Complex, double)");
+            }
+
+            {
+                double left = Com.Statistics.RandomDouble(-1E18, 1E18);
+                Com.Complex right = _GetRandomComplex();
+
+                Action method = () =>
+                {
+                    _ = left * right;
+                };
+
+                ExecuteTest(method, "Com.Complex.operator *(double, Com.Complex)");
+            }
+
+            {
+                Com.Complex left = _GetRandomComplex();
+                Com.Complex right = _GetRandomComplex();
+
+                Action method = () =>
+                {
+                    _ = left / right;
                 };
 
                 ExecuteTest(method, "Com.Complex.operator /(Com.Complex, Com.Complex)");
+            }
+
+            {
+                Com.Complex left = _GetRandomComplex();
+                double right = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = left / right;
+                };
+
+                ExecuteTest(method, "Com.Complex.operator /(Com.Complex, double)");
+            }
+
+            {
+                double left = Com.Statistics.RandomDouble(-1E18, 1E18);
+                Com.Complex right = _GetRandomComplex();
+
+                Action method = () =>
+                {
+                    _ = left / right;
+                };
+
+                ExecuteTest(method, "Com.Complex.operator /(double, Com.Complex)");
+            }
+
+            // 类型转换
+
+            {
+                Com.Complex comp = _GetRandomComplex();
+
+                Action method = () =>
+                {
+                    _ = (Com.PointD)comp;
+                };
+
+                ExecuteTest(method, "Com.Complex.explicit operator Com.PointD(Com.Complex)");
+            }
+
+            {
+                double real = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = (Com.Complex)real;
+                };
+
+                ExecuteTest(method, "Com.Complex.explicit operator Com.Complex(double)");
             }
         }
     }
@@ -4045,7 +4511,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.DateTimeX dateTimeX = new Com.DateTimeX(totalMilliseconds, utcOffset);
+                    _ = new Com.DateTimeX(totalMilliseconds, utcOffset);
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.DateTimeX(decimal, double)");
@@ -4056,14 +4522,14 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.DateTimeX dateTimeX = new Com.DateTimeX(totalMilliseconds);
+                    _ = new Com.DateTimeX(totalMilliseconds);
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.DateTimeX(decimal)");
             }
 
             {
-                long year = Com.Statistics.RandomInteger(-9999, 10000);
+                long year = Com.Statistics.RandomInteger(1, 10000) * ((Com.Statistics.RandomInteger() % 2) * 2 - 1);
                 int month = Com.Statistics.RandomInteger(1, 13);
                 int day = Com.Statistics.RandomInteger(1, Com.DateTimeX.DaysInMonth(year, month) + 1);
                 int hour = Com.Statistics.RandomInteger(0, 24);
@@ -4074,14 +4540,14 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.DateTimeX dateTimeX = new Com.DateTimeX(year, month, day, hour, minute, second, millisecond, utcOffset);
+                    _ = new Com.DateTimeX(year, month, day, hour, minute, second, millisecond, utcOffset);
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.DateTimeX(long, int, int, int, int, int, int, double)");
             }
 
             {
-                long year = Com.Statistics.RandomInteger(-9999, 10000);
+                long year = Com.Statistics.RandomInteger(1, 10000) * ((Com.Statistics.RandomInteger() % 2) * 2 - 1);
                 int month = Com.Statistics.RandomInteger(1, 13);
                 int day = Com.Statistics.RandomInteger(1, Com.DateTimeX.DaysInMonth(year, month) + 1);
                 int hour = Com.Statistics.RandomInteger(0, 24);
@@ -4091,14 +4557,14 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.DateTimeX dateTimeX = new Com.DateTimeX(year, month, day, hour, minute, second, millisecond);
+                    _ = new Com.DateTimeX(year, month, day, hour, minute, second, millisecond);
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.DateTimeX(long, int, int, int, int, int, int)");
             }
 
             {
-                long year = Com.Statistics.RandomInteger(-9999, 10000);
+                long year = Com.Statistics.RandomInteger(1, 10000) * ((Com.Statistics.RandomInteger() % 2) * 2 - 1);
                 int month = Com.Statistics.RandomInteger(1, 13);
                 int day = Com.Statistics.RandomInteger(1, Com.DateTimeX.DaysInMonth(year, month) + 1);
                 int hour = Com.Statistics.RandomInteger(0, 24);
@@ -4108,14 +4574,14 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.DateTimeX dateTimeX = new Com.DateTimeX(year, month, day, hour, minute, second, utcOffset);
+                    _ = new Com.DateTimeX(year, month, day, hour, minute, second, utcOffset);
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.DateTimeX(long, int, int, int, int, int, double)");
             }
 
             {
-                long year = Com.Statistics.RandomInteger(-9999, 10000);
+                long year = Com.Statistics.RandomInteger(1, 10000) * ((Com.Statistics.RandomInteger() % 2) * 2 - 1);
                 int month = Com.Statistics.RandomInteger(1, 13);
                 int day = Com.Statistics.RandomInteger(1, Com.DateTimeX.DaysInMonth(year, month) + 1);
                 int hour = Com.Statistics.RandomInteger(0, 24);
@@ -4124,145 +4590,37 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.DateTimeX dateTimeX = new Com.DateTimeX(year, month, day, hour, minute, second);
+                    _ = new Com.DateTimeX(year, month, day, hour, minute, second);
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.DateTimeX(long, int, int, int, int, int)");
             }
 
             {
-                long year = Com.Statistics.RandomInteger(-9999, 10000);
-                int month = Com.Statistics.RandomInteger(1, 13);
-                int day = Com.Statistics.RandomInteger(1, Com.DateTimeX.DaysInMonth(year, month) + 1);
-                int hour = Com.Statistics.RandomInteger(0, 24);
-                int minute = Com.Statistics.RandomInteger(0, 60);
-                double utcOffset = Com.Statistics.RandomDouble(-12, 12);
-
-                Action method = () =>
-                {
-                    Com.DateTimeX dateTimeX = new Com.DateTimeX(year, month, day, hour, minute, utcOffset);
-                };
-
-                ExecuteTest(method, "Com.DateTimeX.DateTimeX(long, int, int, int, int, double)");
-            }
-
-            {
-                long year = Com.Statistics.RandomInteger(-9999, 10000);
-                int month = Com.Statistics.RandomInteger(1, 13);
-                int day = Com.Statistics.RandomInteger(1, Com.DateTimeX.DaysInMonth(year, month) + 1);
-                int hour = Com.Statistics.RandomInteger(0, 24);
-                int minute = Com.Statistics.RandomInteger(0, 60);
-
-                Action method = () =>
-                {
-                    Com.DateTimeX dateTimeX = new Com.DateTimeX(year, month, day, hour, minute);
-                };
-
-                ExecuteTest(method, "Com.DateTimeX.DateTimeX(long, int, int, int, int)");
-            }
-
-            {
-                long year = Com.Statistics.RandomInteger(-9999, 10000);
-                int month = Com.Statistics.RandomInteger(1, 13);
-                int day = Com.Statistics.RandomInteger(1, Com.DateTimeX.DaysInMonth(year, month) + 1);
-                int hour = Com.Statistics.RandomInteger(0, 24);
-                double utcOffset = Com.Statistics.RandomDouble(-12, 12);
-
-                Action method = () =>
-                {
-                    Com.DateTimeX dateTimeX = new Com.DateTimeX(year, month, day, hour, utcOffset);
-                };
-
-                ExecuteTest(method, "Com.DateTimeX.DateTimeX(long, int, int, int, double)");
-            }
-
-            {
-                long year = Com.Statistics.RandomInteger(-9999, 10000);
-                int month = Com.Statistics.RandomInteger(1, 13);
-                int day = Com.Statistics.RandomInteger(1, Com.DateTimeX.DaysInMonth(year, month) + 1);
-                int hour = Com.Statistics.RandomInteger(0, 24);
-
-                Action method = () =>
-                {
-                    Com.DateTimeX dateTimeX = new Com.DateTimeX(year, month, day, hour);
-                };
-
-                ExecuteTest(method, "Com.DateTimeX.DateTimeX(long, int, int, int)");
-            }
-
-            {
-                long year = Com.Statistics.RandomInteger(-9999, 10000);
+                long year = Com.Statistics.RandomInteger(1, 10000) * ((Com.Statistics.RandomInteger() % 2) * 2 - 1);
                 int month = Com.Statistics.RandomInteger(1, 13);
                 int day = Com.Statistics.RandomInteger(1, Com.DateTimeX.DaysInMonth(year, month) + 1);
                 double utcOffset = Com.Statistics.RandomDouble(-12, 12);
 
                 Action method = () =>
                 {
-                    Com.DateTimeX dateTimeX = new Com.DateTimeX(year, month, day, utcOffset);
+                    _ = new Com.DateTimeX(year, month, day, utcOffset);
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.DateTimeX(long, int, int, double)");
             }
 
             {
-                long year = Com.Statistics.RandomInteger(-9999, 10000);
+                long year = Com.Statistics.RandomInteger(1, 10000) * ((Com.Statistics.RandomInteger() % 2) * 2 - 1);
                 int month = Com.Statistics.RandomInteger(1, 13);
                 int day = Com.Statistics.RandomInteger(1, Com.DateTimeX.DaysInMonth(year, month) + 1);
 
                 Action method = () =>
                 {
-                    Com.DateTimeX dateTimeX = new Com.DateTimeX(year, month, day);
+                    _ = new Com.DateTimeX(year, month, day);
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.DateTimeX(long, int, int)");
-            }
-
-            {
-                long year = Com.Statistics.RandomInteger(-9999, 10000);
-                int month = Com.Statistics.RandomInteger(1, 13);
-                double utcOffset = Com.Statistics.RandomDouble(-12, 12);
-
-                Action method = () =>
-                {
-                    Com.DateTimeX dateTimeX = new Com.DateTimeX(year, month, utcOffset);
-                };
-
-                ExecuteTest(method, "Com.DateTimeX.DateTimeX(long, int, double)");
-            }
-
-            {
-                long year = Com.Statistics.RandomInteger(-9999, 10000);
-                int month = Com.Statistics.RandomInteger(1, 13);
-
-                Action method = () =>
-                {
-                    Com.DateTimeX dateTimeX = new Com.DateTimeX(year, month);
-                };
-
-                ExecuteTest(method, "Com.DateTimeX.DateTimeX(long, int)");
-            }
-
-            {
-                long year = Com.Statistics.RandomInteger(-9999, 10000);
-                double utcOffset = Com.Statistics.RandomDouble(-12, 12);
-
-                Action method = () =>
-                {
-                    Com.DateTimeX dateTimeX = new Com.DateTimeX(year, utcOffset);
-                };
-
-                ExecuteTest(method, "Com.DateTimeX.DateTimeX(long, double)");
-            }
-
-            {
-                long year = Com.Statistics.RandomInteger(-9999, 10000);
-
-                Action method = () =>
-                {
-                    Com.DateTimeX dateTimeX = new Com.DateTimeX(year);
-                };
-
-                ExecuteTest(method, "Com.DateTimeX.DateTimeX(long)");
             }
 
             // UtcOffset，DateTimeX，DateTime
@@ -4273,7 +4631,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.DateTimeX dateTimeX = new Com.DateTimeX(dateTime, utcOffset);
+                    _ = new Com.DateTimeX(dateTime, utcOffset);
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.DateTimeX(Com.DateTimeX, double)");
@@ -4284,7 +4642,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.DateTimeX dateTimeX = new Com.DateTimeX(dateTime);
+                    _ = new Com.DateTimeX(dateTime);
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.DateTimeX(Com.DateTimeX)");
@@ -4296,7 +4654,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.DateTimeX dateTimeX = new Com.DateTimeX(dateTime, utcOffset);
+                    _ = new Com.DateTimeX(dateTime, utcOffset);
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.DateTimeX(System.DateTime, double)");
@@ -4307,7 +4665,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.DateTimeX dateTimeX = new Com.DateTimeX(dateTime);
+                    _ = new Com.DateTimeX(dateTime);
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.DateTimeX(System.DateTime)");
@@ -4323,7 +4681,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = dateTimeX.IsEmpty;
+                    _ = dateTimeX.IsEmpty;
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.IsEmpty.get()");
@@ -4334,7 +4692,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = dateTimeX.IsChristianEra;
+                    _ = dateTimeX.IsChristianEra;
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.IsChristianEra.get()");
@@ -4345,7 +4703,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = dateTimeX.IsMinValue;
+                    _ = dateTimeX.IsMinValue;
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.IsMinValue.get()");
@@ -4356,7 +4714,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = dateTimeX.IsMaxValue;
+                    _ = dateTimeX.IsMaxValue;
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.IsMaxValue.get()");
@@ -4367,7 +4725,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = dateTimeX.IsAnnoDomini;
+                    _ = dateTimeX.IsAnnoDomini;
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.IsAnnoDomini.get()");
@@ -4378,7 +4736,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = dateTimeX.IsBeforeChrist;
+                    _ = dateTimeX.IsBeforeChrist;
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.IsBeforeChrist.get()");
@@ -4389,7 +4747,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = dateTimeX.IsLeap;
+                    _ = dateTimeX.IsLeap;
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.IsLeap.get()");
@@ -4402,7 +4760,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = dateTimeX.UtcOffset;
+                    _ = dateTimeX.UtcOffset;
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.UtcOffset.get()");
@@ -4425,7 +4783,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    decimal result = dateTimeX.TotalMilliseconds;
+                    _ = dateTimeX.TotalMilliseconds;
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.TotalMilliseconds.get()");
@@ -4448,7 +4806,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    long result = dateTimeX.Year;
+                    _ = dateTimeX.Year;
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.Year.get()");
@@ -4456,7 +4814,8 @@ namespace Test
 
             {
                 Com.DateTimeX dateTimeX = _GetRandomDateTimeX();
-                long value = Com.Statistics.RandomInteger(-9999, 10000);
+                dateTimeX.Day = Com.Statistics.RandomInteger(1, 29);
+                long value = Com.Statistics.RandomInteger(1, 10000) * ((Com.Statistics.RandomInteger() % 2) * 2 - 1);
 
                 Action method = () =>
                 {
@@ -4471,7 +4830,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    int result = dateTimeX.Month;
+                    _ = dateTimeX.Month;
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.Month.get()");
@@ -4479,6 +4838,7 @@ namespace Test
 
             {
                 Com.DateTimeX dateTimeX = _GetRandomDateTimeX();
+                dateTimeX.Day = Com.Statistics.RandomInteger(1, 29);
                 int value = Com.Statistics.RandomInteger(1, 13);
 
                 Action method = () =>
@@ -4494,7 +4854,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    int result = dateTimeX.Day;
+                    _ = dateTimeX.Day;
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.Day.get()");
@@ -4517,7 +4877,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    int result = dateTimeX.Hour;
+                    _ = dateTimeX.Hour;
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.Hour.get()");
@@ -4540,7 +4900,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    int result = dateTimeX.Minute;
+                    _ = dateTimeX.Minute;
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.Minute.get()");
@@ -4563,7 +4923,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    int result = dateTimeX.Second;
+                    _ = dateTimeX.Second;
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.Second.get()");
@@ -4586,7 +4946,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    int result = dateTimeX.Millisecond;
+                    _ = dateTimeX.Millisecond;
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.Millisecond.get()");
@@ -4611,7 +4971,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.DateTimeX result = dateTimeX.Date;
+                    _ = dateTimeX.Date;
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.Date.get()");
@@ -4622,7 +4982,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    TimeSpan result = dateTimeX.TimeOfDay;
+                    _ = dateTimeX.TimeOfDay;
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.TimeOfDay.get()");
@@ -4635,7 +4995,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    int result = dateTimeX.WeekOfYear;
+                    _ = dateTimeX.WeekOfYear;
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.WeekOfYear.get()");
@@ -4646,7 +5006,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    int result = dateTimeX.DayOfYear;
+                    _ = dateTimeX.DayOfYear;
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.DayOfYear.get()");
@@ -4657,7 +5017,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    int result = dateTimeX.HourOfYear;
+                    _ = dateTimeX.HourOfYear;
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.HourOfYear.get()");
@@ -4668,7 +5028,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    int result = dateTimeX.MinuteOfYear;
+                    _ = dateTimeX.MinuteOfYear;
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.MinuteOfYear.get()");
@@ -4679,7 +5039,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    int result = dateTimeX.SecondOfYear;
+                    _ = dateTimeX.SecondOfYear;
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.SecondOfYear.get()");
@@ -4690,7 +5050,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    long result = dateTimeX.MillisecondOfYear;
+                    _ = dateTimeX.MillisecondOfYear;
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.MillisecondOfYear.get()");
@@ -4701,18 +5061,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    int result = dateTimeX.DayOfThisWeek;
-                };
-
-                ExecuteTest(method, "Com.DateTimeX.DayOfThisWeek.get()");
-            }
-
-            {
-                Com.DateTimeX dateTimeX = _GetRandomDateTimeX();
-
-                Action method = () =>
-                {
-                    DayOfWeek result = dateTimeX.DayOfWeek;
+                    _ = dateTimeX.DayOfWeek;
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.DayOfWeek.get()");
@@ -4723,7 +5072,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    int result = dateTimeX.HourOfDay;
+                    _ = dateTimeX.HourOfDay;
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.HourOfDay.get()");
@@ -4734,7 +5083,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    int result = dateTimeX.MinuteOfDay;
+                    _ = dateTimeX.MinuteOfDay;
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.MinuteOfDay.get()");
@@ -4745,7 +5094,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    int result = dateTimeX.SecondOfDay;
+                    _ = dateTimeX.SecondOfDay;
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.SecondOfDay.get()");
@@ -4756,20 +5105,20 @@ namespace Test
 
                 Action method = () =>
                 {
-                    int result = dateTimeX.MillisecondOfDay;
+                    _ = dateTimeX.MillisecondOfDay;
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.MillisecondOfDay.get()");
             }
 
-            // String
+            // MonthString
 
             {
                 Com.DateTimeX dateTimeX = _GetRandomDateTimeX();
 
                 Action method = () =>
                 {
-                    string result = dateTimeX.MonthStringInChinese;
+                    _ = dateTimeX.MonthStringInChinese;
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.MonthStringInChinese.get()");
@@ -4780,7 +5129,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    string result = dateTimeX.MonthLongStringInEnglish;
+                    _ = dateTimeX.MonthLongStringInEnglish;
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.MonthLongStringInEnglish.get()");
@@ -4791,7 +5140,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    string result = dateTimeX.MonthShortStringInEnglish;
+                    _ = dateTimeX.MonthShortStringInEnglish;
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.MonthShortStringInEnglish.get()");
@@ -4802,7 +5151,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    string result = dateTimeX.MonthStringInJapaneseKanji;
+                    _ = dateTimeX.MonthStringInJapaneseKanji;
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.MonthStringInJapaneseKanji.get()");
@@ -4813,18 +5162,20 @@ namespace Test
 
                 Action method = () =>
                 {
-                    string result = dateTimeX.MonthStringInJapaneseHiragana;
+                    _ = dateTimeX.MonthStringInJapaneseHiragana;
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.MonthStringInJapaneseHiragana.get()");
             }
+
+            // WeekdayString
 
             {
                 Com.DateTimeX dateTimeX = _GetRandomDateTimeX();
 
                 Action method = () =>
                 {
-                    string result = dateTimeX.WeekdayLongStringInChinese;
+                    _ = dateTimeX.WeekdayLongStringInChinese;
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.WeekdayLongStringInChinese.get()");
@@ -4835,7 +5186,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    string result = dateTimeX.WeekdayShortStringInChinese;
+                    _ = dateTimeX.WeekdayShortStringInChinese;
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.WeekdayShortStringInChinese.get()");
@@ -4846,7 +5197,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    string result = dateTimeX.WeekdayLongStringInEnglish;
+                    _ = dateTimeX.WeekdayLongStringInEnglish;
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.WeekdayLongStringInEnglish.get()");
@@ -4857,7 +5208,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    string result = dateTimeX.WeekdayShortStringInEnglish;
+                    _ = dateTimeX.WeekdayShortStringInEnglish;
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.WeekdayShortStringInEnglish.get()");
@@ -4868,7 +5219,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    string result = dateTimeX.WeekdayLongStringInJapanese;
+                    _ = dateTimeX.WeekdayLongStringInJapanese;
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.WeekdayLongStringInJapanese.get()");
@@ -4879,18 +5230,20 @@ namespace Test
 
                 Action method = () =>
                 {
-                    string result = dateTimeX.WeekdayShortStringInJapanese;
+                    _ = dateTimeX.WeekdayShortStringInJapanese;
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.WeekdayShortStringInJapanese.get()");
             }
+
+            // DateTimeString
 
             {
                 Com.DateTimeX dateTimeX = _GetRandomDateTimeX();
 
                 Action method = () =>
                 {
-                    string result = dateTimeX.DateLongString;
+                    _ = dateTimeX.DateLongString;
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.DateLongString.get()");
@@ -4901,7 +5254,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    string result = dateTimeX.DateShortString;
+                    _ = dateTimeX.DateShortString;
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.DateShortString.get()");
@@ -4912,7 +5265,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    string result = dateTimeX.TimeLongString;
+                    _ = dateTimeX.TimeLongString;
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.TimeLongString.get()");
@@ -4923,7 +5276,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    string result = dateTimeX.TimeShortString;
+                    _ = dateTimeX.TimeShortString;
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.TimeShortString.get()");
@@ -4935,7 +5288,7 @@ namespace Test
             {
                 Action method = () =>
                 {
-                    Com.DateTimeX result = Com.DateTimeX.Now;
+                    _ = Com.DateTimeX.Now;
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.Now.get()");
@@ -4944,7 +5297,7 @@ namespace Test
             {
                 Action method = () =>
                 {
-                    Com.DateTimeX result = Com.DateTimeX.UtcNow;
+                    _ = Com.DateTimeX.UtcNow;
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.UtcNow.get()");
@@ -4953,7 +5306,7 @@ namespace Test
             {
                 Action method = () =>
                 {
-                    Com.DateTimeX result = Com.DateTimeX.Today;
+                    _ = Com.DateTimeX.Today;
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.Today.get()");
@@ -4962,7 +5315,7 @@ namespace Test
             {
                 Action method = () =>
                 {
-                    Com.DateTimeX result = Com.DateTimeX.UtcToday;
+                    _ = Com.DateTimeX.UtcToday;
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.UtcToday.get()");
@@ -4975,11 +5328,11 @@ namespace Test
 
             {
                 Com.DateTimeX dateTimeX = _GetRandomDateTimeX();
-                object obj = (object)dateTimeX;
+                object obj = dateTimeX;
 
                 Action method = () =>
                 {
-                    bool result = dateTimeX.Equals(obj);
+                    _ = dateTimeX.Equals(obj);
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.Equals(object)");
@@ -4990,7 +5343,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    int result = dateTimeX.GetHashCode();
+                    _ = dateTimeX.GetHashCode();
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.GetHashCode()");
@@ -5001,7 +5354,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    string result = dateTimeX.ToString();
+                    _ = dateTimeX.ToString();
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.ToString()");
@@ -5015,10 +5368,36 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = left.Equals(right);
+                    _ = left.Equals(right);
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.Equals(Com.DateTimeX)");
+            }
+
+            // CompareTo
+
+            {
+                Com.DateTimeX dateTimeX = _GetRandomDateTimeX();
+                object obj = dateTimeX;
+
+                Action method = () =>
+                {
+                    _ = dateTimeX.CompareTo(obj);
+                };
+
+                ExecuteTest(method, "Com.DateTimeX.CompareTo(object)");
+            }
+
+            {
+                Com.DateTimeX left = _GetRandomDateTimeX();
+                Com.DateTimeX right = left;
+
+                Action method = () =>
+                {
+                    _ = left.CompareTo(right);
+                };
+
+                ExecuteTest(method, "Com.DateTimeX.CompareTo(Com.DateTimeX)");
             }
 
             // Add
@@ -5029,7 +5408,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.DateTimeX result = dateTimeX.Add(timeSpan);
+                    _ = dateTimeX.Add(timeSpan);
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.Add(TimeSpan)");
@@ -5041,7 +5420,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.DateTimeX result = dateTimeX.AddYears(years);
+                    _ = dateTimeX.AddYears(years);
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.AddYears(long)");
@@ -5053,7 +5432,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.DateTimeX result = dateTimeX.AddMonths(months);
+                    _ = dateTimeX.AddMonths(months);
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.AddMonths(long)");
@@ -5065,7 +5444,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.DateTimeX result = dateTimeX.AddWeeks(weeks);
+                    _ = dateTimeX.AddWeeks(weeks);
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.AddWeeks(double)");
@@ -5077,7 +5456,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.DateTimeX result = dateTimeX.AddDays(days);
+                    _ = dateTimeX.AddDays(days);
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.AddDays(double)");
@@ -5089,7 +5468,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.DateTimeX result = dateTimeX.AddHours(hours);
+                    _ = dateTimeX.AddHours(hours);
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.AddHours(double)");
@@ -5101,7 +5480,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.DateTimeX result = dateTimeX.AddMinutes(minutes);
+                    _ = dateTimeX.AddMinutes(minutes);
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.AddMinutes(double)");
@@ -5113,7 +5492,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.DateTimeX result = dateTimeX.AddSeconds(seconds);
+                    _ = dateTimeX.AddSeconds(seconds);
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.AddSeconds(double)");
@@ -5125,7 +5504,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.DateTimeX result = dateTimeX.AddMilliseconds(milliseconds);
+                    _ = dateTimeX.AddMilliseconds(milliseconds);
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.AddMilliseconds(decimal)");
@@ -5137,7 +5516,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.DateTimeX result = dateTimeX.AddMilliseconds(milliseconds);
+                    _ = dateTimeX.AddMilliseconds(milliseconds);
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.AddMilliseconds(double)");
@@ -5150,7 +5529,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.DateTimeX result = dateTimeX.ToLocalTime();
+                    _ = dateTimeX.ToLocalTime();
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.ToLocalTime()");
@@ -5161,18 +5540,20 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.DateTimeX result = dateTimeX.ToUniversalTime();
+                    _ = dateTimeX.ToUniversalTime();
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.ToUniversalTime()");
             }
+
+            // ToString
 
             {
                 Com.DateTimeX dateTimeX = _GetRandomDateTimeX();
 
                 Action method = () =>
                 {
-                    string result = dateTimeX.ToLongDateString();
+                    _ = dateTimeX.ToLongDateString();
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.ToLongDateString()");
@@ -5183,7 +5564,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    string result = dateTimeX.ToShortDateString();
+                    _ = dateTimeX.ToShortDateString();
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.ToShortDateString()");
@@ -5194,7 +5575,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    string result = dateTimeX.ToLongTimeString();
+                    _ = dateTimeX.ToLongTimeString();
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.ToLongTimeString()");
@@ -5205,7 +5586,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    string result = dateTimeX.ToShortTimeString();
+                    _ = dateTimeX.ToShortTimeString();
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.ToShortTimeString()");
@@ -5222,10 +5603,24 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = Com.DateTimeX.Equals(left, right);
+                    _ = Com.DateTimeX.Equals(left, right);
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.Equals(Com.DateTimeX, Com.DateTimeX)");
+            }
+
+            // Compare
+
+            {
+                Com.DateTimeX left = _GetRandomDateTimeX();
+                Com.DateTimeX right = left;
+
+                Action method = () =>
+                {
+                    _ = Com.DateTimeX.Compare(left, right);
+                };
+
+                ExecuteTest(method, "Com.DateTimeX.Compare(Com.DateTimeX, Com.DateTimeX)");
             }
 
             // IsLeapYear
@@ -5235,7 +5630,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = Com.DateTimeX.IsLeapYear(year);
+                    _ = Com.DateTimeX.IsLeapYear(year);
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.IsLeapYear(long)");
@@ -5248,7 +5643,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    int result = Com.DateTimeX.DaysInYear(year);
+                    _ = Com.DateTimeX.DaysInYear(year);
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.DaysInYear(long)");
@@ -5260,7 +5655,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    int result = Com.DateTimeX.DaysInMonth(year, month);
+                    _ = Com.DateTimeX.DaysInMonth(year, month);
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.DaysInMonth(long, int)");
@@ -5277,7 +5672,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = (left == right);
+                    _ = (left == right);
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.operator ==(Com.DateTimeX, Com.DateTimeX)");
@@ -5289,7 +5684,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = (left != right);
+                    _ = (left != right);
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.operator !=(Com.DateTimeX, Com.DateTimeX)");
@@ -5301,7 +5696,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = (left < right);
+                    _ = (left < right);
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.operator <(Com.DateTimeX, Com.DateTimeX)");
@@ -5313,7 +5708,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = (left > right);
+                    _ = (left > right);
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.operator >(Com.DateTimeX, Com.DateTimeX)");
@@ -5325,7 +5720,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = (left <= right);
+                    _ = (left <= right);
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.operator <=(Com.DateTimeX, Com.DateTimeX)");
@@ -5337,7 +5732,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = (left >= right);
+                    _ = (left >= right);
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.operator >=(Com.DateTimeX, Com.DateTimeX)");
@@ -5351,7 +5746,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.DateTimeX result = dateTime - timeSpan;
+                    _ = dateTime - timeSpan;
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.operator +(Com.DateTimeX, TimeSpan)");
@@ -5363,10 +5758,23 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.DateTimeX result = dateTime - timeSpan;
+                    _ = dateTime - timeSpan;
                 };
 
                 ExecuteTest(method, "Com.DateTimeX.operator -(Com.DateTimeX, TimeSpan)");
+            }
+
+            // 类型转换
+
+            {
+                DateTime dateTime = _GetRandomDateTime();
+
+                Action method = () =>
+                {
+                    _ = (Com.DateTimeX)dateTime;
+                };
+
+                ExecuteTest(method, "Com.DateTimeX.implicit operator Com.DateTimeX(System.DateTime)");
             }
         }
     }
@@ -5415,13 +5823,55 @@ namespace Test
             // 平面直角坐标系
 
             {
+                Com.PointD pt1 = _GetRandomPointD();
+                Com.PointD pt2 = _GetRandomPointD();
+                double A;
+                double B;
+                double C;
+
+                Action method = () =>
+                {
+                    Com.Geometry.CalcLineGeneralFunction(pt1, pt2, out A, out B, out C);
+                };
+
+                ExecuteTest(method, "Com.Geometry.CalcLineGeneralFunction(Com.PointD, Com.PointD, out double, out double, out double)");
+            }
+
+            {
+                Com.PointD pt = _GetRandomPointD();
+                double A = Com.Statistics.RandomDouble(-1E9, 1E9);
+                double B = Com.Statistics.RandomDouble(-1E9, 1E9);
+                double C = Com.Statistics.RandomDouble(-1E9, 1E9);
+
+                Action method = () =>
+                {
+                    _ = Com.Geometry.GetDistanceBetweenPointAndLine(pt, A, B, C);
+                };
+
+                ExecuteTest(method, "Com.Geometry.GetDistanceBetweenPointAndLine(Com.PointD, double, double, double)");
+            }
+
+            {
                 Com.PointD pt = _GetRandomPointD();
                 Com.PointD pt1 = _GetRandomPointD();
                 Com.PointD pt2 = _GetRandomPointD();
 
                 Action method = () =>
                 {
-                    Com.PointD result = Com.Geometry.GetFootPoint(pt, pt1, pt2);
+                    _ = Com.Geometry.GetDistanceBetweenPointAndLine(pt, pt1, pt2);
+                };
+
+                ExecuteTest(method, "Com.Geometry.GetDistanceBetweenPointAndLine(Com.PointD, Com.PointD, Com.PointD)");
+            }
+
+            {
+                Com.PointD pt = _GetRandomPointD();
+                Com.PointD pt1 = _GetRandomPointD();
+                Com.PointD pt2 = _GetRandomPointD();
+
+                Action method = () =>
+                {
+                    _ = Com.Geometry.GetFootPoint(pt, pt1, pt2);
                 };
 
                 ExecuteTest(method, "Com.Geometry.GetFootPoint(Com.PointD, Com.PointD, Com.PointD)");
@@ -5435,7 +5885,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = Com.Geometry.GetAngleOfTwoPoints(pt1, pt2);
+                    _ = Com.Geometry.GetAngleOfTwoPoints(pt1, pt2);
                 };
 
                 ExecuteTest(method, "Com.Geometry.GetAngleOfTwoPoints(Com.PointD, Com.PointD)");
@@ -5446,7 +5896,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = Com.Geometry.AngleMapping(angle);
+                    _ = Com.Geometry.AngleMapping(angle);
                 };
 
                 ExecuteTest(method, "Com.Geometry.AngleMapping(double)");
@@ -5474,7 +5924,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = Com.Geometry.PointIsVisibleInRectangle(pt, rect);
+                    _ = Com.Geometry.PointIsVisibleInRectangle(pt, rect);
                 };
 
                 ExecuteTest(method, "Com.Geometry.PointIsVisibleInRectangle(Com.PointD, System.Drawing.RectangleF)");
@@ -5487,7 +5937,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = Com.Geometry.PointIsVisibleInCircle(pt, offset, radius);
+                    _ = Com.Geometry.PointIsVisibleInCircle(pt, offset, radius);
                 };
 
                 ExecuteTest(method, "Com.Geometry.PointIsVisibleInCircle(Com.PointD, Com.PointD, double)");
@@ -5502,7 +5952,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = Com.Geometry.PointIsVisibleInEllipse(pt, offset, semiMajorAxis, eccentricity, rotateAngle);
+                    _ = Com.Geometry.PointIsVisibleInEllipse(pt, offset, semiMajorAxis, eccentricity, rotateAngle);
                 };
 
                 ExecuteTest(method, "Com.Geometry.PointIsVisibleInEllipse(Com.PointD, Com.PointD, double, double, double)");
@@ -5517,7 +5967,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = Com.Geometry.PointIsVisibleInRhombus(pt, offset, semiMajorAxis, semiMinorAxis, rotateAngle);
+                    _ = Com.Geometry.PointIsVisibleInRhombus(pt, offset, semiMajorAxis, semiMinorAxis, rotateAngle);
                 };
 
                 ExecuteTest(method, "Com.Geometry.PointIsVisibleInRhombus(Com.PointD, Com.PointD, double, double, double)");
@@ -5530,7 +5980,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = Com.Geometry.LineIsVisibleInRectangle(pt1, pt2, rect);
+                    _ = Com.Geometry.LineIsVisibleInRectangle(pt1, pt2, rect);
                 };
 
                 ExecuteTest(method, "Com.Geometry.LineIsVisibleInRectangle(Com.PointD, Com.PointD, System.Drawing.RectangleF)");
@@ -5544,7 +5994,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = Com.Geometry.LineIsVisibleInCircle(pt1, pt2, offset, radius);
+                    _ = Com.Geometry.LineIsVisibleInCircle(pt1, pt2, offset, radius);
                 };
 
                 ExecuteTest(method, "Com.Geometry.LineIsVisibleInCircle(Com.PointD, Com.PointD, Com.PointD, double)");
@@ -5557,7 +6007,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = Com.Geometry.CircleInnerIsVisibleInRectangle(offset, radius, rect);
+                    _ = Com.Geometry.CircleInnerIsVisibleInRectangle(offset, radius, rect);
                 };
 
                 ExecuteTest(method, "Com.Geometry.CircleInnerIsVisibleInRectangle(Com.PointD, double, System.Drawing.RectangleF)");
@@ -5570,7 +6020,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = Com.Geometry.CircumferenceIsVisibleInRectangle(offset, radius, rect);
+                    _ = Com.Geometry.CircumferenceIsVisibleInRectangle(offset, radius, rect);
                 };
 
                 ExecuteTest(method, "Com.Geometry.CircumferenceIsVisibleInRectangle(Com.PointD, double, System.Drawing.RectangleF)");
@@ -5585,7 +6035,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = Com.Geometry.GetRadiusOfEllipse(semiMajorAxis, eccentricity, phase);
+                    _ = Com.Geometry.GetRadiusOfEllipse(semiMajorAxis, eccentricity, phase);
                 };
 
                 ExecuteTest(method, "Com.Geometry.GetRadiusOfEllipse(double, double, double)");
@@ -5598,7 +6048,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = Com.Geometry.GetFocalRadiusOfEllipse(semiMajorAxis, eccentricity, phase);
+                    _ = Com.Geometry.GetFocalRadiusOfEllipse(semiMajorAxis, eccentricity, phase);
                 };
 
                 ExecuteTest(method, "Com.Geometry.GetFocalRadiusOfEllipse(double, double, double)");
@@ -5610,7 +6060,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = Com.Geometry.EllipseCentralAngleToPhase(centralAngle, eccentricity);
+                    _ = Com.Geometry.EllipseCentralAngleToPhase(centralAngle, eccentricity);
                 };
 
                 ExecuteTest(method, "Com.Geometry.EllipseCentralAngleToPhase(double, double, double)");
@@ -5625,7 +6075,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Bitmap result = Com.Geometry.RotateBitmap(bmp, rotateAngle, antiAlias);
+                    _ = Com.Geometry.RotateBitmap(bmp, rotateAngle, antiAlias);
                 };
 
                 ExecuteTest(method, "Com.Geometry.RotateBitmap(System.Drawing.Bitmap, double, bool)", "bmp at 1024x1024 pixels, enable antiAlias");
@@ -5639,7 +6089,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    GraphicsPath result = Com.Geometry.CreateRoundedRectanglePath(rect, cornerRadius);
+                    _ = Com.Geometry.CreateRoundedRectanglePath(rect, cornerRadius);
                 };
 
                 ExecuteTest(method, "Com.Geometry.CreateRoundedRectanglePath(System.Drawing.Rectangle, int)");
@@ -5654,7 +6104,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    GraphicsPath result = Com.Geometry.CreateRoundedRectanglePath(rect, cornerRadiusLT, cornerRadiusRT, cornerRadiusRB, cornerRadiusLB);
+                    _ = Com.Geometry.CreateRoundedRectanglePath(rect, cornerRadiusLT, cornerRadiusRT, cornerRadiusRB, cornerRadiusLB);
                 };
 
                 ExecuteTest(method, "Com.Geometry.CreateRoundedRectanglePath(System.Drawing.Rectangle, int, int, int, int)");
@@ -5666,7 +6116,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    GraphicsPath[] result = Com.Geometry.CreateRoundedRectangleOuterPaths(rect, cornerRadius);
+                    _ = Com.Geometry.CreateRoundedRectangleOuterPaths(rect, cornerRadius);
                 };
 
                 ExecuteTest(method, "Com.Geometry.CreateRoundedRectangleOuterPaths(System.Drawing.Rectangle, int)");
@@ -5681,7 +6131,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    GraphicsPath[] result = Com.Geometry.CreateRoundedRectangleOuterPaths(rect, cornerRadiusLT, cornerRadiusRT, cornerRadiusRB, cornerRadiusLB);
+                    _ = Com.Geometry.CreateRoundedRectangleOuterPaths(rect, cornerRadiusLT, cornerRadiusRT, cornerRadiusRB, cornerRadiusLB);
                 };
 
                 ExecuteTest(method, "Com.Geometry.CreateRoundedRectangleOuterPaths(System.Drawing.Rectangle, int, int, int, int)");
@@ -5753,7 +6203,7 @@ namespace Test
             }
             else
             {
-                return Com.Matrix.NonMatrix;
+                return Com.Matrix.Empty;
             }
         }
 
@@ -5766,7 +6216,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix matrix = new Com.Matrix(size);
+                    _ = new Com.Matrix(size);
                 };
 
                 ExecuteTest(method, "Com.Matrix.Matrix(System.Drawing.Size)", "size at 32x32");
@@ -5778,7 +6228,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix matrix = new Com.Matrix(size, value);
+                    _ = new Com.Matrix(size, value);
                 };
 
                 ExecuteTest(method, "Com.Matrix.Matrix(System.Drawing.Size, double)", "size at 32x32");
@@ -5790,7 +6240,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix matrix = new Com.Matrix(width, height);
+                    _ = new Com.Matrix(width, height);
                 };
 
                 ExecuteTest(method, "Com.Matrix.Matrix(int, int)", "size at 32x32");
@@ -5803,7 +6253,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix matrix = new Com.Matrix(width, height, value);
+                    _ = new Com.Matrix(width, height, value);
                 };
 
                 ExecuteTest(method, "Com.Matrix.Matrix(int, int, double)", "size at 32x32");
@@ -5822,7 +6272,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix matrix = new Com.Matrix(values);
+                    _ = new Com.Matrix(values);
                 };
 
                 ExecuteTest(method, "Com.Matrix.Matrix(double[,])", "size at 32x32");
@@ -5840,7 +6290,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = matrix[x, y];
+                    _ = matrix[x, y];
                 };
 
                 ExecuteTest(method, "Com.Matrix.this[int, int].get()", "size at 32x32");
@@ -5866,7 +6316,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = matrix[index];
+                    _ = matrix[index];
                 };
 
                 ExecuteTest(method, "Com.Matrix.this[System.Drawing.Point].get()", "size at 32x32");
@@ -5892,10 +6342,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = matrix.IsNonMatrix;
+                    _ = matrix.IsEmpty;
                 };
 
-                ExecuteTest(method, "Com.Matrix.IsNonMatrix.get()", "size at 32x32");
+                ExecuteTest(method, "Com.Matrix.IsEmpty.get()", "size at 32x32");
             }
 
             // Size
@@ -5905,7 +6355,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Size result = matrix.Size;
+                    _ = matrix.Size;
                 };
 
                 ExecuteTest(method, "Com.Matrix.Size.get()", "size at 32x32");
@@ -5916,7 +6366,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    int result = matrix.Width;
+                    _ = matrix.Width;
                 };
 
                 ExecuteTest(method, "Com.Matrix.Width.get()", "size at 32x32");
@@ -5927,7 +6377,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    int result = matrix.Column;
+                    _ = matrix.Column;
                 };
 
                 ExecuteTest(method, "Com.Matrix.Column.get()", "size at 32x32");
@@ -5938,7 +6388,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    int result = matrix.Height;
+                    _ = matrix.Height;
                 };
 
                 ExecuteTest(method, "Com.Matrix.Height.get()", "size at 32x32");
@@ -5949,7 +6399,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    int result = matrix.Row;
+                    _ = matrix.Row;
                 };
 
                 ExecuteTest(method, "Com.Matrix.Row.get()", "size at 32x32");
@@ -5960,7 +6410,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    int result = matrix.Count;
+                    _ = matrix.Count;
                 };
 
                 ExecuteTest(method, "Com.Matrix.Count.get()", "size at 32x32");
@@ -5973,7 +6423,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = matrix.Determinant;
+                    _ = matrix.Determinant;
                 };
 
                 ExecuteTest(method, "Com.Matrix.Determinant.get()", "size at 8x8");
@@ -5984,7 +6434,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    int result = matrix.Rank;
+                    _ = matrix.Rank;
                 };
 
                 ExecuteTest(method, "Com.Matrix.Rank.get()", "size at 8x8");
@@ -5995,7 +6445,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = matrix.Transport;
+                    _ = matrix.Transport;
                 };
 
                 ExecuteTest(method, "Com.Matrix.Transport.get()", "size at 8x8");
@@ -6006,7 +6456,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = matrix.Adjoint;
+                    _ = matrix.Adjoint;
                 };
 
                 ExecuteTest(method, "Com.Matrix.Adjoint.get()", "size at 8x8");
@@ -6017,7 +6467,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = matrix.Invert;
+                    _ = matrix.Invert;
                 };
 
                 ExecuteTest(method, "Com.Matrix.Invert.get()", "size at 8x8");
@@ -6026,13 +6476,15 @@ namespace Test
 
         protected override void StaticProperty()
         {
+            // Empty
+
             {
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.Matrix.NonMatrix;
+                    _ = Com.Matrix.Empty;
                 };
 
-                ExecuteTest(method, "Com.Matrix.NonMatrix.get()");
+                ExecuteTest(method, "Com.Matrix.Empty.get()");
             }
         }
 
@@ -6042,11 +6494,11 @@ namespace Test
 
             {
                 Com.Matrix matrix = _GetRandomMatrix(32, 32);
-                object obj = (object)matrix.Copy();
+                object obj = matrix.Copy();
 
                 Action method = () =>
                 {
-                    bool result = matrix.Equals(obj);
+                    _ = matrix.Equals(obj);
                 };
 
                 ExecuteTest(method, "Com.Matrix.Equals(object)", "size at 32x32");
@@ -6057,7 +6509,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    int result = matrix.GetHashCode();
+                    _ = matrix.GetHashCode();
                 };
 
                 ExecuteTest(method, "Com.Matrix.GetHashCode()", "size at 32x32");
@@ -6068,7 +6520,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    string result = matrix.ToString();
+                    _ = matrix.ToString();
                 };
 
                 ExecuteTest(method, "Com.Matrix.ToString()", "size at 32x32");
@@ -6082,7 +6534,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = left.Equals(right);
+                    _ = left.Equals(right);
                 };
 
                 ExecuteTest(method, "Com.Matrix.Equals(Com.Matrix)", "size at 32x32");
@@ -6095,7 +6547,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = matrix.Copy();
+                    _ = matrix.Copy();
                 };
 
                 ExecuteTest(method, "Com.Matrix.Copy()", "size at 32x32");
@@ -6110,7 +6562,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = matrix.SubMatrix(index, size);
+                    _ = matrix.SubMatrix(index, size);
                 };
 
                 ExecuteTest(method, "Com.Matrix.SubMatrix(System.Drawing.Point, System.Drawing.Size)", "size at 32x32, SubMatrix is 16x16 at (8,8)");
@@ -6125,7 +6577,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = matrix.SubMatrix(x, y, width, height);
+                    _ = matrix.SubMatrix(x, y, width, height);
                 };
 
                 ExecuteTest(method, "Com.Matrix.SubMatrix(int, int, int, int)", "size at 32x32, SubMatrix is 16x16 at (8,8)");
@@ -6139,7 +6591,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Vector result = matrix.GetColumn(x);
+                    _ = matrix.GetColumn(x);
                 };
 
                 ExecuteTest(method, "Com.Matrix.GetColumn(int)", "size at 32x32");
@@ -6151,7 +6603,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Vector result = matrix.GetRow(y);
+                    _ = matrix.GetRow(y);
                 };
 
                 ExecuteTest(method, "Com.Matrix.GetRow(int)", "size at 32x32");
@@ -6164,7 +6616,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double[,] result = matrix.ToArray();
+                    _ = matrix.ToArray();
                 };
 
                 ExecuteTest(method, "Com.Matrix.ToArray()", "size at 32x32");
@@ -6173,17 +6625,17 @@ namespace Test
 
         protected override void StaticMethod()
         {
-            // IsNullOrNonMatrix
+            // IsNullOrEmpty
 
             {
                 Com.Matrix matrix = new Com.Matrix(32, 32);
 
                 Action method = () =>
                 {
-                    bool result = Com.Matrix.IsNullOrNonMatrix(matrix);
+                    _ = Com.Matrix.IsNullOrEmpty(matrix);
                 };
 
-                ExecuteTest(method, "Com.Matrix.IsNullOrNonMatrix(Com.Matrix)", "size at 32x32");
+                ExecuteTest(method, "Com.Matrix.IsNullOrEmpty(Com.Matrix)", "size at 32x32");
             }
 
             // Equals
@@ -6194,7 +6646,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = Com.Matrix.Equals(left, right);
+                    _ = Com.Matrix.Equals(left, right);
                 };
 
                 ExecuteTest(method, "Com.Matrix.Equals(Com.Matrix, Com.Matrix)", "size at 32x32");
@@ -6207,7 +6659,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.Matrix.Identity(order);
+                    _ = Com.Matrix.Identity(order);
                 };
 
                 ExecuteTest(method, "Com.Matrix.Identity(int)", "size at 32x32");
@@ -6218,7 +6670,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.Matrix.Zeros(size);
+                    _ = Com.Matrix.Zeros(size);
                 };
 
                 ExecuteTest(method, "Com.Matrix.Zeros(System.Drawing.Size)", "size at 32x32");
@@ -6230,7 +6682,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.Matrix.Zeros(width, height);
+                    _ = Com.Matrix.Zeros(width, height);
                 };
 
                 ExecuteTest(method, "Com.Matrix.Zeros(int, int)", "size at 32x32");
@@ -6241,7 +6693,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.Matrix.Ones(size);
+                    _ = Com.Matrix.Ones(size);
                 };
 
                 ExecuteTest(method, "Com.Matrix.Ones(System.Drawing.Size)", "size at 32x32");
@@ -6253,7 +6705,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.Matrix.Ones(width, height);
+                    _ = Com.Matrix.Ones(width, height);
                 };
 
                 ExecuteTest(method, "Com.Matrix.Ones(int, int)", "size at 32x32");
@@ -6271,7 +6723,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.Matrix.Diagonal(array, rowsUponMainDiag);
+                    _ = Com.Matrix.Diagonal(array, rowsUponMainDiag);
                 };
 
                 ExecuteTest(method, "Com.Matrix.Diagonal(double[], int)", "size at 32x32");
@@ -6287,7 +6739,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.Matrix.Diagonal(array);
+                    _ = Com.Matrix.Diagonal(array);
                 };
 
                 ExecuteTest(method, "Com.Matrix.Diagonal(double[])", "size at 32x32");
@@ -6301,7 +6753,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.Matrix.Augment(left, right);
+                    _ = Com.Matrix.Augment(left, right);
                 };
 
                 ExecuteTest(method, "Com.Matrix.Augment(Com.Matrix, Com.Matrix)", "size at 32x32");
@@ -6315,7 +6767,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.Matrix.Add(matrix, n);
+                    _ = Com.Matrix.Add(matrix, n);
                 };
 
                 ExecuteTest(method, "Com.Matrix.Add(Com.Matrix, double)", "size at 32x32");
@@ -6327,7 +6779,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.Matrix.Add(n, matrix);
+                    _ = Com.Matrix.Add(n, matrix);
                 };
 
                 ExecuteTest(method, "Com.Matrix.Add(double, Com.Matrix)", "size at 32x32");
@@ -6339,7 +6791,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.Matrix.Add(left, right);
+                    _ = Com.Matrix.Add(left, right);
                 };
 
                 ExecuteTest(method, "Com.Matrix.Add(Com.Matrix, Com.Matrix)", "size at 32x32");
@@ -6351,7 +6803,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.Matrix.Subtract(matrix, n);
+                    _ = Com.Matrix.Subtract(matrix, n);
                 };
 
                 ExecuteTest(method, "Com.Matrix.Subtract(Com.Matrix, double)", "size at 32x32");
@@ -6363,7 +6815,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.Matrix.Subtract(n, matrix);
+                    _ = Com.Matrix.Subtract(n, matrix);
                 };
 
                 ExecuteTest(method, "Com.Matrix.Subtract(double, Com.Matrix)", "size at 32x32");
@@ -6375,7 +6827,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.Matrix.Subtract(left, right);
+                    _ = Com.Matrix.Subtract(left, right);
                 };
 
                 ExecuteTest(method, "Com.Matrix.Subtract(Com.Matrix, Com.Matrix)", "size at 32x32");
@@ -6387,7 +6839,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.Matrix.Multiply(matrix, n);
+                    _ = Com.Matrix.Multiply(matrix, n);
                 };
 
                 ExecuteTest(method, "Com.Matrix.Multiply(Com.Matrix, double)", "size at 32x32");
@@ -6399,22 +6851,22 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.Matrix.Multiply(n, matrix);
+                    _ = Com.Matrix.Multiply(n, matrix);
                 };
 
                 ExecuteTest(method, "Com.Matrix.Multiply(double, Com.Matrix)", "size at 32x32");
             }
 
             {
-                Com.Matrix left = _GetRandomMatrix(8, 8);
-                Com.Matrix right = _GetRandomMatrix(8, 8);
+                Com.Matrix left = _GetRandomMatrix(32, 32);
+                Com.Matrix right = _GetRandomMatrix(32, 32);
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.Matrix.Multiply(left, right);
+                    _ = Com.Matrix.Multiply(left, right);
                 };
 
-                ExecuteTest(method, "Com.Matrix.Multiply(Com.Matrix, Com.Matrix)", "size at 8x8");
+                ExecuteTest(method, "Com.Matrix.Multiply(Com.Matrix, Com.Matrix)", "size at 32x32");
             }
 
             {
@@ -6427,7 +6879,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.Matrix.MultiplyLeft(list);
+                    _ = Com.Matrix.MultiplyLeft(list);
                 };
 
                 ExecuteTest(method, "Com.Matrix.MultiplyLeft(System.Collections.Generic.List<Com.Matrix>)", "size at 32x32, total 8 matrices");
@@ -6443,7 +6895,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.Matrix.MultiplyRight(list);
+                    _ = Com.Matrix.MultiplyRight(list);
                 };
 
                 ExecuteTest(method, "Com.Matrix.MultiplyRight(System.Collections.Generic.List<Com.Matrix>)", "size at 32x32, total 8 matrices");
@@ -6455,7 +6907,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.Matrix.Divide(matrix, n);
+                    _ = Com.Matrix.Divide(matrix, n);
                 };
 
                 ExecuteTest(method, "Com.Matrix.Divide(Com.Matrix, double)", "size at 32x32");
@@ -6467,7 +6919,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.Matrix.Divide(n, matrix);
+                    _ = Com.Matrix.Divide(n, matrix);
                 };
 
                 ExecuteTest(method, "Com.Matrix.Divide(double, Com.Matrix)", "size at 32x32");
@@ -6479,7 +6931,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.Matrix.DivideLeft(left, right);
+                    _ = Com.Matrix.DivideLeft(left, right);
                 };
 
                 ExecuteTest(method, "Com.Matrix.DivideLeft(Com.Matrix, Com.Matrix)", "size at 8x8");
@@ -6491,7 +6943,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.Matrix.DivideRight(left, right);
+                    _ = Com.Matrix.DivideRight(left, right);
                 };
 
                 ExecuteTest(method, "Com.Matrix.DivideRight(Com.Matrix, Com.Matrix)", "size at 8x8");
@@ -6510,7 +6962,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Vector result = Com.Matrix.SolveLinearEquation(matrix, vector);
+                    _ = Com.Matrix.SolveLinearEquation(matrix, vector);
                 };
 
                 ExecuteTest(method, "Com.Matrix.SolveLinearEquation(Com.Matrix, Com.Vector)", "size at 8x8");
@@ -6527,7 +6979,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = (left == right);
+                    _ = (left == right);
                 };
 
                 ExecuteTest(method, "Com.Matrix.operator ==(Com.Matrix, Com.Matrix)", "size at 32x32");
@@ -6539,7 +6991,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = (left != right);
+                    _ = (left != right);
                 };
 
                 ExecuteTest(method, "Com.Matrix.operator !=(Com.Matrix, Com.Matrix)", "size at 32x32");
@@ -6581,7 +7033,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = Com.Painting2D.PaintLine(bmp, pt1, pt2, color, width, antiAlias);
+                    _ = Com.Painting2D.PaintLine(bmp, pt1, pt2, color, width, antiAlias);
                 };
 
                 ExecuteTest(method, "Com.Painting2D.PaintLine(System.Drawing.Bitmap, Com.PointD, Com.PointD, System.Drawing.Color, float, bool)", "bmp at 1024x1024 pixels, width at 1.0F, enable antiAlias");
@@ -6590,7 +7042,7 @@ namespace Test
             {
                 Bitmap bmp = new Bitmap(1024, 1024);
                 Com.PointD offset = new Com.PointD(bmp.Size) / 2;
-                double radius = new Com.PointD(bmp.Size).VectorModule / 2;
+                double radius = new Com.PointD(bmp.Size).Module / 2;
                 double deltaRadius = radius / 9;
                 int normalIncreasePeriod = 3;
                 Color color = Com.ColorManipulation.GetRandomColor();
@@ -6598,7 +7050,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = Com.Painting2D.PaintPolarGrid(bmp, offset, radius, deltaRadius, normalIncreasePeriod, color, antiAlias);
+                    _ = Com.Painting2D.PaintPolarGrid(bmp, offset, radius, deltaRadius, normalIncreasePeriod, color, antiAlias);
                 };
 
                 ExecuteTest(method, "Com.Painting2D.PaintPolarGrid(System.Drawing.Bitmap, Com.PointD, double, double, int, System.Drawing.Color, bool)", "bmp at 1024x1024 pixels, radius at half diagonal of bmp, deltaRadius at 1/9 of radius, normalIncreasePeriod at 3, enable antiAlias");
@@ -6614,7 +7066,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = Com.Painting2D.PaintCircle(bmp, offset, radius, color, width, antiAlias);
+                    _ = Com.Painting2D.PaintCircle(bmp, offset, radius, color, width, antiAlias);
                 };
 
                 ExecuteTest(method, "Com.Painting2D.PaintCircle(System.Drawing.Bitmap, Com.PointD, double, System.Drawing.Color, float, bool)", "bmp at 1024x1024 pixels, radius at half width of bmp, width at 1.0F, enable antiAlias");
@@ -6634,7 +7086,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = Com.Painting2D.PaintLargeCircle(bmp, offset, radius, refPhase, color, width, antiAlias, minDiv, maxDiv, divArc);
+                    _ = Com.Painting2D.PaintLargeCircle(bmp, offset, radius, refPhase, color, width, antiAlias, minDiv, maxDiv, divArc);
                 };
 
                 ExecuteTest(method, "Com.Painting2D.PaintLargeCircle(System.Drawing.Bitmap, Com.PointD, double, double, System.Drawing.Color, float, bool, int, int, double)", "bmp at 1024x1024 pixels, radius at sqrt(5) width of bmp, width at 1.0F, enable antiAlias, minDiv at 32, maxDiv at 256, divArc at 4");
@@ -6651,7 +7103,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = Com.Painting2D.PaintLargeCircle(bmp, offset, radius, refPhase, color, width, antiAlias);
+                    _ = Com.Painting2D.PaintLargeCircle(bmp, offset, radius, refPhase, color, width, antiAlias);
                 };
 
                 ExecuteTest(method, "Com.Painting2D.PaintLargeCircle(System.Drawing.Bitmap, Com.PointD, double, double, System.Drawing.Color, float, bool, int, int, double)", "bmp at 1024x1024 pixels, radius at sqrt(5) width of bmp, width at 1.0F, enable antiAlias");
@@ -6673,7 +7125,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = Com.Painting2D.PaintLargeEllipse(bmp, offset, semiMajorAxis, eccentricity, rotateAngle, refPhase, color, width, antiAlias, minDiv, maxDiv, divArc);
+                    _ = Com.Painting2D.PaintLargeEllipse(bmp, offset, semiMajorAxis, eccentricity, rotateAngle, refPhase, color, width, antiAlias, minDiv, maxDiv, divArc);
                 };
 
                 ExecuteTest(method, "Com.Painting2D.PaintLargeEllipse(System.Drawing.Bitmap, Com.PointD, double, double, double, double, System.Drawing.Color, float, bool, int, int, double)", "bmp at 1024x1024 pixels, semiMajorAxis at 5 width of bmp, eccentricity at 0.8, width at 1.0F, enable antiAlias, minDiv at 32, maxDiv at 256, divArc at 4");
@@ -6692,7 +7144,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = Com.Painting2D.PaintLargeEllipse(bmp, offset, semiMajorAxis, eccentricity, rotateAngle, refPhase, color, width, antiAlias);
+                    _ = Com.Painting2D.PaintLargeEllipse(bmp, offset, semiMajorAxis, eccentricity, rotateAngle, refPhase, color, width, antiAlias);
                 };
 
                 ExecuteTest(method, "Com.Painting2D.PaintLargeEllipse(System.Drawing.Bitmap, Com.PointD, double, double, double, double, System.Drawing.Color, float, bool)", "bmp at 1024x1024 pixels, semiMajorAxis at 5 width of bmp, eccentricity at 0.8, width at 1.0F, enable antiAlias");
@@ -6710,7 +7162,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = Com.Painting2D.PaintTextWithShadow(bmp, text, font, frontColor, backColor, pt, offset, antiAlias);
+                    _ = Com.Painting2D.PaintTextWithShadow(bmp, text, font, frontColor, backColor, pt, offset, antiAlias);
                 };
 
                 ExecuteTest(method, "Com.Painting2D.PaintTextWithShadow(System.Drawing.Bitmap, string, System.Drawing.Font, System.Drawing.Color, System.Drawing.Color, System.Drawing.PointF, float, bool)", "bmp at 1024x1024 pixels, font at 42 pt, enable antiAlias");
@@ -6764,10 +7216,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = Com.Painting3D.PaintCuboid(bmp, center, size, color, edgeWidth, affineMatrixList, trueLenDist, illuminationDirection, illuminationDirectionIsAfterAffineTransform, exposure, antiAlias);
+                    _ = Com.Painting3D.PaintCuboid(bmp, center, size, color, edgeWidth, affineMatrixList, trueLenDist, illuminationDirection, illuminationDirectionIsAfterAffineTransform, exposure, antiAlias);
                 };
 
-                ExecuteTest(method, "Com.Painting3D.PaintCuboid(System.Drawing.Bitmap, Com.PointD3D, Com.PointD3D, System.Drawing.Color, float, List<Com.Matrix>, double, Com.PointD3D, bool, double, bool)", "bmp at 1024x1024 pixels, cuboid size at 512x512x512, edgeWidth at 1.0F, total 4 matrices, trueLenDist at 1024, enable antiAlias");
+                ExecuteTest(method, "Com.Painting3D.PaintCuboid(System.Drawing.Bitmap, Com.PointD3D, Com.PointD3D, System.Drawing.Color, float, System.Collections.Generic.List<Com.Matrix>, double, Com.PointD3D, bool, double, bool)", "bmp at 1024x1024 pixels, cuboid size at 512x512x512, edgeWidth at 1.0F, total 4 matrices, trueLenDist at 1024, enable antiAlias");
             }
 
             {
@@ -6785,7 +7237,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = Com.Painting3D.PaintCuboid(bmp, center, size, color, edgeWidth, affineMatrix, trueLenDist, illuminationDirection, illuminationDirectionIsAfterAffineTransform, exposure, antiAlias);
+                    _ = Com.Painting3D.PaintCuboid(bmp, center, size, color, edgeWidth, affineMatrix, trueLenDist, illuminationDirection, illuminationDirectionIsAfterAffineTransform, exposure, antiAlias);
                 };
 
                 ExecuteTest(method, "Com.Painting3D.PaintCuboid(System.Drawing.Bitmap, Com.PointD3D, Com.PointD3D, System.Drawing.Color, float, Com.Matrix, double, Com.PointD3D, bool, double, bool)", "bmp at 1024x1024 pixels, cuboid size at 512x512x512, edgeWidth at 1.0F, trueLenDist at 1024, enable antiAlias");
@@ -6803,10 +7255,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = Com.Painting3D.PaintCuboid(bmp, center, size, color, edgeWidth, affineMatrixList, trueLenDist, antiAlias);
+                    _ = Com.Painting3D.PaintCuboid(bmp, center, size, color, edgeWidth, affineMatrixList, trueLenDist, antiAlias);
                 };
 
-                ExecuteTest(method, "Com.Painting3D.PaintCuboid(System.Drawing.Bitmap, Com.PointD3D, Com.PointD3D, System.Drawing.Color, float, List<Com.Matrix>, double, bool)", "bmp at 1024x1024 pixels, cuboid size at 512x512x512, edgeWidth at 1.0F, total 4 matrices, trueLenDist at 1024, enable antiAlias");
+                ExecuteTest(method, "Com.Painting3D.PaintCuboid(System.Drawing.Bitmap, Com.PointD3D, Com.PointD3D, System.Drawing.Color, float, System.Collections.Generic.List<Com.Matrix>, double, bool)", "bmp at 1024x1024 pixels, cuboid size at 512x512x512, edgeWidth at 1.0F, total 4 matrices, trueLenDist at 1024, enable antiAlias");
             }
 
             {
@@ -6821,7 +7273,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = Com.Painting3D.PaintCuboid(bmp, center, size, color, edgeWidth, affineMatrix, trueLenDist, antiAlias);
+                    _ = Com.Painting3D.PaintCuboid(bmp, center, size, color, edgeWidth, affineMatrix, trueLenDist, antiAlias);
                 };
 
                 ExecuteTest(method, "Com.Painting3D.PaintCuboid(System.Drawing.Bitmap, Com.PointD3D, Com.PointD3D, System.Drawing.Color, float, Com.Matrix, double, bool)", "bmp at 1024x1024 pixels, cuboid size at 512x512x512, edgeWidth at 1.0F, trueLenDist at 1024, enable antiAlias");
@@ -6859,7 +7311,7 @@ namespace Test
             }
             else
             {
-                return Com.Matrix.NonMatrix;
+                return Com.Matrix.Empty;
             }
         }
 
@@ -6873,18 +7325,18 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD pointD = new Com.PointD(x, y);
+                    _ = new Com.PointD(x, y);
                 };
 
                 ExecuteTest(method, "Com.PointD.PointD(double, double)");
             }
 
             {
-                Point pt = new Point(Com.Statistics.RandomInteger(), Com.Statistics.RandomInteger());
+                Point pt = new Point(Com.Statistics.RandomInteger() - int.MaxValue / 2, Com.Statistics.RandomInteger() - int.MaxValue / 2);
 
                 Action method = () =>
                 {
-                    Com.PointD pointD = new Com.PointD(pt);
+                    _ = new Com.PointD(pt);
                 };
 
                 ExecuteTest(method, "Com.PointD.PointD(System.Drawing.Point)");
@@ -6895,18 +7347,18 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD pointD = new Com.PointD(pt);
+                    _ = new Com.PointD(pt);
                 };
 
                 ExecuteTest(method, "Com.PointD.PointD(System.Drawing.PointF)");
             }
 
             {
-                Size sz = new Size(Com.Statistics.RandomInteger(), Com.Statistics.RandomInteger());
+                Size sz = new Size(Com.Statistics.RandomInteger() - int.MaxValue / 2, Com.Statistics.RandomInteger() - int.MaxValue / 2);
 
                 Action method = () =>
                 {
-                    Com.PointD pointD = new Com.PointD(sz);
+                    _ = new Com.PointD(sz);
                 };
 
                 ExecuteTest(method, "Com.PointD.PointD(System.Drawing.Size)");
@@ -6917,7 +7369,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD pointD = new Com.PointD(sz);
+                    _ = new Com.PointD(sz);
                 };
 
                 ExecuteTest(method, "Com.PointD.PointD(System.Drawing.SizeF)");
@@ -6928,7 +7380,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD pointD = new Com.PointD(comp);
+                    _ = new Com.PointD(comp);
                 };
 
                 ExecuteTest(method, "Com.PointD.PointD(Com.Complex)");
@@ -6945,7 +7397,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD[index];
+                    _ = pointD[index];
                 };
 
                 ExecuteTest(method, "Com.PointD.this[int].get()");
@@ -6964,52 +7416,6 @@ namespace Test
                 ExecuteTest(method, "Com.PointD.this[int].set(double)");
             }
 
-            // Is
-
-            {
-                Com.PointD pointD = _GetRandomPointD();
-
-                Action method = () =>
-                {
-                    bool result = pointD.IsEmpty;
-                };
-
-                ExecuteTest(method, "Com.PointD.IsEmpty.get()");
-            }
-
-            {
-                Com.PointD pointD = _GetRandomPointD();
-
-                Action method = () =>
-                {
-                    bool result = pointD.IsNaN;
-                };
-
-                ExecuteTest(method, "Com.PointD.IsNaN.get()");
-            }
-
-            {
-                Com.PointD pointD = _GetRandomPointD();
-
-                Action method = () =>
-                {
-                    bool result = pointD.IsInfinity;
-                };
-
-                ExecuteTest(method, "Com.PointD.IsInfinity.get()");
-            }
-
-            {
-                Com.PointD pointD = _GetRandomPointD();
-
-                Action method = () =>
-                {
-                    bool result = pointD.IsNaNOrInfinity;
-                };
-
-                ExecuteTest(method, "Com.PointD.IsNaNOrInfinity.get()");
-            }
-
             // 分量
 
             {
@@ -7017,7 +7423,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD.X;
+                    _ = pointD.X;
                 };
 
                 ExecuteTest(method, "Com.PointD.X.get()");
@@ -7040,7 +7446,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD.Y;
+                    _ = pointD.Y;
                 };
 
                 ExecuteTest(method, "Com.PointD.Y.get()");
@@ -7058,17 +7464,30 @@ namespace Test
                 ExecuteTest(method, "Com.PointD.Y.set(double)");
             }
 
-            // 角度
+            // Dimension
 
             {
                 Com.PointD pointD = _GetRandomPointD();
 
                 Action method = () =>
                 {
-                    double result = pointD.AngleX;
+                    _ = pointD.Dimension;
                 };
 
-                ExecuteTest(method, "Com.PointD.AngleX.get()");
+                ExecuteTest(method, "Com.PointD.Dimension.get()");
+            }
+
+            // Is
+
+            {
+                Com.PointD pointD = _GetRandomPointD();
+
+                Action method = () =>
+                {
+                    _ = pointD.IsEmpty;
+                };
+
+                ExecuteTest(method, "Com.PointD.IsEmpty.get()");
             }
 
             {
@@ -7076,10 +7495,89 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD.AngleY;
+                    _ = pointD.IsZero;
                 };
 
-                ExecuteTest(method, "Com.PointD.AngleY.get()");
+                ExecuteTest(method, "Com.PointD.IsZero.get()");
+            }
+
+            {
+                Com.PointD pointD = _GetRandomPointD();
+
+                Action method = () =>
+                {
+                    _ = pointD.IsReadOnly;
+                };
+
+                ExecuteTest(method, "Com.PointD.IsReadOnly.get()");
+            }
+
+            {
+                Com.PointD pointD = _GetRandomPointD();
+
+                Action method = () =>
+                {
+                    _ = pointD.IsFixedSize;
+                };
+
+                ExecuteTest(method, "Com.PointD.IsFixedSize.get()");
+            }
+
+            {
+                Com.PointD pointD = _GetRandomPointD();
+
+                Action method = () =>
+                {
+                    _ = pointD.IsNaN;
+                };
+
+                ExecuteTest(method, "Com.PointD.IsNaN.get()");
+            }
+
+            {
+                Com.PointD pointD = _GetRandomPointD();
+
+                Action method = () =>
+                {
+                    _ = pointD.IsInfinity;
+                };
+
+                ExecuteTest(method, "Com.PointD.IsInfinity.get()");
+            }
+
+            {
+                Com.PointD pointD = _GetRandomPointD();
+
+                Action method = () =>
+                {
+                    _ = pointD.IsNaNOrInfinity;
+                };
+
+                ExecuteTest(method, "Com.PointD.IsNaNOrInfinity.get()");
+            }
+
+            // 模
+
+            {
+                Com.PointD pointD = _GetRandomPointD();
+
+                Action method = () =>
+                {
+                    _ = pointD.Module;
+                };
+
+                ExecuteTest(method, "Com.PointD.Module.get()");
+            }
+
+            {
+                Com.PointD pointD = _GetRandomPointD();
+
+                Action method = () =>
+                {
+                    _ = pointD.ModuleSquared;
+                };
+
+                ExecuteTest(method, "Com.PointD.ModuleSquared.get()");
             }
 
             // 向量
@@ -7089,10 +7587,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD.VectorModule;
+                    _ = pointD.Opposite;
                 };
 
-                ExecuteTest(method, "Com.PointD.VectorModule.get()");
+                ExecuteTest(method, "Com.PointD.Opposite.get()");
             }
 
             {
@@ -7100,10 +7598,23 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD.VectorModuleSquared;
+                    _ = pointD.Normalize;
                 };
 
-                ExecuteTest(method, "Com.PointD.VectorModuleSquared.get()");
+                ExecuteTest(method, "Com.PointD.Normalize.get()");
+            }
+
+            // 角度
+
+            {
+                Com.PointD pointD = _GetRandomPointD();
+
+                Action method = () =>
+                {
+                    _ = pointD.AngleFromX;
+                };
+
+                ExecuteTest(method, "Com.PointD.AngleFromX.get()");
             }
 
             {
@@ -7111,10 +7622,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD.VectorAngle;
+                    _ = pointD.AngleFromY;
                 };
 
-                ExecuteTest(method, "Com.PointD.VectorAngle.get()");
+                ExecuteTest(method, "Com.PointD.AngleFromY.get()");
             }
 
             {
@@ -7122,21 +7633,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = pointD.VectorNegate;
+                    _ = pointD.Azimuth;
                 };
 
-                ExecuteTest(method, "Com.PointD.VectorNegate.get()");
-            }
-
-            {
-                Com.PointD pointD = _GetRandomPointD();
-
-                Action method = () =>
-                {
-                    Com.PointD result = pointD.VectorNormalize;
-                };
-
-                ExecuteTest(method, "Com.PointD.VectorNormalize.get()");
+                ExecuteTest(method, "Com.PointD.Azimuth.get()");
             }
         }
 
@@ -7151,11 +7651,11 @@ namespace Test
 
             {
                 Com.PointD pointD = _GetRandomPointD();
-                object obj = (object)pointD;
+                object obj = pointD;
 
                 Action method = () =>
                 {
-                    bool result = pointD.Equals(obj);
+                    _ = pointD.Equals(obj);
                 };
 
                 ExecuteTest(method, "Com.PointD.Equals(object)");
@@ -7166,7 +7666,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    int result = pointD.GetHashCode();
+                    _ = pointD.GetHashCode();
                 };
 
                 ExecuteTest(method, "Com.PointD.GetHashCode()");
@@ -7177,7 +7677,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    string result = pointD.ToString();
+                    _ = pointD.ToString();
                 };
 
                 ExecuteTest(method, "Com.PointD.ToString()");
@@ -7191,10 +7691,202 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = left.Equals(right);
+                    _ = left.Equals(right);
                 };
 
                 ExecuteTest(method, "Com.PointD.Equals(Com.PointD)");
+            }
+
+            // CompareTo
+
+            {
+                Com.PointD pointD = _GetRandomPointD();
+                object obj = pointD;
+
+                Action method = () =>
+                {
+                    _ = pointD.CompareTo(obj);
+                };
+
+                ExecuteTest(method, "Com.PointD.CompareTo(object)");
+            }
+
+            {
+                Com.PointD left = _GetRandomPointD();
+                Com.PointD right = left;
+
+                Action method = () =>
+                {
+                    _ = left.CompareTo(right);
+                };
+
+                ExecuteTest(method, "Com.PointD.CompareTo(Com.PointD)");
+            }
+
+            // 检索
+
+            {
+                Com.PointD pointD = _GetRandomPointD();
+                double item = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = pointD.IndexOf(item);
+                };
+
+                ExecuteTest(method, "Com.PointD.IndexOf(double)");
+            }
+
+            {
+                Com.PointD pointD = _GetRandomPointD();
+                double item = Com.Statistics.RandomDouble(-1E18, 1E18);
+                int startIndex = 0;
+
+                Action method = () =>
+                {
+                    _ = pointD.IndexOf(item, startIndex);
+                };
+
+                ExecuteTest(method, "Com.PointD.IndexOf(double, int)");
+            }
+
+            {
+                Com.PointD pointD = _GetRandomPointD();
+                double item = Com.Statistics.RandomDouble(-1E18, 1E18);
+                int startIndex = 0;
+                int count = 2;
+
+                Action method = () =>
+                {
+                    _ = pointD.IndexOf(item, startIndex, count);
+                };
+
+                ExecuteTest(method, "Com.PointD.IndexOf(double, int, int)");
+            }
+
+            {
+                Com.PointD pointD = _GetRandomPointD();
+                double item = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = pointD.LastIndexOf(item);
+                };
+
+                ExecuteTest(method, "Com.PointD.LastIndexOf(double)");
+            }
+
+            {
+                Com.PointD pointD = _GetRandomPointD();
+                double item = Com.Statistics.RandomDouble(-1E18, 1E18);
+                int startIndex = 1;
+
+                Action method = () =>
+                {
+                    _ = pointD.LastIndexOf(item, startIndex);
+                };
+
+                ExecuteTest(method, "Com.PointD.LastIndexOf(double, int)");
+            }
+
+            {
+                Com.PointD pointD = _GetRandomPointD();
+                double item = Com.Statistics.RandomDouble(-1E18, 1E18);
+                int startIndex = 1;
+                int count = 2;
+
+                Action method = () =>
+                {
+                    _ = pointD.LastIndexOf(item, startIndex, count);
+                };
+
+                ExecuteTest(method, "Com.PointD.LastIndexOf(double, int, int)");
+            }
+
+            {
+                Com.PointD pointD = _GetRandomPointD();
+                double item = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = pointD.Contains(item);
+                };
+
+                ExecuteTest(method, "Com.PointD.Contains(double)");
+            }
+
+            // ToArray，ToList
+
+            {
+                Com.PointD pointD = _GetRandomPointD();
+
+                Action method = () =>
+                {
+                    _ = pointD.ToArray();
+                };
+
+                ExecuteTest(method, "Com.PointD.ToArray()");
+            }
+
+            {
+                Com.PointD pointD = _GetRandomPointD();
+
+                Action method = () =>
+                {
+                    _ = pointD.ToList();
+                };
+
+                ExecuteTest(method, "Com.PointD.ToList()");
+            }
+
+            // 坐标系转换
+
+            {
+                Com.PointD pointD = _GetRandomPointD();
+
+                Action method = () =>
+                {
+                    _ = pointD.ToSpherical();
+                };
+
+                ExecuteTest(method, "Com.PointD.ToSpherical()");
+            }
+
+            {
+                Com.PointD pointD = _GetRandomPointD();
+
+                Action method = () =>
+                {
+                    _ = pointD.ToCartesian();
+                };
+
+                ExecuteTest(method, "Com.PointD.ToCartesian()");
+            }
+
+            // 距离与夹角
+
+            {
+                Com.PointD pointD = _GetRandomPointD();
+                Com.PointD pt = _GetRandomPointD();
+
+                Action method = () =>
+                {
+                    _ = pointD.DistanceFrom(pt);
+                };
+
+                ExecuteTest(method, "Com.PointD.DistanceFrom(Com.PointD)");
+            }
+
+            {
+                Com.PointD pointD = _GetRandomPointD();
+                Com.PointD pt = _GetRandomPointD();
+
+                Action method = () =>
+                {
+                    _ = pointD.AngleFrom(pt);
+                };
+
+                ExecuteTest(method, "Com.PointD.AngleFrom(Com.PointD)");
             }
 
             // Offset
@@ -7238,7 +7930,7 @@ namespace Test
 
             {
                 Com.PointD pointD = _GetRandomPointD();
-                Point pt = new Point(Com.Statistics.RandomInteger(), Com.Statistics.RandomInteger());
+                Point pt = new Point(Com.Statistics.RandomInteger() - int.MaxValue / 2, Com.Statistics.RandomInteger() - int.MaxValue / 2);
 
                 Action method = () =>
                 {
@@ -7262,7 +7954,7 @@ namespace Test
 
             {
                 Com.PointD pointD = _GetRandomPointD();
-                Size sz = new Size(Com.Statistics.RandomInteger(), Com.Statistics.RandomInteger());
+                Size sz = new Size(Com.Statistics.RandomInteger() - int.MaxValue / 2, Com.Statistics.RandomInteger() - int.MaxValue / 2);
 
                 Action method = () =>
                 {
@@ -7290,7 +7982,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = pointD.OffsetCopy(d);
+                    _ = pointD.OffsetCopy(d);
                 };
 
                 ExecuteTest(method, "Com.PointD.OffsetCopy(double)");
@@ -7303,7 +7995,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = pointD.OffsetCopy(dx, dy);
+                    _ = pointD.OffsetCopy(dx, dy);
                 };
 
                 ExecuteTest(method, "Com.PointD.OffsetCopy(double, double)");
@@ -7315,7 +8007,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = pointD.OffsetCopy(pt);
+                    _ = pointD.OffsetCopy(pt);
                 };
 
                 ExecuteTest(method, "Com.PointD.OffsetCopy(Com.PointD)");
@@ -7323,11 +8015,11 @@ namespace Test
 
             {
                 Com.PointD pointD = _GetRandomPointD();
-                Point pt = new Point(Com.Statistics.RandomInteger(), Com.Statistics.RandomInteger());
+                Point pt = new Point(Com.Statistics.RandomInteger() - int.MaxValue / 2, Com.Statistics.RandomInteger() - int.MaxValue / 2);
 
                 Action method = () =>
                 {
-                    Com.PointD result = pointD.OffsetCopy(pt);
+                    _ = pointD.OffsetCopy(pt);
                 };
 
                 ExecuteTest(method, "Com.PointD.OffsetCopy(System.Drawing.Point)");
@@ -7339,7 +8031,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = pointD.OffsetCopy(pt);
+                    _ = pointD.OffsetCopy(pt);
                 };
 
                 ExecuteTest(method, "Com.PointD.OffsetCopy(System.Drawing.PointF)");
@@ -7347,11 +8039,11 @@ namespace Test
 
             {
                 Com.PointD pointD = _GetRandomPointD();
-                Size sz = new Size(Com.Statistics.RandomInteger(), Com.Statistics.RandomInteger());
+                Size sz = new Size(Com.Statistics.RandomInteger() - int.MaxValue / 2, Com.Statistics.RandomInteger() - int.MaxValue / 2);
 
                 Action method = () =>
                 {
-                    Com.PointD result = pointD.OffsetCopy(sz);
+                    _ = pointD.OffsetCopy(sz);
                 };
 
                 ExecuteTest(method, "Com.PointD.OffsetCopy(System.Drawing.Size)");
@@ -7363,7 +8055,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = pointD.OffsetCopy(sz);
+                    _ = pointD.OffsetCopy(sz);
                 };
 
                 ExecuteTest(method, "Com.PointD.OffsetCopy(System.Drawing.SizeF)");
@@ -7410,7 +8102,7 @@ namespace Test
 
             {
                 Com.PointD pointD = _GetRandomPointD();
-                Point pt = new Point(Com.Statistics.RandomInteger(), Com.Statistics.RandomInteger());
+                Point pt = new Point(Com.Statistics.RandomInteger() - int.MaxValue / 2, Com.Statistics.RandomInteger() - int.MaxValue / 2);
 
                 Action method = () =>
                 {
@@ -7434,7 +8126,7 @@ namespace Test
 
             {
                 Com.PointD pointD = _GetRandomPointD();
-                Size sz = new Size(Com.Statistics.RandomInteger(), Com.Statistics.RandomInteger());
+                Size sz = new Size(Com.Statistics.RandomInteger() - int.MaxValue / 2, Com.Statistics.RandomInteger() - int.MaxValue / 2);
 
                 Action method = () =>
                 {
@@ -7462,7 +8154,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = pointD.ScaleCopy(s);
+                    _ = pointD.ScaleCopy(s);
                 };
 
                 ExecuteTest(method, "Com.PointD.ScaleCopy(double)");
@@ -7475,7 +8167,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = pointD.ScaleCopy(sx, sy);
+                    _ = pointD.ScaleCopy(sx, sy);
                 };
 
                 ExecuteTest(method, "Com.PointD.ScaleCopy(double, double)");
@@ -7487,7 +8179,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = pointD.ScaleCopy(pt);
+                    _ = pointD.ScaleCopy(pt);
                 };
 
                 ExecuteTest(method, "Com.PointD.ScaleCopy(Com.PointD)");
@@ -7495,11 +8187,11 @@ namespace Test
 
             {
                 Com.PointD pointD = _GetRandomPointD();
-                Point pt = new Point(Com.Statistics.RandomInteger(), Com.Statistics.RandomInteger());
+                Point pt = new Point(Com.Statistics.RandomInteger() - int.MaxValue / 2, Com.Statistics.RandomInteger() - int.MaxValue / 2);
 
                 Action method = () =>
                 {
-                    Com.PointD result = pointD.ScaleCopy(pt);
+                    _ = pointD.ScaleCopy(pt);
                 };
 
                 ExecuteTest(method, "Com.PointD.ScaleCopy(System.Drawing.Point)");
@@ -7511,7 +8203,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = pointD.ScaleCopy(pt);
+                    _ = pointD.ScaleCopy(pt);
                 };
 
                 ExecuteTest(method, "Com.PointD.ScaleCopy(System.Drawing.PointF)");
@@ -7519,11 +8211,11 @@ namespace Test
 
             {
                 Com.PointD pointD = _GetRandomPointD();
-                Size sz = new Size(Com.Statistics.RandomInteger(), Com.Statistics.RandomInteger());
+                Size sz = new Size(Com.Statistics.RandomInteger() - int.MaxValue / 2, Com.Statistics.RandomInteger() - int.MaxValue / 2);
 
                 Action method = () =>
                 {
-                    Com.PointD result = pointD.ScaleCopy(sz);
+                    _ = pointD.ScaleCopy(sz);
                 };
 
                 ExecuteTest(method, "Com.PointD.ScaleCopy(System.Drawing.Size)");
@@ -7535,13 +8227,175 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = pointD.ScaleCopy(sz);
+                    _ = pointD.ScaleCopy(sz);
                 };
 
                 ExecuteTest(method, "Com.PointD.ScaleCopy(System.Drawing.SizeF)");
             }
 
+            // Reflect
+
+            {
+                Com.PointD pointD = _GetRandomPointD();
+                int index = Com.Statistics.RandomInteger(2);
+
+                Action method = () =>
+                {
+                    pointD.Reflect(index);
+                };
+
+                ExecuteTest(method, "Com.PointD.Reflect(int)");
+            }
+
+            {
+                Com.PointD pointD = _GetRandomPointD();
+
+                Action method = () =>
+                {
+                    pointD.ReflectX();
+                };
+
+                ExecuteTest(method, "Com.PointD.ReflectX()");
+            }
+
+            {
+                Com.PointD pointD = _GetRandomPointD();
+
+                Action method = () =>
+                {
+                    pointD.ReflectY();
+                };
+
+                ExecuteTest(method, "Com.PointD.ReflectY()");
+            }
+
+            {
+                Com.PointD pointD = _GetRandomPointD();
+                int index = Com.Statistics.RandomInteger(2);
+
+                Action method = () =>
+                {
+                    _ = pointD.ReflectCopy(index);
+                };
+
+                ExecuteTest(method, "Com.PointD.ReflectCopy(int)");
+            }
+
+            {
+                Com.PointD pointD = _GetRandomPointD();
+
+                Action method = () =>
+                {
+                    _ = pointD.ReflectXCopy();
+                };
+
+                ExecuteTest(method, "Com.PointD.ReflectXCopy()");
+            }
+
+            {
+                Com.PointD pointD = _GetRandomPointD();
+
+                Action method = () =>
+                {
+                    _ = pointD.ReflectYCopy();
+                };
+
+                ExecuteTest(method, "Com.PointD.ReflectYCopy()");
+            }
+
+            // Shear
+
+            {
+                Com.PointD pointD = _GetRandomPointD();
+                int index1 = Com.Statistics.RandomInteger(2);
+                int index2 = 1 - index1;
+                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
+
+                Action method = () =>
+                {
+                    pointD.Shear(index1, index2, angle);
+                };
+
+                ExecuteTest(method, "Com.PointD.Shear(int, int, double)");
+            }
+
+            {
+                Com.PointD pointD = _GetRandomPointD();
+                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
+
+                Action method = () =>
+                {
+                    pointD.ShearX(angle);
+                };
+
+                ExecuteTest(method, "Com.PointD.ShearX(double)");
+            }
+
+            {
+                Com.PointD pointD = _GetRandomPointD();
+                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
+
+                Action method = () =>
+                {
+                    pointD.ShearY(angle);
+                };
+
+                ExecuteTest(method, "Com.PointD.ShearY(double)");
+            }
+
+            {
+                Com.PointD pointD = _GetRandomPointD();
+                int index1 = Com.Statistics.RandomInteger(2);
+                int index2 = 1 - index1;
+                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
+
+                Action method = () =>
+                {
+                    _ = pointD.ShearCopy(index1, index2, angle);
+                };
+
+                ExecuteTest(method, "Com.PointD.ShearCopy(int, int, double)");
+            }
+
+            {
+                Com.PointD pointD = _GetRandomPointD();
+                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
+
+                Action method = () =>
+                {
+                    _ = pointD.ShearXCopy(angle);
+                };
+
+                ExecuteTest(method, "Com.PointD.ShearXCopy(double)");
+            }
+
+            {
+                Com.PointD pointD = _GetRandomPointD();
+                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
+
+                Action method = () =>
+                {
+                    _ = pointD.ShearYCopy(angle);
+                };
+
+                ExecuteTest(method, "Com.PointD.ShearYCopy(double)");
+            }
+
             // Rotate
+
+            {
+                Com.PointD pointD = _GetRandomPointD();
+                int index1 = Com.Statistics.RandomInteger(2);
+                int index2 = 1 - index1;
+                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
+
+                Action method = () =>
+                {
+                    pointD.Rotate(index1, index2, angle);
+                };
+
+                ExecuteTest(method, "Com.PointD.Rotate(int, int, double)");
+            }
 
             {
                 Com.PointD pointD = _GetRandomPointD();
@@ -7570,11 +8424,25 @@ namespace Test
 
             {
                 Com.PointD pointD = _GetRandomPointD();
+                int index1 = Com.Statistics.RandomInteger(2);
+                int index2 = 1 - index1;
                 double angle = Com.Statistics.RandomDouble(2 * Math.PI);
 
                 Action method = () =>
                 {
-                    Com.PointD result = pointD.RotateCopy(angle);
+                    _ = pointD.RotateCopy(index1, index2, angle);
+                };
+
+                ExecuteTest(method, "Com.PointD.RotateCopy(int, int, double)");
+            }
+
+            {
+                Com.PointD pointD = _GetRandomPointD();
+                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
+
+                Action method = () =>
+                {
+                    _ = pointD.RotateCopy(angle);
                 };
 
                 ExecuteTest(method, "Com.PointD.RotateCopy(double)");
@@ -7587,7 +8455,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = pointD.RotateCopy(angle, pt);
+                    _ = pointD.RotateCopy(angle, pt);
                 };
 
                 ExecuteTest(method, "Com.PointD.RotateCopy(double, Com.PointD)");
@@ -7597,8 +8465,8 @@ namespace Test
 
             {
                 Com.PointD pointD = _GetRandomPointD();
-                Com.PointD ex = _GetRandomPointD().VectorNormalize;
-                Com.PointD ey = _GetRandomPointD().VectorNormalize;
+                Com.PointD ex = _GetRandomPointD().Normalize;
+                Com.PointD ey = _GetRandomPointD().Normalize;
                 Com.PointD offset = _GetRandomPointD();
 
                 Action method = () =>
@@ -7640,13 +8508,13 @@ namespace Test
 
             {
                 Com.PointD pointD = _GetRandomPointD();
-                Com.PointD ex = _GetRandomPointD().VectorNormalize;
-                Com.PointD ey = _GetRandomPointD().VectorNormalize;
+                Com.PointD ex = _GetRandomPointD().Normalize;
+                Com.PointD ey = _GetRandomPointD().Normalize;
                 Com.PointD offset = _GetRandomPointD();
 
                 Action method = () =>
                 {
-                    Com.PointD result = pointD.AffineTransformCopy(ex, ey, offset);
+                    _ = pointD.AffineTransformCopy(ex, ey, offset);
                 };
 
                 ExecuteTest(method, "Com.PointD.AffineTransformCopy(Com.PointD, Com.PointD, Com.PointD)");
@@ -7658,7 +8526,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = pointD.AffineTransformCopy(matrixLeft);
+                    _ = pointD.AffineTransformCopy(matrixLeft);
                 };
 
                 ExecuteTest(method, "Com.PointD.AffineTransformCopy(Com.Matrix)");
@@ -7675,7 +8543,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = pointD.AffineTransformCopy(matrixLeftList);
+                    _ = pointD.AffineTransformCopy(matrixLeftList);
                 };
 
                 ExecuteTest(method, "Com.PointD.AffineTransformCopy(System.Collections.Generic.List<Com.Matrix>)", "total 8 matrices");
@@ -7683,8 +8551,8 @@ namespace Test
 
             {
                 Com.PointD pointD = _GetRandomPointD();
-                Com.PointD ex = _GetRandomPointD().VectorNormalize;
-                Com.PointD ey = _GetRandomPointD().VectorNormalize;
+                Com.PointD ex = _GetRandomPointD().Normalize;
+                Com.PointD ey = _GetRandomPointD().Normalize;
                 Com.PointD offset = _GetRandomPointD();
 
                 Action method = () =>
@@ -7726,13 +8594,13 @@ namespace Test
 
             {
                 Com.PointD pointD = _GetRandomPointD();
-                Com.PointD ex = _GetRandomPointD().VectorNormalize;
-                Com.PointD ey = _GetRandomPointD().VectorNormalize;
+                Com.PointD ex = _GetRandomPointD().Normalize;
+                Com.PointD ey = _GetRandomPointD().Normalize;
                 Com.PointD offset = _GetRandomPointD();
 
                 Action method = () =>
                 {
-                    Com.PointD result = pointD.InverseAffineTransformCopy(ex, ey, offset);
+                    _ = pointD.InverseAffineTransformCopy(ex, ey, offset);
                 };
 
                 ExecuteTest(method, "Com.PointD.InverseAffineTransformCopy(Com.PointD, Com.PointD, Com.PointD)");
@@ -7744,7 +8612,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = pointD.InverseAffineTransformCopy(matrixLeft);
+                    _ = pointD.InverseAffineTransformCopy(matrixLeft);
                 };
 
                 ExecuteTest(method, "Com.PointD.InverseAffineTransformCopy(Com.Matrix)");
@@ -7761,60 +8629,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = pointD.InverseAffineTransformCopy(matrixLeftList);
+                    _ = pointD.InverseAffineTransformCopy(matrixLeftList);
                 };
 
                 ExecuteTest(method, "Com.PointD.InverseAffineTransformCopy(System.Collections.Generic.List<Com.Matrix>)", "total 8 matrices");
-            }
-
-            // 距离与角度
-
-            {
-                Com.PointD pointD = _GetRandomPointD();
-                Com.PointD pt = _GetRandomPointD();
-
-                Action method = () =>
-                {
-                    double result = pointD.DistanceFrom(pt);
-                };
-
-                ExecuteTest(method, "Com.PointD.DistanceFrom(Com.PointD)");
-            }
-
-            {
-                Com.PointD pointD = _GetRandomPointD();
-                Com.PointD pt = _GetRandomPointD();
-
-                Action method = () =>
-                {
-                    double result = pointD.AngleFrom(pt);
-                };
-
-                ExecuteTest(method, "Com.PointD.AngleFrom(Com.PointD)");
-            }
-
-            // 坐标系转换
-
-            {
-                Com.PointD pointD = _GetRandomPointD();
-
-                Action method = () =>
-                {
-                    Com.PointD result = pointD.ToPolar();
-                };
-
-                ExecuteTest(method, "Com.PointD.ToPolar()");
-            }
-
-            {
-                Com.PointD pointD = _GetRandomPointD();
-
-                Action method = () =>
-                {
-                    Com.PointD result = pointD.ToCartesian();
-                };
-
-                ExecuteTest(method, "Com.PointD.ToCartesian()");
             }
 
             // ToVector
@@ -7824,10 +8642,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Vector result = pointD.ToVector();
+                    _ = pointD.ToColumnVector();
                 };
 
-                ExecuteTest(method, "Com.PointD.ToVector()");
+                ExecuteTest(method, "Com.PointD.ToColumnVector()");
             }
 
             {
@@ -7835,31 +8653,20 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Vector result = pointD.ToVectorColumn();
+                    _ = pointD.ToRowVector();
                 };
 
-                ExecuteTest(method, "Com.PointD.ToVectorColumn()");
-            }
-
-            {
-                Com.PointD pointD = _GetRandomPointD();
-
-                Action method = () =>
-                {
-                    Com.Vector result = pointD.ToVectorRow();
-                };
-
-                ExecuteTest(method, "Com.PointD.ToVectorRow()");
+                ExecuteTest(method, "Com.PointD.ToRowVector()");
             }
 
             // To
 
             {
-                Com.PointD pointD = _GetRandomPointD();
+                Com.PointD pointD = new Com.PointD(Com.Statistics.RandomInteger() - int.MaxValue / 2, Com.Statistics.RandomInteger() - int.MaxValue / 2);
 
                 Action method = () =>
                 {
-                    Point result = pointD.ToPoint();
+                    _ = pointD.ToPoint();
                 };
 
                 ExecuteTest(method, "Com.PointD.ToPoint()");
@@ -7870,18 +8677,18 @@ namespace Test
 
                 Action method = () =>
                 {
-                    PointF result = pointD.ToPointF();
+                    _ = pointD.ToPointF();
                 };
 
                 ExecuteTest(method, "Com.PointD.ToPointF()");
             }
 
             {
-                Com.PointD pointD = _GetRandomPointD();
+                Com.PointD pointD = new Com.PointD(Com.Statistics.RandomInteger() - int.MaxValue / 2, Com.Statistics.RandomInteger() - int.MaxValue / 2);
 
                 Action method = () =>
                 {
-                    Size result = pointD.ToSize();
+                    _ = pointD.ToSize();
                 };
 
                 ExecuteTest(method, "Com.PointD.ToSize()");
@@ -7892,7 +8699,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    SizeF result = pointD.ToSizeF();
+                    _ = pointD.ToSizeF();
                 };
 
                 ExecuteTest(method, "Com.PointD.ToSizeF()");
@@ -7903,23 +8710,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Complex result = pointD.ToComplex();
+                    _ = pointD.ToComplex();
                 };
 
                 ExecuteTest(method, "Com.PointD.ToComplex()");
-            }
-
-            // ToArray
-
-            {
-                Com.PointD pointD = _GetRandomPointD();
-
-                Action method = () =>
-                {
-                    double[] result = pointD.ToArray();
-                };
-
-                ExecuteTest(method, "Com.PointD.ToArray()");
             }
         }
 
@@ -7933,20 +8727,34 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = Com.PointD.Equals(left, right);
+                    _ = Com.PointD.Equals(left, right);
                 };
 
                 ExecuteTest(method, "Com.PointD.Equals(Com.PointD, Com.PointD)");
             }
 
-            // From
+            // Compare
 
             {
-                Point pt = new Point(Com.Statistics.RandomInteger(), Com.Statistics.RandomInteger());
+                Com.PointD left = _GetRandomPointD();
+                Com.PointD right = left;
 
                 Action method = () =>
                 {
-                    Com.PointD result = Com.PointD.FromPoint(pt);
+                    _ = Com.PointD.Compare(left, right);
+                };
+
+                ExecuteTest(method, "Com.PointD.Compare(Com.PointD, Com.PointD)");
+            }
+
+            // From
+
+            {
+                Point pt = new Point(Com.Statistics.RandomInteger() - int.MaxValue / 2, Com.Statistics.RandomInteger() - int.MaxValue / 2);
+
+                Action method = () =>
+                {
+                    _ = Com.PointD.FromPoint(pt);
                 };
 
                 ExecuteTest(method, "Com.PointD.FromPoint(System.Drawing.Point)");
@@ -7957,18 +8765,18 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = Com.PointD.FromPointF(pt);
+                    _ = Com.PointD.FromPointF(pt);
                 };
 
                 ExecuteTest(method, "Com.PointD.FromPointF(System.Drawing.PointF)");
             }
 
             {
-                Size sz = new Size(Com.Statistics.RandomInteger(), Com.Statistics.RandomInteger());
+                Size sz = new Size(Com.Statistics.RandomInteger() - int.MaxValue / 2, Com.Statistics.RandomInteger() - int.MaxValue / 2);
 
                 Action method = () =>
                 {
-                    Com.PointD result = Com.PointD.FromSize(sz);
+                    _ = Com.PointD.FromSize(sz);
                 };
 
                 ExecuteTest(method, "Com.PointD.FromSize(System.Drawing.Size)");
@@ -7979,7 +8787,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = Com.PointD.FromSizeF(sz);
+                    _ = Com.PointD.FromSizeF(sz);
                 };
 
                 ExecuteTest(method, "Com.PointD.FromSizeF(System.Drawing.SizeF)");
@@ -7990,7 +8798,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = Com.PointD.FromComplex(comp);
+                    _ = Com.PointD.FromComplex(comp);
                 };
 
                 ExecuteTest(method, "Com.PointD.FromComplex(Com.Complex)");
@@ -8001,7 +8809,7 @@ namespace Test
             {
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD.IdentityMatrix();
+                    _ = Com.PointD.IdentityMatrix();
                 };
 
                 ExecuteTest(method, "Com.PointD.IdentityMatrix()");
@@ -8012,7 +8820,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD.OffsetMatrix(d);
+                    _ = Com.PointD.OffsetMatrix(d);
                 };
 
                 ExecuteTest(method, "Com.PointD.OffsetMatrix(double)");
@@ -8024,7 +8832,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD.OffsetMatrix(dx, dy);
+                    _ = Com.PointD.OffsetMatrix(dx, dy);
                 };
 
                 ExecuteTest(method, "Com.PointD.OffsetMatrix(double, double)");
@@ -8035,18 +8843,18 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD.OffsetMatrix(pt);
+                    _ = Com.PointD.OffsetMatrix(pt);
                 };
 
                 ExecuteTest(method, "Com.PointD.OffsetMatrix(Com.PointD)");
             }
 
             {
-                Point pt = new Point(Com.Statistics.RandomInteger(), Com.Statistics.RandomInteger());
+                Point pt = new Point(Com.Statistics.RandomInteger() - int.MaxValue / 2, Com.Statistics.RandomInteger() - int.MaxValue / 2);
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD.OffsetMatrix(pt);
+                    _ = Com.PointD.OffsetMatrix(pt);
                 };
 
                 ExecuteTest(method, "Com.PointD.OffsetMatrix(System.Drawing.Point)");
@@ -8057,18 +8865,18 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD.OffsetMatrix(pt);
+                    _ = Com.PointD.OffsetMatrix(pt);
                 };
 
                 ExecuteTest(method, "Com.PointD.OffsetMatrix(System.Drawing.PointF)");
             }
 
             {
-                Size sz = new Size(Com.Statistics.RandomInteger(), Com.Statistics.RandomInteger());
+                Size sz = new Size(Com.Statistics.RandomInteger() - int.MaxValue / 2, Com.Statistics.RandomInteger() - int.MaxValue / 2);
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD.OffsetMatrix(sz);
+                    _ = Com.PointD.OffsetMatrix(sz);
                 };
 
                 ExecuteTest(method, "Com.PointD.OffsetMatrix(System.Drawing.Size)");
@@ -8079,7 +8887,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD.OffsetMatrix(sz);
+                    _ = Com.PointD.OffsetMatrix(sz);
                 };
 
                 ExecuteTest(method, "Com.PointD.OffsetMatrix(System.Drawing.SizeF)");
@@ -8090,7 +8898,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD.ScaleMatrix(s);
+                    _ = Com.PointD.ScaleMatrix(s);
                 };
 
                 ExecuteTest(method, "Com.PointD.ScaleMatrix(double)");
@@ -8102,7 +8910,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD.ScaleMatrix(sx, sy);
+                    _ = Com.PointD.ScaleMatrix(sx, sy);
                 };
 
                 ExecuteTest(method, "Com.PointD.ScaleMatrix(double, double)");
@@ -8113,18 +8921,18 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD.ScaleMatrix(pt);
+                    _ = Com.PointD.ScaleMatrix(pt);
                 };
 
                 ExecuteTest(method, "Com.PointD.ScaleMatrix(Com.PointD)");
             }
 
             {
-                Point pt = new Point(Com.Statistics.RandomInteger(), Com.Statistics.RandomInteger());
+                Point pt = new Point(Com.Statistics.RandomInteger() - int.MaxValue / 2, Com.Statistics.RandomInteger() - int.MaxValue / 2);
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD.ScaleMatrix(pt);
+                    _ = Com.PointD.ScaleMatrix(pt);
                 };
 
                 ExecuteTest(method, "Com.PointD.ScaleMatrix(System.Drawing.Point)");
@@ -8135,18 +8943,18 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD.ScaleMatrix(pt);
+                    _ = Com.PointD.ScaleMatrix(pt);
                 };
 
                 ExecuteTest(method, "Com.PointD.ScaleMatrix(System.Drawing.PointF)");
             }
 
             {
-                Size sz = new Size(Com.Statistics.RandomInteger(), Com.Statistics.RandomInteger());
+                Size sz = new Size(Com.Statistics.RandomInteger() - int.MaxValue / 2, Com.Statistics.RandomInteger() - int.MaxValue / 2);
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD.ScaleMatrix(sz);
+                    _ = Com.PointD.ScaleMatrix(sz);
                 };
 
                 ExecuteTest(method, "Com.PointD.ScaleMatrix(System.Drawing.Size)");
@@ -8157,10 +8965,52 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD.ScaleMatrix(sz);
+                    _ = Com.PointD.ScaleMatrix(sz);
                 };
 
                 ExecuteTest(method, "Com.PointD.ScaleMatrix(System.Drawing.SizeF)");
+            }
+
+            {
+                int index = Com.Statistics.RandomInteger(2);
+
+                Action method = () =>
+                {
+                    _ = Com.PointD.ReflectMatrix(index);
+                };
+
+                ExecuteTest(method, "Com.PointD.ReflectMatrix(int)");
+            }
+
+            {
+                Action method = () =>
+                {
+                    _ = Com.PointD.ReflectXMatrix();
+                };
+
+                ExecuteTest(method, "Com.PointD.ReflectXMatrix()");
+            }
+
+            {
+                Action method = () =>
+                {
+                    _ = Com.PointD.ReflectYMatrix();
+                };
+
+                ExecuteTest(method, "Com.PointD.ReflectYMatrix()");
+            }
+
+            {
+                int index1 = Com.Statistics.RandomInteger(2);
+                int index2 = 1 - index1;
+                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
+
+                Action method = () =>
+                {
+                    _ = Com.PointD.ShearMatrix(index1, index2, angle);
+                };
+
+                ExecuteTest(method, "Com.PointD.ShearMatrix(int, int, double)");
             }
 
             {
@@ -8168,7 +9018,42 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD.RotateMatrix(angle);
+                    _ = Com.PointD.ShearXMatrix(angle);
+                };
+
+                ExecuteTest(method, "Com.PointD.ShearXMatrix(double)");
+            }
+
+            {
+                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
+
+                Action method = () =>
+                {
+                    _ = Com.PointD.ShearYMatrix(angle);
+                };
+
+                ExecuteTest(method, "Com.PointD.ShearYMatrix(double)");
+            }
+
+            {
+                int index1 = Com.Statistics.RandomInteger(2);
+                int index2 = 1 - index1;
+                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
+
+                Action method = () =>
+                {
+                    _ = Com.PointD.RotateMatrix(index1, index2, angle);
+                };
+
+                ExecuteTest(method, "Com.PointD.RotateMatrix(int, int, double)");
+            }
+
+            {
+                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
+
+                Action method = () =>
+                {
+                    _ = Com.PointD.RotateMatrix(angle);
                 };
 
                 ExecuteTest(method, "Com.PointD.RotateMatrix(double)");
@@ -8180,13 +9065,13 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD.RotateMatrix(angle, pt);
+                    _ = Com.PointD.RotateMatrix(angle, pt);
                 };
 
                 ExecuteTest(method, "Com.PointD.RotateMatrix(double, Com.PointD)");
             }
 
-            // 距离与角度
+            // 距离与夹角
 
             {
                 Com.PointD left = _GetRandomPointD();
@@ -8194,7 +9079,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = Com.PointD.DistanceBetween(left, right);
+                    _ = Com.PointD.DistanceBetween(left, right);
                 };
 
                 ExecuteTest(method, "Com.PointD.DistanceBetween(Com.PointD, Com.PointD)");
@@ -8206,7 +9091,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = Com.PointD.AngleBetween(left, right);
+                    _ = Com.PointD.AngleBetween(left, right);
                 };
 
                 ExecuteTest(method, "Com.PointD.AngleBetween(Com.PointD, Com.PointD)");
@@ -8220,7 +9105,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = Com.PointD.DotProduct(left, right);
+                    _ = Com.PointD.DotProduct(left, right);
                 };
 
                 ExecuteTest(method, "Com.PointD.DotProduct(Com.PointD, Com.PointD)");
@@ -8232,7 +9117,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Vector result = Com.PointD.CrossProduct(left, right);
+                    _ = Com.PointD.CrossProduct(left, right);
                 };
 
                 ExecuteTest(method, "Com.PointD.CrossProduct(Com.PointD, Com.PointD)");
@@ -8245,7 +9130,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = Com.PointD.Abs(pointD);
+                    _ = Com.PointD.Abs(pointD);
                 };
 
                 ExecuteTest(method, "Com.PointD.Abs(Com.PointD)");
@@ -8256,7 +9141,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = Com.PointD.Sign(pointD);
+                    _ = Com.PointD.Sign(pointD);
                 };
 
                 ExecuteTest(method, "Com.PointD.Sign(Com.PointD)");
@@ -8267,7 +9152,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = Com.PointD.Ceiling(pointD);
+                    _ = Com.PointD.Ceiling(pointD);
                 };
 
                 ExecuteTest(method, "Com.PointD.Ceiling(Com.PointD)");
@@ -8278,7 +9163,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = Com.PointD.Floor(pointD);
+                    _ = Com.PointD.Floor(pointD);
                 };
 
                 ExecuteTest(method, "Com.PointD.Floor(Com.PointD)");
@@ -8289,7 +9174,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = Com.PointD.Round(pointD);
+                    _ = Com.PointD.Round(pointD);
                 };
 
                 ExecuteTest(method, "Com.PointD.Round(Com.PointD)");
@@ -8300,7 +9185,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = Com.PointD.Truncate(pointD);
+                    _ = Com.PointD.Truncate(pointD);
                 };
 
                 ExecuteTest(method, "Com.PointD.Truncate(Com.PointD)");
@@ -8312,7 +9197,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = Com.PointD.Max(left, right);
+                    _ = Com.PointD.Max(left, right);
                 };
 
                 ExecuteTest(method, "Com.PointD.Max(Com.PointD, Com.PointD)");
@@ -8324,7 +9209,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = Com.PointD.Min(left, right);
+                    _ = Com.PointD.Min(left, right);
                 };
 
                 ExecuteTest(method, "Com.PointD.Min(Com.PointD, Com.PointD)");
@@ -8341,7 +9226,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = (left == right);
+                    _ = (left == right);
                 };
 
                 ExecuteTest(method, "Com.PointD.operator ==(Com.PointD, Com.PointD)");
@@ -8353,7 +9238,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = (left != right);
+                    _ = (left != right);
                 };
 
                 ExecuteTest(method, "Com.PointD.operator !=(Com.PointD, Com.PointD)");
@@ -8365,7 +9250,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = (left < right);
+                    _ = (left < right);
                 };
 
                 ExecuteTest(method, "Com.PointD.operator <(Com.PointD, Com.PointD)");
@@ -8377,7 +9262,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = (left > right);
+                    _ = (left > right);
                 };
 
                 ExecuteTest(method, "Com.PointD.operator >(Com.PointD, Com.PointD)");
@@ -8389,7 +9274,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = (left <= right);
+                    _ = (left <= right);
                 };
 
                 ExecuteTest(method, "Com.PointD.operator <=(Com.PointD, Com.PointD)");
@@ -8401,7 +9286,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = (left >= right);
+                    _ = (left >= right);
                 };
 
                 ExecuteTest(method, "Com.PointD.operator >=(Com.PointD, Com.PointD)");
@@ -8414,7 +9299,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = +pointD;
+                    _ = +pointD;
                 };
 
                 ExecuteTest(method, "Com.PointD.operator +(Com.PointD)");
@@ -8425,7 +9310,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = -pointD;
+                    _ = -pointD;
                 };
 
                 ExecuteTest(method, "Com.PointD.operator -(Com.PointD)");
@@ -8437,7 +9322,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = pt + n;
+                    _ = pt + n;
                 };
 
                 ExecuteTest(method, "Com.PointD.operator +(Com.PointD, double)");
@@ -8449,7 +9334,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = n + pt;
+                    _ = n + pt;
                 };
 
                 ExecuteTest(method, "Com.PointD.operator +(double, Com.PointD)");
@@ -8461,7 +9346,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = left + right;
+                    _ = left + right;
                 };
 
                 ExecuteTest(method, "Com.PointD.operator +(Com.PointD, Com.PointD)");
@@ -8469,23 +9354,23 @@ namespace Test
 
             {
                 Com.PointD left = _GetRandomPointD();
-                Point right = new Point(Com.Statistics.RandomInteger(), Com.Statistics.RandomInteger());
+                Point right = new Point(Com.Statistics.RandomInteger() - int.MaxValue / 2, Com.Statistics.RandomInteger() - int.MaxValue / 2);
 
                 Action method = () =>
                 {
-                    Com.PointD result = left + right;
+                    _ = left + right;
                 };
 
                 ExecuteTest(method, "Com.PointD.operator +(Com.PointD, System.Drawing.Point)");
             }
 
             {
-                Point left = new Point(Com.Statistics.RandomInteger(), Com.Statistics.RandomInteger());
+                Point left = new Point(Com.Statistics.RandomInteger() - int.MaxValue / 2, Com.Statistics.RandomInteger() - int.MaxValue / 2);
                 Com.PointD right = _GetRandomPointD();
 
                 Action method = () =>
                 {
-                    Com.PointD result = left + right;
+                    _ = left + right;
                 };
 
                 ExecuteTest(method, "Com.PointD.operator +(System.Drawing.Point, Com.PointD)");
@@ -8497,7 +9382,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = left + right;
+                    _ = left + right;
                 };
 
                 ExecuteTest(method, "Com.PointD.operator +(Com.PointD, System.Drawing.PointF)");
@@ -8509,7 +9394,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = left + right;
+                    _ = left + right;
                 };
 
                 ExecuteTest(method, "Com.PointD.operator +(System.Drawing.PointF, Com.PointD)");
@@ -8517,23 +9402,23 @@ namespace Test
 
             {
                 Com.PointD pt = _GetRandomPointD();
-                Size sz = new Size(Com.Statistics.RandomInteger(), Com.Statistics.RandomInteger());
+                Size sz = new Size(Com.Statistics.RandomInteger() - int.MaxValue / 2, Com.Statistics.RandomInteger() - int.MaxValue / 2);
 
                 Action method = () =>
                 {
-                    Com.PointD result = pt + sz;
+                    _ = pt + sz;
                 };
 
                 ExecuteTest(method, "Com.PointD.operator +(Com.PointD, System.Drawing.Size)");
             }
 
             {
-                Size sz = new Size(Com.Statistics.RandomInteger(), Com.Statistics.RandomInteger());
+                Size sz = new Size(Com.Statistics.RandomInteger() - int.MaxValue / 2, Com.Statistics.RandomInteger() - int.MaxValue / 2);
                 Com.PointD pt = _GetRandomPointD();
 
                 Action method = () =>
                 {
-                    Com.PointD result = sz + pt;
+                    _ = sz + pt;
                 };
 
                 ExecuteTest(method, "Com.PointD.operator +(System.Drawing.Size, Com.PointD)");
@@ -8545,7 +9430,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = pt + sz;
+                    _ = pt + sz;
                 };
 
                 ExecuteTest(method, "Com.PointD.operator +(Com.PointD, System.Drawing.SizeF)");
@@ -8557,7 +9442,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = sz + pt;
+                    _ = sz + pt;
                 };
 
                 ExecuteTest(method, "Com.PointD.operator +(System.Drawing.SizeF, Com.PointD)");
@@ -8569,7 +9454,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = pt - n;
+                    _ = pt - n;
                 };
 
                 ExecuteTest(method, "Com.PointD.operator -(Com.PointD, double)");
@@ -8581,7 +9466,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = n - pt;
+                    _ = n - pt;
                 };
 
                 ExecuteTest(method, "Com.PointD.operator -(double, Com.PointD)");
@@ -8593,7 +9478,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = left - right;
+                    _ = left - right;
                 };
 
                 ExecuteTest(method, "Com.PointD.operator -(Com.PointD, Com.PointD)");
@@ -8601,23 +9486,23 @@ namespace Test
 
             {
                 Com.PointD left = _GetRandomPointD();
-                Point right = new Point(Com.Statistics.RandomInteger(), Com.Statistics.RandomInteger());
+                Point right = new Point(Com.Statistics.RandomInteger() - int.MaxValue / 2, Com.Statistics.RandomInteger() - int.MaxValue / 2);
 
                 Action method = () =>
                 {
-                    Com.PointD result = left - right;
+                    _ = left - right;
                 };
 
                 ExecuteTest(method, "Com.PointD.operator -(Com.PointD, System.Drawing.Point)");
             }
 
             {
-                Point left = new Point(Com.Statistics.RandomInteger(), Com.Statistics.RandomInteger());
+                Point left = new Point(Com.Statistics.RandomInteger() - int.MaxValue / 2, Com.Statistics.RandomInteger() - int.MaxValue / 2);
                 Com.PointD right = _GetRandomPointD();
 
                 Action method = () =>
                 {
-                    Com.PointD result = left - right;
+                    _ = left - right;
                 };
 
                 ExecuteTest(method, "Com.PointD.operator -(System.Drawing.Point, Com.PointD)");
@@ -8629,7 +9514,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = left - right;
+                    _ = left - right;
                 };
 
                 ExecuteTest(method, "Com.PointD.operator -(Com.PointD, System.Drawing.PointF)");
@@ -8641,7 +9526,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = left - right;
+                    _ = left - right;
                 };
 
                 ExecuteTest(method, "Com.PointD.operator -(System.Drawing.PointF, Com.PointD)");
@@ -8649,23 +9534,23 @@ namespace Test
 
             {
                 Com.PointD pt = _GetRandomPointD();
-                Size sz = new Size(Com.Statistics.RandomInteger(), Com.Statistics.RandomInteger());
+                Size sz = new Size(Com.Statistics.RandomInteger() - int.MaxValue / 2, Com.Statistics.RandomInteger() - int.MaxValue / 2);
 
                 Action method = () =>
                 {
-                    Com.PointD result = pt - sz;
+                    _ = pt - sz;
                 };
 
                 ExecuteTest(method, "Com.PointD.operator -(Com.PointD, System.Drawing.Size)");
             }
 
             {
-                Size sz = new Size(Com.Statistics.RandomInteger(), Com.Statistics.RandomInteger());
+                Size sz = new Size(Com.Statistics.RandomInteger() - int.MaxValue / 2, Com.Statistics.RandomInteger() - int.MaxValue / 2);
                 Com.PointD pt = _GetRandomPointD();
 
                 Action method = () =>
                 {
-                    Com.PointD result = sz - pt;
+                    _ = sz - pt;
                 };
 
                 ExecuteTest(method, "Com.PointD.operator -(System.Drawing.Size, Com.PointD)");
@@ -8677,7 +9562,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = pt - sz;
+                    _ = pt - sz;
                 };
 
                 ExecuteTest(method, "Com.PointD.operator -(Com.PointD, System.Drawing.SizeF)");
@@ -8689,7 +9574,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = sz - pt;
+                    _ = sz - pt;
                 };
 
                 ExecuteTest(method, "Com.PointD.operator -(System.Drawing.SizeF, Com.PointD)");
@@ -8701,7 +9586,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = pt * n;
+                    _ = pt * n;
                 };
 
                 ExecuteTest(method, "Com.PointD.operator *(Com.PointD, double)");
@@ -8713,7 +9598,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = n * pt;
+                    _ = n * pt;
                 };
 
                 ExecuteTest(method, "Com.PointD.operator *(double, Com.PointD)");
@@ -8725,7 +9610,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = left * right;
+                    _ = left * right;
                 };
 
                 ExecuteTest(method, "Com.PointD.operator *(Com.PointD, Com.PointD)");
@@ -8733,23 +9618,23 @@ namespace Test
 
             {
                 Com.PointD left = _GetRandomPointD();
-                Point right = new Point(Com.Statistics.RandomInteger(), Com.Statistics.RandomInteger());
+                Point right = new Point(Com.Statistics.RandomInteger() - int.MaxValue / 2, Com.Statistics.RandomInteger() - int.MaxValue / 2);
 
                 Action method = () =>
                 {
-                    Com.PointD result = left * right;
+                    _ = left * right;
                 };
 
                 ExecuteTest(method, "Com.PointD.operator *(Com.PointD, System.Drawing.Point)");
             }
 
             {
-                Point left = new Point(Com.Statistics.RandomInteger(), Com.Statistics.RandomInteger());
+                Point left = new Point(Com.Statistics.RandomInteger() - int.MaxValue / 2, Com.Statistics.RandomInteger() - int.MaxValue / 2);
                 Com.PointD right = _GetRandomPointD();
 
                 Action method = () =>
                 {
-                    Com.PointD result = left * right;
+                    _ = left * right;
                 };
 
                 ExecuteTest(method, "Com.PointD.operator *(System.Drawing.Point, Com.PointD)");
@@ -8761,7 +9646,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = left * right;
+                    _ = left * right;
                 };
 
                 ExecuteTest(method, "Com.PointD.operator *(Com.PointD, System.Drawing.PointF)");
@@ -8773,7 +9658,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = left * right;
+                    _ = left * right;
                 };
 
                 ExecuteTest(method, "Com.PointD.operator *(System.Drawing.PointF, Com.PointD)");
@@ -8781,23 +9666,23 @@ namespace Test
 
             {
                 Com.PointD pt = _GetRandomPointD();
-                Size sz = new Size(Com.Statistics.RandomInteger(), Com.Statistics.RandomInteger());
+                Size sz = new Size(Com.Statistics.RandomInteger() - int.MaxValue / 2, Com.Statistics.RandomInteger() - int.MaxValue / 2);
 
                 Action method = () =>
                 {
-                    Com.PointD result = pt * sz;
+                    _ = pt * sz;
                 };
 
                 ExecuteTest(method, "Com.PointD.operator *(Com.PointD, System.Drawing.Size)");
             }
 
             {
-                Size sz = new Size(Com.Statistics.RandomInteger(), Com.Statistics.RandomInteger());
+                Size sz = new Size(Com.Statistics.RandomInteger() - int.MaxValue / 2, Com.Statistics.RandomInteger() - int.MaxValue / 2);
                 Com.PointD pt = _GetRandomPointD();
 
                 Action method = () =>
                 {
-                    Com.PointD result = sz * pt;
+                    _ = sz * pt;
                 };
 
                 ExecuteTest(method, "Com.PointD.operator *(System.Drawing.Size, Com.PointD)");
@@ -8809,7 +9694,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = pt * sz;
+                    _ = pt * sz;
                 };
 
                 ExecuteTest(method, "Com.PointD.operator *(Com.PointD, System.Drawing.SizeF)");
@@ -8821,7 +9706,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = sz * pt;
+                    _ = sz * pt;
                 };
 
                 ExecuteTest(method, "Com.PointD.operator *(System.Drawing.SizeF, Com.PointD)");
@@ -8833,7 +9718,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = pt / n;
+                    _ = pt / n;
                 };
 
                 ExecuteTest(method, "Com.PointD.operator /(Com.PointD, double)");
@@ -8845,7 +9730,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = n / pt;
+                    _ = n / pt;
                 };
 
                 ExecuteTest(method, "Com.PointD.operator /(double, Com.PointD)");
@@ -8857,7 +9742,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = left / right;
+                    _ = left / right;
                 };
 
                 ExecuteTest(method, "Com.PointD.operator /(Com.PointD, Com.PointD)");
@@ -8865,23 +9750,23 @@ namespace Test
 
             {
                 Com.PointD left = _GetRandomPointD();
-                Point right = new Point(Com.Statistics.RandomInteger(), Com.Statistics.RandomInteger());
+                Point right = new Point(Com.Statistics.RandomInteger() - int.MaxValue / 2, Com.Statistics.RandomInteger() - int.MaxValue / 2);
 
                 Action method = () =>
                 {
-                    Com.PointD result = left / right;
+                    _ = left / right;
                 };
 
                 ExecuteTest(method, "Com.PointD.operator /(Com.PointD, System.Drawing.Point)");
             }
 
             {
-                Point left = new Point(Com.Statistics.RandomInteger(), Com.Statistics.RandomInteger());
+                Point left = new Point(Com.Statistics.RandomInteger() - int.MaxValue / 2, Com.Statistics.RandomInteger() - int.MaxValue / 2);
                 Com.PointD right = _GetRandomPointD();
 
                 Action method = () =>
                 {
-                    Com.PointD result = left / right;
+                    _ = left / right;
                 };
 
                 ExecuteTest(method, "Com.PointD.operator /(System.Drawing.Point, Com.PointD)");
@@ -8893,7 +9778,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = left / right;
+                    _ = left / right;
                 };
 
                 ExecuteTest(method, "Com.PointD.operator /(Com.PointD, System.Drawing.PointF)");
@@ -8905,7 +9790,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = left / right;
+                    _ = left / right;
                 };
 
                 ExecuteTest(method, "Com.PointD.operator /(System.Drawing.PointF, Com.PointD)");
@@ -8913,23 +9798,23 @@ namespace Test
 
             {
                 Com.PointD pt = _GetRandomPointD();
-                Size sz = new Size(Com.Statistics.RandomInteger(), Com.Statistics.RandomInteger());
+                Size sz = new Size(Com.Statistics.RandomInteger() - int.MaxValue / 2, Com.Statistics.RandomInteger() - int.MaxValue / 2);
 
                 Action method = () =>
                 {
-                    Com.PointD result = pt / sz;
+                    _ = pt / sz;
                 };
 
                 ExecuteTest(method, "Com.PointD.operator /(Com.PointD, System.Drawing.Size)");
             }
 
             {
-                Size sz = new Size(Com.Statistics.RandomInteger(), Com.Statistics.RandomInteger());
+                Size sz = new Size(Com.Statistics.RandomInteger() - int.MaxValue / 2, Com.Statistics.RandomInteger() - int.MaxValue / 2);
                 Com.PointD pt = _GetRandomPointD();
 
                 Action method = () =>
                 {
-                    Com.PointD result = sz / pt;
+                    _ = sz / pt;
                 };
 
                 ExecuteTest(method, "Com.PointD.operator /(System.Drawing.Size, Com.PointD)");
@@ -8941,7 +9826,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = pt / sz;
+                    _ = pt / sz;
                 };
 
                 ExecuteTest(method, "Com.PointD.operator /(Com.PointD, System.Drawing.SizeF)");
@@ -8953,10 +9838,111 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = sz / pt;
+                    _ = sz / pt;
                 };
 
                 ExecuteTest(method, "Com.PointD.operator /(System.Drawing.SizeF, Com.PointD)");
+            }
+
+            // 类型转换
+
+            {
+                Com.PointD pt = new Com.PointD(Com.Statistics.RandomInteger() - int.MaxValue / 2, Com.Statistics.RandomInteger() - int.MaxValue / 2);
+
+                Action method = () =>
+                {
+                    _ = (Point)pt;
+                };
+
+                ExecuteTest(method, "Com.PointD.explicit operator System.Drawing.Point(Com.PointD)");
+            }
+
+            {
+                Com.PointD pt = _GetRandomPointD();
+
+                Action method = () =>
+                {
+                    _ = (PointF)pt;
+                };
+
+                ExecuteTest(method, "Com.PointD.explicit operator System.Drawing.PointF(Com.PointD)");
+            }
+
+            {
+                Com.PointD pt = new Com.PointD(Com.Statistics.RandomInteger() - int.MaxValue / 2, Com.Statistics.RandomInteger() - int.MaxValue / 2);
+
+                Action method = () =>
+                {
+                    _ = (Size)pt;
+                };
+
+                ExecuteTest(method, "Com.PointD.explicit operator System.Drawing.Size(Com.PointD)");
+            }
+
+            {
+                Com.PointD pt = _GetRandomPointD();
+
+                Action method = () =>
+                {
+                    _ = (SizeF)pt;
+                };
+
+                ExecuteTest(method, "Com.PointD.explicit operator System.Drawing.SizeF(Com.PointD)");
+            }
+
+            {
+                Com.PointD pt = _GetRandomPointD();
+
+                Action method = () =>
+                {
+                    _ = (Com.Complex)pt;
+                };
+
+                ExecuteTest(method, "Com.PointD.explicit operator Com.Complex(Com.PointD)");
+            }
+
+            {
+                Point pt = new Point(Com.Statistics.RandomInteger() - int.MaxValue / 2, Com.Statistics.RandomInteger() - int.MaxValue / 2);
+
+                Action method = () =>
+                {
+                    _ = (Com.PointD)pt;
+                };
+
+                ExecuteTest(method, "Com.PointD.implicit operator Com.PointD(System.Drawing.Point)");
+            }
+
+            {
+                PointF pt = new PointF((float)Com.Statistics.RandomDouble(-1E18, 1E18), (float)Com.Statistics.RandomDouble(-1E18, 1E18));
+
+                Action method = () =>
+                {
+                    _ = (Com.PointD)pt;
+                };
+
+                ExecuteTest(method, "Com.PointD.implicit operator Com.PointD(System.Drawing.PointF)");
+            }
+
+            {
+                Size sz = new Size(Com.Statistics.RandomInteger() - int.MaxValue / 2, Com.Statistics.RandomInteger() - int.MaxValue / 2);
+
+                Action method = () =>
+                {
+                    _ = (Com.PointD)sz;
+                };
+
+                ExecuteTest(method, "Com.PointD.explicit operator Com.PointD(System.Drawing.Size)");
+            }
+
+            {
+                SizeF sz = new SizeF((float)Com.Statistics.RandomDouble(-1E18, 1E18), (float)Com.Statistics.RandomDouble(-1E18, 1E18));
+
+                Action method = () =>
+                {
+                    _ = (Com.PointD)sz;
+                };
+
+                ExecuteTest(method, "Com.PointD.explicit operator Com.PointD(System.Drawing.SizeF)");
             }
         }
     }
@@ -8991,7 +9977,7 @@ namespace Test
             }
             else
             {
-                return Com.Matrix.NonMatrix;
+                return Com.Matrix.Empty;
             }
         }
 
@@ -9006,7 +9992,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD3D pointD3D = new Com.PointD3D(x, y, z);
+                    _ = new Com.PointD3D(x, y, z);
                 };
 
                 ExecuteTest(method, "Com.PointD3D.PointD3D(double, double, double)");
@@ -9023,7 +10009,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD3D[index];
+                    _ = pointD3D[index];
                 };
 
                 ExecuteTest(method, "Com.PointD3D.this[int].get()");
@@ -9042,52 +10028,6 @@ namespace Test
                 ExecuteTest(method, "Com.PointD3D.this[int].set(double)");
             }
 
-            // Is
-
-            {
-                Com.PointD3D pointD3D = _GetRandomPointD3D();
-
-                Action method = () =>
-                {
-                    bool result = pointD3D.IsEmpty;
-                };
-
-                ExecuteTest(method, "Com.PointD3D.IsEmpty.get()");
-            }
-
-            {
-                Com.PointD3D pointD3D = _GetRandomPointD3D();
-
-                Action method = () =>
-                {
-                    bool result = pointD3D.IsNaN;
-                };
-
-                ExecuteTest(method, "Com.PointD3D.IsNaN.get()");
-            }
-
-            {
-                Com.PointD3D pointD3D = _GetRandomPointD3D();
-
-                Action method = () =>
-                {
-                    bool result = pointD3D.IsInfinity;
-                };
-
-                ExecuteTest(method, "Com.PointD3D.IsInfinity.get()");
-            }
-
-            {
-                Com.PointD3D pointD3D = _GetRandomPointD3D();
-
-                Action method = () =>
-                {
-                    bool result = pointD3D.IsNaNOrInfinity;
-                };
-
-                ExecuteTest(method, "Com.PointD3D.IsNaNOrInfinity.get()");
-            }
-
             // 分量
 
             {
@@ -9095,7 +10035,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD3D.X;
+                    _ = pointD3D.X;
                 };
 
                 ExecuteTest(method, "Com.PointD3D.X.get()");
@@ -9118,7 +10058,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD3D.Y;
+                    _ = pointD3D.Y;
                 };
 
                 ExecuteTest(method, "Com.PointD3D.Y.get()");
@@ -9141,7 +10081,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD3D.Z;
+                    _ = pointD3D.Z;
                 };
 
                 ExecuteTest(method, "Com.PointD3D.Z.get()");
@@ -9159,12 +10099,154 @@ namespace Test
                 ExecuteTest(method, "Com.PointD3D.Z.set(double)");
             }
 
+            // Dimension
+
             {
                 Com.PointD3D pointD3D = _GetRandomPointD3D();
 
                 Action method = () =>
                 {
-                    Com.PointD result = pointD3D.XY;
+                    _ = pointD3D.Dimension;
+                };
+
+                ExecuteTest(method, "Com.PointD3D.Dimension.get()");
+            }
+
+            // Is
+
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+
+                Action method = () =>
+                {
+                    _ = pointD3D.IsEmpty;
+                };
+
+                ExecuteTest(method, "Com.PointD3D.IsEmpty.get()");
+            }
+
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+
+                Action method = () =>
+                {
+                    _ = pointD3D.IsZero;
+                };
+
+                ExecuteTest(method, "Com.PointD3D.IsZero.get()");
+            }
+
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+
+                Action method = () =>
+                {
+                    _ = pointD3D.IsReadOnly;
+                };
+
+                ExecuteTest(method, "Com.PointD3D.IsReadOnly.get()");
+            }
+
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+
+                Action method = () =>
+                {
+                    _ = pointD3D.IsFixedSize;
+                };
+
+                ExecuteTest(method, "Com.PointD3D.IsFixedSize.get()");
+            }
+
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+
+                Action method = () =>
+                {
+                    _ = pointD3D.IsNaN;
+                };
+
+                ExecuteTest(method, "Com.PointD3D.IsNaN.get()");
+            }
+
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+
+                Action method = () =>
+                {
+                    _ = pointD3D.IsInfinity;
+                };
+
+                ExecuteTest(method, "Com.PointD3D.IsInfinity.get()");
+            }
+
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+
+                Action method = () =>
+                {
+                    _ = pointD3D.IsNaNOrInfinity;
+                };
+
+                ExecuteTest(method, "Com.PointD3D.IsNaNOrInfinity.get()");
+            }
+
+            // 模
+
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+
+                Action method = () =>
+                {
+                    _ = pointD3D.Module;
+                };
+
+                ExecuteTest(method, "Com.PointD3D.Module.get()");
+            }
+
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+
+                Action method = () =>
+                {
+                    _ = pointD3D.ModuleSquared;
+                };
+
+                ExecuteTest(method, "Com.PointD3D.ModuleSquared.get()");
+            }
+
+            // 向量
+
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+
+                Action method = () =>
+                {
+                    _ = pointD3D.Opposite;
+                };
+
+                ExecuteTest(method, "Com.PointD3D.Opposite.get()");
+            }
+
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+
+                Action method = () =>
+                {
+                    _ = pointD3D.Normalize;
+                };
+
+                ExecuteTest(method, "Com.PointD3D.Normalize.get()");
+            }
+
+            // 子空间分量
+
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+
+                Action method = () =>
+                {
+                    _ = pointD3D.XY;
                 };
 
                 ExecuteTest(method, "Com.PointD3D.XY.get()");
@@ -9187,7 +10269,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = pointD3D.YZ;
+                    _ = pointD3D.YZ;
                 };
 
                 ExecuteTest(method, "Com.PointD3D.YZ.get()");
@@ -9210,7 +10292,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = pointD3D.ZX;
+                    _ = pointD3D.ZX;
                 };
 
                 ExecuteTest(method, "Com.PointD3D.ZX.get()");
@@ -9235,10 +10317,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD3D.AngleX;
+                    _ = pointD3D.AngleFromX;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.AngleX.get()");
+                ExecuteTest(method, "Com.PointD3D.AngleFromX.get()");
             }
 
             {
@@ -9246,10 +10328,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD3D.AngleY;
+                    _ = pointD3D.AngleFromY;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.AngleY.get()");
+                ExecuteTest(method, "Com.PointD3D.AngleFromY.get()");
             }
 
             {
@@ -9257,10 +10339,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD3D.AngleZ;
+                    _ = pointD3D.AngleFromZ;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.AngleZ.get()");
+                ExecuteTest(method, "Com.PointD3D.AngleFromZ.get()");
             }
 
             {
@@ -9268,10 +10350,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD3D.AngleXY;
+                    _ = pointD3D.AngleFromXY;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.AngleXY.get()");
+                ExecuteTest(method, "Com.PointD3D.AngleFromXY.get()");
             }
 
             {
@@ -9279,10 +10361,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD3D.AngleYZ;
+                    _ = pointD3D.AngleFromYZ;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.AngleYZ.get()");
+                ExecuteTest(method, "Com.PointD3D.AngleFromYZ.get()");
             }
 
             {
@@ -9290,23 +10372,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD3D.AngleZX;
+                    _ = pointD3D.AngleFromZX;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.AngleZX.get()");
-            }
-
-            // 向量
-
-            {
-                Com.PointD3D pointD3D = _GetRandomPointD3D();
-
-                Action method = () =>
-                {
-                    double result = pointD3D.VectorModule;
-                };
-
-                ExecuteTest(method, "Com.PointD3D.VectorModule.get()");
+                ExecuteTest(method, "Com.PointD3D.AngleFromZX.get()");
             }
 
             {
@@ -9314,10 +10383,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD3D.VectorModuleSquared;
+                    _ = pointD3D.Zenith;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.VectorModuleSquared.get()");
+                ExecuteTest(method, "Com.PointD3D.Zenith.get()");
             }
 
             {
@@ -9325,43 +10394,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD3D.VectorAngleZ;
+                    _ = pointD3D.Azimuth;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.VectorAngleZ.get()");
-            }
-
-            {
-                Com.PointD3D pointD3D = _GetRandomPointD3D();
-
-                Action method = () =>
-                {
-                    double result = pointD3D.VectorAngleXY;
-                };
-
-                ExecuteTest(method, "Com.PointD3D.VectorAngleXY.get()");
-            }
-
-            {
-                Com.PointD3D pointD3D = _GetRandomPointD3D();
-
-                Action method = () =>
-                {
-                    Com.PointD3D result = pointD3D.VectorNegate;
-                };
-
-                ExecuteTest(method, "Com.PointD3D.VectorNegate.get()");
-            }
-
-            {
-                Com.PointD3D pointD3D = _GetRandomPointD3D();
-
-                Action method = () =>
-                {
-                    Com.PointD3D result = pointD3D.VectorNormalize;
-                };
-
-                ExecuteTest(method, "Com.PointD3D.VectorNormalize.get()");
+                ExecuteTest(method, "Com.PointD3D.Azimuth.get()");
             }
         }
 
@@ -9376,11 +10412,11 @@ namespace Test
 
             {
                 Com.PointD3D pointD3D = _GetRandomPointD3D();
-                object obj = (object)pointD3D;
+                object obj = pointD3D;
 
                 Action method = () =>
                 {
-                    bool result = pointD3D.Equals(obj);
+                    _ = pointD3D.Equals(obj);
                 };
 
                 ExecuteTest(method, "Com.PointD3D.Equals(object)");
@@ -9391,7 +10427,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    int result = pointD3D.GetHashCode();
+                    _ = pointD3D.GetHashCode();
                 };
 
                 ExecuteTest(method, "Com.PointD3D.GetHashCode()");
@@ -9402,7 +10438,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    string result = pointD3D.ToString();
+                    _ = pointD3D.ToString();
                 };
 
                 ExecuteTest(method, "Com.PointD3D.ToString()");
@@ -9416,10 +10452,202 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = left.Equals(right);
+                    _ = left.Equals(right);
                 };
 
                 ExecuteTest(method, "Com.PointD3D.Equals(Com.PointD3D)");
+            }
+
+            // CompareTo
+
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+                object obj = pointD3D;
+
+                Action method = () =>
+                {
+                    _ = pointD3D.CompareTo(obj);
+                };
+
+                ExecuteTest(method, "Com.PointD3D.CompareTo(object)");
+            }
+
+            {
+                Com.PointD3D left = _GetRandomPointD3D();
+                Com.PointD3D right = left;
+
+                Action method = () =>
+                {
+                    _ = left.CompareTo(right);
+                };
+
+                ExecuteTest(method, "Com.PointD3D.CompareTo(Com.PointD3D)");
+            }
+
+            // 检索
+
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+                double item = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = pointD3D.IndexOf(item);
+                };
+
+                ExecuteTest(method, "Com.PointD3D.IndexOf(double)");
+            }
+
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+                double item = Com.Statistics.RandomDouble(-1E18, 1E18);
+                int startIndex = 0;
+
+                Action method = () =>
+                {
+                    _ = pointD3D.IndexOf(item, startIndex);
+                };
+
+                ExecuteTest(method, "Com.PointD3D.IndexOf(double, int)");
+            }
+
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+                double item = Com.Statistics.RandomDouble(-1E18, 1E18);
+                int startIndex = 0;
+                int count = 3;
+
+                Action method = () =>
+                {
+                    _ = pointD3D.IndexOf(item, startIndex, count);
+                };
+
+                ExecuteTest(method, "Com.PointD3D.IndexOf(double, int, int)");
+            }
+
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+                double item = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = pointD3D.LastIndexOf(item);
+                };
+
+                ExecuteTest(method, "Com.PointD3D.LastIndexOf(double)");
+            }
+
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+                double item = Com.Statistics.RandomDouble(-1E18, 1E18);
+                int startIndex = 2;
+
+                Action method = () =>
+                {
+                    _ = pointD3D.LastIndexOf(item, startIndex);
+                };
+
+                ExecuteTest(method, "Com.PointD3D.LastIndexOf(double, int)");
+            }
+
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+                double item = Com.Statistics.RandomDouble(-1E18, 1E18);
+                int startIndex = 2;
+                int count = 3;
+
+                Action method = () =>
+                {
+                    _ = pointD3D.LastIndexOf(item, startIndex, count);
+                };
+
+                ExecuteTest(method, "Com.PointD3D.LastIndexOf(double, int, int)");
+            }
+
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+                double item = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = pointD3D.Contains(item);
+                };
+
+                ExecuteTest(method, "Com.PointD3D.Contains(double)");
+            }
+
+            // ToArray，ToList
+
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+
+                Action method = () =>
+                {
+                    _ = pointD3D.ToArray();
+                };
+
+                ExecuteTest(method, "Com.PointD3D.ToArray()");
+            }
+
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+
+                Action method = () =>
+                {
+                    _ = pointD3D.ToList();
+                };
+
+                ExecuteTest(method, "Com.PointD3D.ToList()");
+            }
+
+            // 坐标系转换
+
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+
+                Action method = () =>
+                {
+                    _ = pointD3D.ToSpherical();
+                };
+
+                ExecuteTest(method, "Com.PointD3D.ToSpherical()");
+            }
+
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+
+                Action method = () =>
+                {
+                    _ = pointD3D.ToCartesian();
+                };
+
+                ExecuteTest(method, "Com.PointD3D.ToCartesian()");
+            }
+
+            // 距离与夹角
+
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+                Com.PointD3D pt = _GetRandomPointD3D();
+
+                Action method = () =>
+                {
+                    _ = pointD3D.DistanceFrom(pt);
+                };
+
+                ExecuteTest(method, "Com.PointD3D.DistanceFrom(Com.PointD3D)");
+            }
+
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+                Com.PointD3D pt = _GetRandomPointD3D();
+
+                Action method = () =>
+                {
+                    _ = pointD3D.AngleFrom(pt);
+                };
+
+                ExecuteTest(method, "Com.PointD3D.AngleFrom(Com.PointD3D)");
             }
 
             // Offset
@@ -9468,7 +10696,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD3D result = pointD3D.OffsetCopy(d);
+                    _ = pointD3D.OffsetCopy(d);
                 };
 
                 ExecuteTest(method, "Com.PointD3D.OffsetCopy(double)");
@@ -9482,7 +10710,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD3D result = pointD3D.OffsetCopy(dx, dy, dz);
+                    _ = pointD3D.OffsetCopy(dx, dy, dz);
                 };
 
                 ExecuteTest(method, "Com.PointD3D.OffsetCopy(double, double, double)");
@@ -9494,7 +10722,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD3D result = pointD3D.OffsetCopy(pt);
+                    _ = pointD3D.OffsetCopy(pt);
                 };
 
                 ExecuteTest(method, "Com.PointD3D.OffsetCopy(Com.PointD3D)");
@@ -9546,7 +10774,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD3D result = pointD3D.ScaleCopy(s);
+                    _ = pointD3D.ScaleCopy(s);
                 };
 
                 ExecuteTest(method, "Com.PointD3D.ScaleCopy(double)");
@@ -9560,7 +10788,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD3D result = pointD3D.ScaleCopy(sx, sy, sz);
+                    _ = pointD3D.ScaleCopy(sx, sy, sz);
                 };
 
                 ExecuteTest(method, "Com.PointD3D.ScaleCopy(double, double, double)");
@@ -9572,13 +10800,296 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD3D result = pointD3D.ScaleCopy(pt);
+                    _ = pointD3D.ScaleCopy(pt);
                 };
 
                 ExecuteTest(method, "Com.PointD3D.ScaleCopy(Com.PointD3D)");
             }
 
+            // Reflect
+
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+                int index = Com.Statistics.RandomInteger(3);
+
+                Action method = () =>
+                {
+                    pointD3D.Reflect(index);
+                };
+
+                ExecuteTest(method, "Com.PointD3D.Reflect(int)");
+            }
+
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+
+                Action method = () =>
+                {
+                    pointD3D.ReflectX();
+                };
+
+                ExecuteTest(method, "Com.PointD3D.ReflectX()");
+            }
+
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+
+                Action method = () =>
+                {
+                    pointD3D.ReflectY();
+                };
+
+                ExecuteTest(method, "Com.PointD3D.ReflectY()");
+            }
+
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+
+                Action method = () =>
+                {
+                    pointD3D.ReflectZ();
+                };
+
+                ExecuteTest(method, "Com.PointD3D.ReflectZ()");
+            }
+
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+                int index = Com.Statistics.RandomInteger(3);
+
+                Action method = () =>
+                {
+                    _ = pointD3D.ReflectCopy(index);
+                };
+
+                ExecuteTest(method, "Com.PointD3D.ReflectCopy(int)");
+            }
+
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+
+                Action method = () =>
+                {
+                    _ = pointD3D.ReflectXCopy();
+                };
+
+                ExecuteTest(method, "Com.PointD3D.ReflectXCopy()");
+            }
+
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+
+                Action method = () =>
+                {
+                    _ = pointD3D.ReflectYCopy();
+                };
+
+                ExecuteTest(method, "Com.PointD3D.ReflectYCopy()");
+            }
+
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+
+                Action method = () =>
+                {
+                    _ = pointD3D.ReflectZCopy();
+                };
+
+                ExecuteTest(method, "Com.PointD3D.ReflectZCopy()");
+            }
+
+            // Shear
+
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+                int index1 = Com.Statistics.RandomInteger(3);
+                int index2 = Com.Statistics.RandomInteger(2);
+                if (index2 == index1) index2++;
+                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
+
+                Action method = () =>
+                {
+                    pointD3D.Shear(index1, index2, angle);
+                };
+
+                ExecuteTest(method, "Com.PointD3D.Shear(int, int, double)");
+            }
+
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
+
+                Action method = () =>
+                {
+                    pointD3D.ShearXY(angle);
+                };
+
+                ExecuteTest(method, "Com.PointD3D.ShearXY(double)");
+            }
+
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
+
+                Action method = () =>
+                {
+                    pointD3D.ShearYX(angle);
+                };
+
+                ExecuteTest(method, "Com.PointD3D.ShearYX(double)");
+            }
+
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
+
+                Action method = () =>
+                {
+                    pointD3D.ShearYZ(angle);
+                };
+
+                ExecuteTest(method, "Com.PointD3D.ShearYZ(double)");
+            }
+
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
+
+                Action method = () =>
+                {
+                    pointD3D.ShearZY(angle);
+                };
+
+                ExecuteTest(method, "Com.PointD3D.ShearZY(double)");
+            }
+
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
+
+                Action method = () =>
+                {
+                    pointD3D.ShearZX(angle);
+                };
+
+                ExecuteTest(method, "Com.PointD3D.ShearZX(double)");
+            }
+
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
+
+                Action method = () =>
+                {
+                    pointD3D.ShearXZ(angle);
+                };
+
+                ExecuteTest(method, "Com.PointD3D.ShearXZ(double)");
+            }
+
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+                int index1 = Com.Statistics.RandomInteger(3);
+                int index2 = Com.Statistics.RandomInteger(2);
+                if (index2 == index1) index2++;
+                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
+
+                Action method = () =>
+                {
+                    _ = pointD3D.ShearCopy(index1, index2, angle);
+                };
+
+                ExecuteTest(method, "Com.PointD3D.ShearCopy(int, int, double)");
+            }
+
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
+
+                Action method = () =>
+                {
+                    _ = pointD3D.ShearXYCopy(angle);
+                };
+
+                ExecuteTest(method, "Com.PointD3D.ShearXYCopy(double)");
+            }
+
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
+
+                Action method = () =>
+                {
+                    _ = pointD3D.ShearYXCopy(angle);
+                };
+
+                ExecuteTest(method, "Com.PointD3D.ShearYXCopy(double)");
+            }
+
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
+
+                Action method = () =>
+                {
+                    _ = pointD3D.ShearYZCopy(angle);
+                };
+
+                ExecuteTest(method, "Com.PointD3D.ShearYZCopy(double)");
+            }
+
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
+
+                Action method = () =>
+                {
+                    _ = pointD3D.ShearZYCopy(angle);
+                };
+
+                ExecuteTest(method, "Com.PointD3D.ShearZYCopy(double)");
+            }
+
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
+
+                Action method = () =>
+                {
+                    _ = pointD3D.ShearZXCopy(angle);
+                };
+
+                ExecuteTest(method, "Com.PointD3D.ShearZXCopy(double)");
+            }
+
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
+
+                Action method = () =>
+                {
+                    _ = pointD3D.ShearXZCopy(angle);
+                };
+
+                ExecuteTest(method, "Com.PointD3D.ShearXZCopy(double)");
+            }
+
             // Rotate
+
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+                int index1 = Com.Statistics.RandomInteger(3);
+                int index2 = Com.Statistics.RandomInteger(2);
+                if (index2 == index1) index2++;
+                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
+
+                Action method = () =>
+                {
+                    pointD3D.Rotate(index1, index2, angle);
+                };
+
+                ExecuteTest(method, "Com.PointD3D.Rotate(int, int, double)");
+            }
 
             {
                 Com.PointD3D pointD3D = _GetRandomPointD3D();
@@ -9618,11 +11129,26 @@ namespace Test
 
             {
                 Com.PointD3D pointD3D = _GetRandomPointD3D();
+                int index1 = Com.Statistics.RandomInteger(3);
+                int index2 = Com.Statistics.RandomInteger(2);
+                if (index2 == index1) index2++;
                 double angle = Com.Statistics.RandomDouble(2 * Math.PI);
 
                 Action method = () =>
                 {
-                    Com.PointD3D result = pointD3D.RotateXCopy(angle);
+                    _ = pointD3D.RotateCopy(index1, index2, angle);
+                };
+
+                ExecuteTest(method, "Com.PointD3D.RotateCopy(int, int, double)");
+            }
+
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
+
+                Action method = () =>
+                {
+                    _ = pointD3D.RotateXCopy(angle);
                 };
 
                 ExecuteTest(method, "Com.PointD3D.RotateXCopy(double)");
@@ -9634,7 +11160,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD3D result = pointD3D.RotateYCopy(angle);
+                    _ = pointD3D.RotateYCopy(angle);
                 };
 
                 ExecuteTest(method, "Com.PointD3D.RotateYCopy(double)");
@@ -9646,7 +11172,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD3D result = pointD3D.RotateZCopy(angle);
+                    _ = pointD3D.RotateZCopy(angle);
                 };
 
                 ExecuteTest(method, "Com.PointD3D.RotateZCopy(double)");
@@ -9656,9 +11182,9 @@ namespace Test
 
             {
                 Com.PointD3D pointD3D = _GetRandomPointD3D();
-                Com.PointD3D ex = _GetRandomPointD3D().VectorNormalize;
-                Com.PointD3D ey = _GetRandomPointD3D().VectorNormalize;
-                Com.PointD3D ez = _GetRandomPointD3D().VectorNormalize;
+                Com.PointD3D ex = _GetRandomPointD3D().Normalize;
+                Com.PointD3D ey = _GetRandomPointD3D().Normalize;
+                Com.PointD3D ez = _GetRandomPointD3D().Normalize;
                 Com.PointD3D offset = _GetRandomPointD3D();
 
                 Action method = () =>
@@ -9700,14 +11226,14 @@ namespace Test
 
             {
                 Com.PointD3D pointD3D = _GetRandomPointD3D();
-                Com.PointD3D ex = _GetRandomPointD3D().VectorNormalize;
-                Com.PointD3D ey = _GetRandomPointD3D().VectorNormalize;
-                Com.PointD3D ez = _GetRandomPointD3D().VectorNormalize;
+                Com.PointD3D ex = _GetRandomPointD3D().Normalize;
+                Com.PointD3D ey = _GetRandomPointD3D().Normalize;
+                Com.PointD3D ez = _GetRandomPointD3D().Normalize;
                 Com.PointD3D offset = _GetRandomPointD3D();
 
                 Action method = () =>
                 {
-                    Com.PointD3D result = pointD3D.AffineTransformCopy(ex, ey, ez, offset);
+                    _ = pointD3D.AffineTransformCopy(ex, ey, ez, offset);
                 };
 
                 ExecuteTest(method, "Com.PointD3D.AffineTransformCopy(Com.PointD3D, Com.PointD3D, Com.PointD3D, Com.PointD3D)");
@@ -9719,7 +11245,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD3D result = pointD3D.AffineTransformCopy(matrixLeft);
+                    _ = pointD3D.AffineTransformCopy(matrixLeft);
                 };
 
                 ExecuteTest(method, "Com.PointD3D.AffineTransformCopy(Com.Matrix)");
@@ -9736,7 +11262,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD3D result = pointD3D.AffineTransformCopy(matrixLeftList);
+                    _ = pointD3D.AffineTransformCopy(matrixLeftList);
                 };
 
                 ExecuteTest(method, "Com.PointD3D.AffineTransformCopy(System.Collections.Generic.List<Com.Matrix>)", "total 8 matrices");
@@ -9744,9 +11270,9 @@ namespace Test
 
             {
                 Com.PointD3D pointD3D = _GetRandomPointD3D();
-                Com.PointD3D ex = _GetRandomPointD3D().VectorNormalize;
-                Com.PointD3D ey = _GetRandomPointD3D().VectorNormalize;
-                Com.PointD3D ez = _GetRandomPointD3D().VectorNormalize;
+                Com.PointD3D ex = _GetRandomPointD3D().Normalize;
+                Com.PointD3D ey = _GetRandomPointD3D().Normalize;
+                Com.PointD3D ez = _GetRandomPointD3D().Normalize;
                 Com.PointD3D offset = _GetRandomPointD3D();
 
                 Action method = () =>
@@ -9788,14 +11314,14 @@ namespace Test
 
             {
                 Com.PointD3D pointD3D = _GetRandomPointD3D();
-                Com.PointD3D ex = _GetRandomPointD3D().VectorNormalize;
-                Com.PointD3D ey = _GetRandomPointD3D().VectorNormalize;
-                Com.PointD3D ez = _GetRandomPointD3D().VectorNormalize;
+                Com.PointD3D ex = _GetRandomPointD3D().Normalize;
+                Com.PointD3D ey = _GetRandomPointD3D().Normalize;
+                Com.PointD3D ez = _GetRandomPointD3D().Normalize;
                 Com.PointD3D offset = _GetRandomPointD3D();
 
                 Action method = () =>
                 {
-                    Com.PointD3D result = pointD3D.InverseAffineTransformCopy(ex, ey, ez, offset);
+                    _ = pointD3D.InverseAffineTransformCopy(ex, ey, ez, offset);
                 };
 
                 ExecuteTest(method, "Com.PointD3D.InverseAffineTransformCopy(Com.PointD3D, Com.PointD3D, Com.PointD3D, Com.PointD3D)");
@@ -9807,7 +11333,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD3D result = pointD3D.InverseAffineTransformCopy(matrixLeft);
+                    _ = pointD3D.InverseAffineTransformCopy(matrixLeft);
                 };
 
                 ExecuteTest(method, "Com.PointD3D.InverseAffineTransformCopy(Com.Matrix)");
@@ -9824,7 +11350,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD3D result = pointD3D.InverseAffineTransformCopy(matrixLeftList);
+                    _ = pointD3D.InverseAffineTransformCopy(matrixLeftList);
                 };
 
                 ExecuteTest(method, "Com.PointD3D.InverseAffineTransformCopy(System.Collections.Generic.List<Com.Matrix>)", "total 8 matrices");
@@ -9839,7 +11365,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = pointD3D.ProjectToXY(prjCenter, trueLenDist);
+                    _ = pointD3D.ProjectToXY(prjCenter, trueLenDist);
                 };
 
                 ExecuteTest(method, "Com.PointD3D.ProjectToXY(Com.PointD3D, double)");
@@ -9852,7 +11378,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = pointD3D.ProjectToYZ(prjCenter, trueLenDist);
+                    _ = pointD3D.ProjectToYZ(prjCenter, trueLenDist);
                 };
 
                 ExecuteTest(method, "Com.PointD3D.ProjectToYZ(Com.PointD3D, double)");
@@ -9865,60 +11391,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD result = pointD3D.ProjectToZX(prjCenter, trueLenDist);
+                    _ = pointD3D.ProjectToZX(prjCenter, trueLenDist);
                 };
 
                 ExecuteTest(method, "Com.PointD3D.ProjectToZX(Com.PointD3D, double)");
-            }
-
-            // 距离与角度
-
-            {
-                Com.PointD3D pointD3D = _GetRandomPointD3D();
-                Com.PointD3D pt = _GetRandomPointD3D();
-
-                Action method = () =>
-                {
-                    double result = pointD3D.DistanceFrom(pt);
-                };
-
-                ExecuteTest(method, "Com.PointD3D.DistanceFrom(Com.PointD3D)");
-            }
-
-            {
-                Com.PointD3D pointD3D = _GetRandomPointD3D();
-                Com.PointD3D pt = _GetRandomPointD3D();
-
-                Action method = () =>
-                {
-                    double result = pointD3D.AngleFrom(pt);
-                };
-
-                ExecuteTest(method, "Com.PointD3D.AngleFrom(Com.PointD3D)");
-            }
-
-            // 坐标系转换
-
-            {
-                Com.PointD3D pointD3D = _GetRandomPointD3D();
-
-                Action method = () =>
-                {
-                    Com.PointD3D result = pointD3D.ToSpherical();
-                };
-
-                ExecuteTest(method, "Com.PointD3D.ToSpherical()");
-            }
-
-            {
-                Com.PointD3D pointD3D = _GetRandomPointD3D();
-
-                Action method = () =>
-                {
-                    Com.PointD3D result = pointD3D.ToCartesian();
-                };
-
-                ExecuteTest(method, "Com.PointD3D.ToCartesian()");
             }
 
             // ToVector
@@ -9928,10 +11404,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Vector result = pointD3D.ToVector();
+                    _ = pointD3D.ToColumnVector();
                 };
 
-                ExecuteTest(method, "Com.PointD3D.ToVector()");
+                ExecuteTest(method, "Com.PointD3D.ToColumnVector()");
             }
 
             {
@@ -9939,34 +11415,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Vector result = pointD3D.ToVectorColumn();
+                    _ = pointD3D.ToRowVector();
                 };
 
-                ExecuteTest(method, "Com.PointD3D.ToVectorColumn()");
-            }
-
-            {
-                Com.PointD3D pointD3D = _GetRandomPointD3D();
-
-                Action method = () =>
-                {
-                    Com.Vector result = pointD3D.ToVectorRow();
-                };
-
-                ExecuteTest(method, "Com.PointD3D.ToVectorRow()");
-            }
-
-            // ToArray
-
-            {
-                Com.PointD3D pointD3D = _GetRandomPointD3D();
-
-                Action method = () =>
-                {
-                    double[] result = pointD3D.ToArray();
-                };
-
-                ExecuteTest(method, "Com.PointD3D.ToArray()");
+                ExecuteTest(method, "Com.PointD3D.ToRowVector()");
             }
         }
 
@@ -9980,10 +11432,24 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = Com.PointD3D.Equals(left, right);
+                    _ = Com.PointD3D.Equals(left, right);
                 };
 
                 ExecuteTest(method, "Com.PointD3D.Equals(Com.PointD3D, Com.PointD3D)");
+            }
+
+            // Compare
+
+            {
+                Com.PointD3D left = _GetRandomPointD3D();
+                Com.PointD3D right = left;
+
+                Action method = () =>
+                {
+                    _ = Com.PointD3D.Compare(left, right);
+                };
+
+                ExecuteTest(method, "Com.PointD3D.Compare(Com.PointD3D, Com.PointD3D)");
             }
 
             // Matrix
@@ -9991,7 +11457,7 @@ namespace Test
             {
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD3D.IdentityMatrix();
+                    _ = Com.PointD3D.IdentityMatrix();
                 };
 
                 ExecuteTest(method, "Com.PointD3D.IdentityMatrix()");
@@ -10002,7 +11468,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD3D.OffsetMatrix(d);
+                    _ = Com.PointD3D.OffsetMatrix(d);
                 };
 
                 ExecuteTest(method, "Com.PointD3D.OffsetMatrix(double)");
@@ -10015,7 +11481,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD3D.OffsetMatrix(dx, dy, dz);
+                    _ = Com.PointD3D.OffsetMatrix(dx, dy, dz);
                 };
 
                 ExecuteTest(method, "Com.PointD3D.OffsetMatrix(double, double, double)");
@@ -10026,7 +11492,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD3D.OffsetMatrix(pt);
+                    _ = Com.PointD3D.OffsetMatrix(pt);
                 };
 
                 ExecuteTest(method, "Com.PointD3D.OffsetMatrix(Com.PointD3D)");
@@ -10037,7 +11503,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD3D.ScaleMatrix(s);
+                    _ = Com.PointD3D.ScaleMatrix(s);
                 };
 
                 ExecuteTest(method, "Com.PointD3D.ScaleMatrix(double)");
@@ -10050,7 +11516,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD3D.ScaleMatrix(sx, sy, sz);
+                    _ = Com.PointD3D.ScaleMatrix(sx, sy, sz);
                 };
 
                 ExecuteTest(method, "Com.PointD3D.ScaleMatrix(double, double, double)");
@@ -10061,10 +11527,62 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD3D.ScaleMatrix(pt);
+                    _ = Com.PointD3D.ScaleMatrix(pt);
                 };
 
                 ExecuteTest(method, "Com.PointD3D.ScaleMatrix(Com.PointD3D)");
+            }
+
+            {
+                int index = Com.Statistics.RandomInteger(3);
+
+                Action method = () =>
+                {
+                    _ = Com.PointD3D.ReflectMatrix(index);
+                };
+
+                ExecuteTest(method, "Com.PointD3D.ReflectMatrix(int)");
+            }
+
+            {
+                Action method = () =>
+                {
+                    _ = Com.PointD3D.ReflectXMatrix();
+                };
+
+                ExecuteTest(method, "Com.PointD3D.ReflectXMatrix()");
+            }
+
+            {
+                Action method = () =>
+                {
+                    _ = Com.PointD3D.ReflectYMatrix();
+                };
+
+                ExecuteTest(method, "Com.PointD3D.ReflectYMatrix()");
+            }
+
+            {
+                Action method = () =>
+                {
+                    _ = Com.PointD3D.ReflectZMatrix();
+                };
+
+                ExecuteTest(method, "Com.PointD3D.ReflectZMatrix()");
+            }
+
+            {
+                int index1 = Com.Statistics.RandomInteger(3);
+                int index2 = Com.Statistics.RandomInteger(2);
+                if (index2 == index1) index2++;
+                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
+
+                Action method = () =>
+                {
+                    _ = Com.PointD3D.ShearMatrix(index1, index2, angle);
+                };
+
+                ExecuteTest(method, "Com.PointD3D.ShearMatrix(int, int, double)");
             }
 
             {
@@ -10072,7 +11590,87 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD3D.RotateXMatrix(angle);
+                    _ = Com.PointD3D.ShearXYMatrix(angle);
+                };
+
+                ExecuteTest(method, "Com.PointD3D.ShearXYMatrix(double)");
+            }
+
+            {
+                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
+
+                Action method = () =>
+                {
+                    _ = Com.PointD3D.ShearYXMatrix(angle);
+                };
+
+                ExecuteTest(method, "Com.PointD3D.ShearYXMatrix(double)");
+            }
+
+            {
+                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
+
+                Action method = () =>
+                {
+                    _ = Com.PointD3D.ShearYZMatrix(angle);
+                };
+
+                ExecuteTest(method, "Com.PointD3D.ShearYZMatrix(double)");
+            }
+
+            {
+                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
+
+                Action method = () =>
+                {
+                    _ = Com.PointD3D.ShearZYMatrix(angle);
+                };
+
+                ExecuteTest(method, "Com.PointD3D.ShearZYMatrix(double)");
+            }
+
+            {
+                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
+
+                Action method = () =>
+                {
+                    _ = Com.PointD3D.ShearZXMatrix(angle);
+                };
+
+                ExecuteTest(method, "Com.PointD3D.ShearZXMatrix(double)");
+            }
+
+            {
+                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
+
+                Action method = () =>
+                {
+                    _ = Com.PointD3D.ShearXZMatrix(angle);
+                };
+
+                ExecuteTest(method, "Com.PointD3D.ShearXZMatrix(double)");
+            }
+
+            {
+                int index1 = Com.Statistics.RandomInteger(3);
+                int index2 = Com.Statistics.RandomInteger(2);
+                if (index2 == index1) index2++;
+                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
+
+                Action method = () =>
+                {
+                    _ = Com.PointD3D.RotateMatrix(index1, index2, angle);
+                };
+
+                ExecuteTest(method, "Com.PointD3D.RotateMatrix(int, int, double)");
+            }
+
+            {
+                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
+
+                Action method = () =>
+                {
+                    _ = Com.PointD3D.RotateXMatrix(angle);
                 };
 
                 ExecuteTest(method, "Com.PointD3D.RotateXMatrix(double)");
@@ -10083,7 +11681,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD3D.RotateYMatrix(angle);
+                    _ = Com.PointD3D.RotateYMatrix(angle);
                 };
 
                 ExecuteTest(method, "Com.PointD3D.RotateYMatrix(double)");
@@ -10094,13 +11692,13 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD3D.RotateZMatrix(angle);
+                    _ = Com.PointD3D.RotateZMatrix(angle);
                 };
 
                 ExecuteTest(method, "Com.PointD3D.RotateZMatrix(double)");
             }
 
-            // 距离与角度
+            // 距离与夹角
 
             {
                 Com.PointD3D left = _GetRandomPointD3D();
@@ -10108,7 +11706,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = Com.PointD3D.DistanceBetween(left, right);
+                    _ = Com.PointD3D.DistanceBetween(left, right);
                 };
 
                 ExecuteTest(method, "Com.PointD3D.DistanceBetween(Com.PointD3D, Com.PointD3D)");
@@ -10120,7 +11718,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = Com.PointD3D.AngleBetween(left, right);
+                    _ = Com.PointD3D.AngleBetween(left, right);
                 };
 
                 ExecuteTest(method, "Com.PointD3D.AngleBetween(Com.PointD3D, Com.PointD3D)");
@@ -10134,7 +11732,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = Com.PointD3D.DotProduct(left, right);
+                    _ = Com.PointD3D.DotProduct(left, right);
                 };
 
                 ExecuteTest(method, "Com.PointD3D.DotProduct(Com.PointD3D, Com.PointD3D)");
@@ -10146,7 +11744,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD3D result = Com.PointD3D.CrossProduct(left, right);
+                    _ = Com.PointD3D.CrossProduct(left, right);
                 };
 
                 ExecuteTest(method, "Com.PointD3D.CrossProduct(Com.PointD3D, Com.PointD3D)");
@@ -10159,7 +11757,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD3D result = Com.PointD3D.Abs(pointD3D);
+                    _ = Com.PointD3D.Abs(pointD3D);
                 };
 
                 ExecuteTest(method, "Com.PointD3D.Abs(Com.PointD3D)");
@@ -10170,7 +11768,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD3D result = Com.PointD3D.Sign(pointD3D);
+                    _ = Com.PointD3D.Sign(pointD3D);
                 };
 
                 ExecuteTest(method, "Com.PointD3D.Sign(Com.PointD3D)");
@@ -10181,7 +11779,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD3D result = Com.PointD3D.Ceiling(pointD3D);
+                    _ = Com.PointD3D.Ceiling(pointD3D);
                 };
 
                 ExecuteTest(method, "Com.PointD3D.Ceiling(Com.PointD3D)");
@@ -10192,7 +11790,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD3D result = Com.PointD3D.Floor(pointD3D);
+                    _ = Com.PointD3D.Floor(pointD3D);
                 };
 
                 ExecuteTest(method, "Com.PointD3D.Floor(Com.PointD3D)");
@@ -10203,7 +11801,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD3D result = Com.PointD3D.Round(pointD3D);
+                    _ = Com.PointD3D.Round(pointD3D);
                 };
 
                 ExecuteTest(method, "Com.PointD3D.Round(Com.PointD3D)");
@@ -10214,7 +11812,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD3D result = Com.PointD3D.Truncate(pointD3D);
+                    _ = Com.PointD3D.Truncate(pointD3D);
                 };
 
                 ExecuteTest(method, "Com.PointD3D.Truncate(Com.PointD3D)");
@@ -10226,7 +11824,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD3D result = Com.PointD3D.Max(left, right);
+                    _ = Com.PointD3D.Max(left, right);
                 };
 
                 ExecuteTest(method, "Com.PointD3D.Max(Com.PointD3D, Com.PointD3D)");
@@ -10238,7 +11836,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD3D result = Com.PointD3D.Min(left, right);
+                    _ = Com.PointD3D.Min(left, right);
                 };
 
                 ExecuteTest(method, "Com.PointD3D.Min(Com.PointD3D, Com.PointD3D)");
@@ -10255,7 +11853,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = (left == right);
+                    _ = (left == right);
                 };
 
                 ExecuteTest(method, "Com.PointD3D.operator ==(Com.PointD3D, Com.PointD3D)");
@@ -10267,7 +11865,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = (left != right);
+                    _ = (left != right);
                 };
 
                 ExecuteTest(method, "Com.PointD3D.operator !=(Com.PointD3D, Com.PointD3D)");
@@ -10279,7 +11877,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = (left < right);
+                    _ = (left < right);
                 };
 
                 ExecuteTest(method, "Com.PointD3D.operator <(Com.PointD3D, Com.PointD3D)");
@@ -10291,7 +11889,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = (left > right);
+                    _ = (left > right);
                 };
 
                 ExecuteTest(method, "Com.PointD3D.operator >(Com.PointD3D, Com.PointD3D)");
@@ -10303,7 +11901,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = (left <= right);
+                    _ = (left <= right);
                 };
 
                 ExecuteTest(method, "Com.PointD3D.operator <=(Com.PointD3D, Com.PointD3D)");
@@ -10315,7 +11913,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = (left >= right);
+                    _ = (left >= right);
                 };
 
                 ExecuteTest(method, "Com.PointD3D.operator >=(Com.PointD3D, Com.PointD3D)");
@@ -10328,7 +11926,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD3D result = +pointD3D;
+                    _ = +pointD3D;
                 };
 
                 ExecuteTest(method, "Com.PointD3D.operator +(Com.PointD3D)");
@@ -10339,7 +11937,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD3D result = -pointD3D;
+                    _ = -pointD3D;
                 };
 
                 ExecuteTest(method, "Com.PointD3D.operator -(Com.PointD3D)");
@@ -10351,7 +11949,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD3D result = pt + n;
+                    _ = pt + n;
                 };
 
                 ExecuteTest(method, "Com.PointD3D.operator +(Com.PointD3D, double)");
@@ -10363,7 +11961,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD3D result = n + pt;
+                    _ = n + pt;
                 };
 
                 ExecuteTest(method, "Com.PointD3D.operator +(double, Com.PointD3D)");
@@ -10375,7 +11973,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD3D result = left + right;
+                    _ = left + right;
                 };
 
                 ExecuteTest(method, "Com.PointD3D.operator +(Com.PointD3D, Com.PointD3D)");
@@ -10387,7 +11985,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD3D result = pt - n;
+                    _ = pt - n;
                 };
 
                 ExecuteTest(method, "Com.PointD3D.operator -(Com.PointD3D, double)");
@@ -10399,7 +11997,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD3D result = n - pt;
+                    _ = n - pt;
                 };
 
                 ExecuteTest(method, "Com.PointD3D.operator -(double, Com.PointD3D)");
@@ -10411,7 +12009,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD3D result = left - right;
+                    _ = left - right;
                 };
 
                 ExecuteTest(method, "Com.PointD3D.operator -(Com.PointD3D, Com.PointD3D)");
@@ -10423,7 +12021,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD3D result = pt * n;
+                    _ = pt * n;
                 };
 
                 ExecuteTest(method, "Com.PointD3D.operator *(Com.PointD3D, double)");
@@ -10435,7 +12033,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD3D result = n * pt;
+                    _ = n * pt;
                 };
 
                 ExecuteTest(method, "Com.PointD3D.operator *(double, Com.PointD3D)");
@@ -10447,7 +12045,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD3D result = left * right;
+                    _ = left * right;
                 };
 
                 ExecuteTest(method, "Com.PointD3D.operator *(Com.PointD3D, Com.PointD3D)");
@@ -10459,7 +12057,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD3D result = pt / n;
+                    _ = pt / n;
                 };
 
                 ExecuteTest(method, "Com.PointD3D.operator /(Com.PointD3D, double)");
@@ -10471,7 +12069,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD3D result = n / pt;
+                    _ = n / pt;
                 };
 
                 ExecuteTest(method, "Com.PointD3D.operator /(double, Com.PointD3D)");
@@ -10483,7 +12081,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD3D result = left / right;
+                    _ = left / right;
                 };
 
                 ExecuteTest(method, "Com.PointD3D.operator /(Com.PointD3D, Com.PointD3D)");
@@ -10521,7 +12119,7 @@ namespace Test
             }
             else
             {
-                return Com.Matrix.NonMatrix;
+                return Com.Matrix.Empty;
             }
         }
 
@@ -10537,7 +12135,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD4D pointD4D = new Com.PointD4D(x, y, z, u);
+                    _ = new Com.PointD4D(x, y, z, u);
                 };
 
                 ExecuteTest(method, "Com.PointD4D.PointD4D(double, double, double, double)");
@@ -10554,7 +12152,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD4D[index];
+                    _ = pointD4D[index];
                 };
 
                 ExecuteTest(method, "Com.PointD4D.this[int].get()");
@@ -10573,52 +12171,6 @@ namespace Test
                 ExecuteTest(method, "Com.PointD4D.this[int].set(double)");
             }
 
-            // Is
-
-            {
-                Com.PointD4D pointD4D = _GetRandomPointD4D();
-
-                Action method = () =>
-                {
-                    bool result = pointD4D.IsEmpty;
-                };
-
-                ExecuteTest(method, "Com.PointD4D.IsEmpty.get()");
-            }
-
-            {
-                Com.PointD4D pointD4D = _GetRandomPointD4D();
-
-                Action method = () =>
-                {
-                    bool result = pointD4D.IsNaN;
-                };
-
-                ExecuteTest(method, "Com.PointD4D.IsNaN.get()");
-            }
-
-            {
-                Com.PointD4D pointD4D = _GetRandomPointD4D();
-
-                Action method = () =>
-                {
-                    bool result = pointD4D.IsInfinity;
-                };
-
-                ExecuteTest(method, "Com.PointD4D.IsInfinity.get()");
-            }
-
-            {
-                Com.PointD4D pointD4D = _GetRandomPointD4D();
-
-                Action method = () =>
-                {
-                    bool result = pointD4D.IsNaNOrInfinity;
-                };
-
-                ExecuteTest(method, "Com.PointD4D.IsNaNOrInfinity.get()");
-            }
-
             // 分量
 
             {
@@ -10626,7 +12178,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD4D.X;
+                    _ = pointD4D.X;
                 };
 
                 ExecuteTest(method, "Com.PointD4D.X.get()");
@@ -10649,7 +12201,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD4D.Y;
+                    _ = pointD4D.Y;
                 };
 
                 ExecuteTest(method, "Com.PointD4D.Y.get()");
@@ -10672,7 +12224,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD4D.Z;
+                    _ = pointD4D.Z;
                 };
 
                 ExecuteTest(method, "Com.PointD4D.Z.get()");
@@ -10695,7 +12247,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD4D.U;
+                    _ = pointD4D.U;
                 };
 
                 ExecuteTest(method, "Com.PointD4D.U.get()");
@@ -10713,12 +12265,154 @@ namespace Test
                 ExecuteTest(method, "Com.PointD4D.U.set(double)");
             }
 
+            // Dimension
+
             {
                 Com.PointD4D pointD4D = _GetRandomPointD4D();
 
                 Action method = () =>
                 {
-                    Com.PointD3D result = pointD4D.XYZ;
+                    _ = pointD4D.Dimension;
+                };
+
+                ExecuteTest(method, "Com.PointD4D.Dimension.get()");
+            }
+
+            // Is
+
+            {
+                Com.PointD4D pointD4D = _GetRandomPointD4D();
+
+                Action method = () =>
+                {
+                    _ = pointD4D.IsEmpty;
+                };
+
+                ExecuteTest(method, "Com.PointD4D.IsEmpty.get()");
+            }
+
+            {
+                Com.PointD4D pointD4D = _GetRandomPointD4D();
+
+                Action method = () =>
+                {
+                    _ = pointD4D.IsZero;
+                };
+
+                ExecuteTest(method, "Com.PointD4D.IsZero.get()");
+            }
+
+            {
+                Com.PointD4D pointD4D = _GetRandomPointD4D();
+
+                Action method = () =>
+                {
+                    _ = pointD4D.IsReadOnly;
+                };
+
+                ExecuteTest(method, "Com.PointD4D.IsReadOnly.get()");
+            }
+
+            {
+                Com.PointD4D pointD4D = _GetRandomPointD4D();
+
+                Action method = () =>
+                {
+                    _ = pointD4D.IsFixedSize;
+                };
+
+                ExecuteTest(method, "Com.PointD4D.IsFixedSize.get()");
+            }
+
+            {
+                Com.PointD4D pointD4D = _GetRandomPointD4D();
+
+                Action method = () =>
+                {
+                    _ = pointD4D.IsNaN;
+                };
+
+                ExecuteTest(method, "Com.PointD4D.IsNaN.get()");
+            }
+
+            {
+                Com.PointD4D pointD4D = _GetRandomPointD4D();
+
+                Action method = () =>
+                {
+                    _ = pointD4D.IsInfinity;
+                };
+
+                ExecuteTest(method, "Com.PointD4D.IsInfinity.get()");
+            }
+
+            {
+                Com.PointD4D pointD4D = _GetRandomPointD4D();
+
+                Action method = () =>
+                {
+                    _ = pointD4D.IsNaNOrInfinity;
+                };
+
+                ExecuteTest(method, "Com.PointD4D.IsNaNOrInfinity.get()");
+            }
+
+            // 模
+
+            {
+                Com.PointD4D pointD4D = _GetRandomPointD4D();
+
+                Action method = () =>
+                {
+                    _ = pointD4D.Module;
+                };
+
+                ExecuteTest(method, "Com.PointD4D.Module.get()");
+            }
+
+            {
+                Com.PointD4D pointD4D = _GetRandomPointD4D();
+
+                Action method = () =>
+                {
+                    _ = pointD4D.ModuleSquared;
+                };
+
+                ExecuteTest(method, "Com.PointD4D.ModuleSquared.get()");
+            }
+
+            // 向量
+
+            {
+                Com.PointD4D pointD4D = _GetRandomPointD4D();
+
+                Action method = () =>
+                {
+                    _ = pointD4D.Opposite;
+                };
+
+                ExecuteTest(method, "Com.PointD4D.Opposite.get()");
+            }
+
+            {
+                Com.PointD4D pointD4D = _GetRandomPointD4D();
+
+                Action method = () =>
+                {
+                    _ = pointD4D.Normalize;
+                };
+
+                ExecuteTest(method, "Com.PointD4D.Normalize.get()");
+            }
+
+            // 子空间分量
+
+            {
+                Com.PointD4D pointD4D = _GetRandomPointD4D();
+
+                Action method = () =>
+                {
+                    _ = pointD4D.XYZ;
                 };
 
                 ExecuteTest(method, "Com.PointD4D.XYZ.get()");
@@ -10741,7 +12435,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD3D result = pointD4D.YZU;
+                    _ = pointD4D.YZU;
                 };
 
                 ExecuteTest(method, "Com.PointD4D.YZU.get()");
@@ -10764,7 +12458,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD3D result = pointD4D.ZUX;
+                    _ = pointD4D.ZUX;
                 };
 
                 ExecuteTest(method, "Com.PointD4D.ZUX.get()");
@@ -10787,7 +12481,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD3D result = pointD4D.UXY;
+                    _ = pointD4D.UXY;
                 };
 
                 ExecuteTest(method, "Com.PointD4D.UXY.get()");
@@ -10812,10 +12506,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD4D.AngleX;
+                    _ = pointD4D.AngleFromX;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.AngleX.get()");
+                ExecuteTest(method, "Com.PointD4D.AngleFromX.get()");
             }
 
             {
@@ -10823,10 +12517,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD4D.AngleY;
+                    _ = pointD4D.AngleFromY;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.AngleY.get()");
+                ExecuteTest(method, "Com.PointD4D.AngleFromY.get()");
             }
 
             {
@@ -10834,10 +12528,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD4D.AngleZ;
+                    _ = pointD4D.AngleFromZ;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.AngleZ.get()");
+                ExecuteTest(method, "Com.PointD4D.AngleFromZ.get()");
             }
 
             {
@@ -10845,10 +12539,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD4D.AngleU;
+                    _ = pointD4D.AngleFromU;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.AngleU.get()");
+                ExecuteTest(method, "Com.PointD4D.AngleFromU.get()");
             }
 
             {
@@ -10856,10 +12550,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD4D.AngleXYZ;
+                    _ = pointD4D.AngleFromXYZ;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.AngleXYZ.get()");
+                ExecuteTest(method, "Com.PointD4D.AngleFromXYZ.get()");
             }
 
             {
@@ -10867,10 +12561,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD4D.AngleYZU;
+                    _ = pointD4D.AngleFromYZU;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.AngleYZU.get()");
+                ExecuteTest(method, "Com.PointD4D.AngleFromYZU.get()");
             }
 
             {
@@ -10878,10 +12572,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD4D.AngleZUX;
+                    _ = pointD4D.AngleFromZUX;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.AngleZUX.get()");
+                ExecuteTest(method, "Com.PointD4D.AngleFromZUX.get()");
             }
 
             {
@@ -10889,89 +12583,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD4D.AngleUXY;
+                    _ = pointD4D.AngleFromUXY;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.AngleUXY.get()");
-            }
-
-            // 向量
-
-            {
-                Com.PointD4D pointD4D = _GetRandomPointD4D();
-
-                Action method = () =>
-                {
-                    double result = pointD4D.VectorModule;
-                };
-
-                ExecuteTest(method, "Com.PointD4D.VectorModule.get()");
-            }
-
-            {
-                Com.PointD4D pointD4D = _GetRandomPointD4D();
-
-                Action method = () =>
-                {
-                    double result = pointD4D.VectorModuleSquared;
-                };
-
-                ExecuteTest(method, "Com.PointD4D.VectorModuleSquared.get()");
-            }
-
-            {
-                Com.PointD4D pointD4D = _GetRandomPointD4D();
-
-                Action method = () =>
-                {
-                    double result = pointD4D.VectorAngleX;
-                };
-
-                ExecuteTest(method, "Com.PointD4D.VectorAngleX.get()");
-            }
-
-            {
-                Com.PointD4D pointD4D = _GetRandomPointD4D();
-
-                Action method = () =>
-                {
-                    double result = pointD4D.VectorAngleY;
-                };
-
-                ExecuteTest(method, "Com.PointD4D.VectorAngleY.get()");
-            }
-
-            {
-                Com.PointD4D pointD4D = _GetRandomPointD4D();
-
-                Action method = () =>
-                {
-                    double result = pointD4D.VectorAngleZU;
-                };
-
-                ExecuteTest(method, "Com.PointD4D.VectorAngleZU.get()");
-            }
-
-            {
-                Com.PointD4D pointD4D = _GetRandomPointD4D();
-
-                Action method = () =>
-                {
-                    Com.PointD4D result = pointD4D.VectorNegate;
-                };
-
-                ExecuteTest(method, "Com.PointD4D.VectorNegate.get()");
-            }
-
-            {
-                Com.PointD4D pointD4D = _GetRandomPointD4D();
-
-                Action method = () =>
-                {
-                    Com.PointD4D result = pointD4D.VectorNormalize;
-                };
-
-                ExecuteTest(method, "Com.PointD4D.VectorNormalize.get()");
+                ExecuteTest(method, "Com.PointD4D.AngleFromUXY.get()");
             }
         }
 
@@ -10986,11 +12601,11 @@ namespace Test
 
             {
                 Com.PointD4D pointD4D = _GetRandomPointD4D();
-                object obj = (object)pointD4D;
+                object obj = pointD4D;
 
                 Action method = () =>
                 {
-                    bool result = pointD4D.Equals(obj);
+                    _ = pointD4D.Equals(obj);
                 };
 
                 ExecuteTest(method, "Com.PointD4D.Equals(object)");
@@ -11001,7 +12616,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    int result = pointD4D.GetHashCode();
+                    _ = pointD4D.GetHashCode();
                 };
 
                 ExecuteTest(method, "Com.PointD4D.GetHashCode()");
@@ -11012,7 +12627,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    string result = pointD4D.ToString();
+                    _ = pointD4D.ToString();
                 };
 
                 ExecuteTest(method, "Com.PointD4D.ToString()");
@@ -11026,10 +12641,202 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = left.Equals(right);
+                    _ = left.Equals(right);
                 };
 
                 ExecuteTest(method, "Com.PointD4D.Equals(Com.PointD4D)");
+            }
+
+            // CompareTo
+
+            {
+                Com.PointD4D pointD4D = _GetRandomPointD4D();
+                object obj = pointD4D;
+
+                Action method = () =>
+                {
+                    _ = pointD4D.CompareTo(obj);
+                };
+
+                ExecuteTest(method, "Com.PointD4D.CompareTo(object)");
+            }
+
+            {
+                Com.PointD4D left = _GetRandomPointD4D();
+                Com.PointD4D right = left;
+
+                Action method = () =>
+                {
+                    _ = left.CompareTo(right);
+                };
+
+                ExecuteTest(method, "Com.PointD4D.CompareTo(Com.PointD4D)");
+            }
+
+            // 检索
+
+            {
+                Com.PointD4D pointD4D = _GetRandomPointD4D();
+                double item = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = pointD4D.IndexOf(item);
+                };
+
+                ExecuteTest(method, "Com.PointD4D.IndexOf(double)");
+            }
+
+            {
+                Com.PointD4D pointD4D = _GetRandomPointD4D();
+                double item = Com.Statistics.RandomDouble(-1E18, 1E18);
+                int startIndex = 0;
+
+                Action method = () =>
+                {
+                    _ = pointD4D.IndexOf(item, startIndex);
+                };
+
+                ExecuteTest(method, "Com.PointD4D.IndexOf(double, int)");
+            }
+
+            {
+                Com.PointD4D pointD4D = _GetRandomPointD4D();
+                double item = Com.Statistics.RandomDouble(-1E18, 1E18);
+                int startIndex = 0;
+                int count = 4;
+
+                Action method = () =>
+                {
+                    _ = pointD4D.IndexOf(item, startIndex, count);
+                };
+
+                ExecuteTest(method, "Com.PointD4D.IndexOf(double, int, int)");
+            }
+
+            {
+                Com.PointD4D pointD4D = _GetRandomPointD4D();
+                double item = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = pointD4D.LastIndexOf(item);
+                };
+
+                ExecuteTest(method, "Com.PointD4D.LastIndexOf(double)");
+            }
+
+            {
+                Com.PointD4D pointD4D = _GetRandomPointD4D();
+                double item = Com.Statistics.RandomDouble(-1E18, 1E18);
+                int startIndex = 3;
+
+                Action method = () =>
+                {
+                    _ = pointD4D.LastIndexOf(item, startIndex);
+                };
+
+                ExecuteTest(method, "Com.PointD4D.LastIndexOf(double, int)");
+            }
+
+            {
+                Com.PointD4D pointD4D = _GetRandomPointD4D();
+                double item = Com.Statistics.RandomDouble(-1E18, 1E18);
+                int startIndex = 3;
+                int count = 4;
+
+                Action method = () =>
+                {
+                    _ = pointD4D.LastIndexOf(item, startIndex, count);
+                };
+
+                ExecuteTest(method, "Com.PointD4D.LastIndexOf(double, int, int)");
+            }
+
+            {
+                Com.PointD4D pointD4D = _GetRandomPointD4D();
+                double item = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = pointD4D.Contains(item);
+                };
+
+                ExecuteTest(method, "Com.PointD4D.Contains(double)");
+            }
+
+            // ToArray，ToList
+
+            {
+                Com.PointD4D pointD4D = _GetRandomPointD4D();
+
+                Action method = () =>
+                {
+                    _ = pointD4D.ToArray();
+                };
+
+                ExecuteTest(method, "Com.PointD4D.ToArray()");
+            }
+
+            {
+                Com.PointD4D pointD4D = _GetRandomPointD4D();
+
+                Action method = () =>
+                {
+                    _ = pointD4D.ToList();
+                };
+
+                ExecuteTest(method, "Com.PointD4D.ToList()");
+            }
+
+            // 坐标系转换
+
+            {
+                Com.PointD4D pointD4D = _GetRandomPointD4D();
+
+                Action method = () =>
+                {
+                    _ = pointD4D.ToSpherical();
+                };
+
+                ExecuteTest(method, "Com.PointD4D.ToSpherical()");
+            }
+
+            {
+                Com.PointD4D pointD4D = _GetRandomPointD4D();
+
+                Action method = () =>
+                {
+                    _ = pointD4D.ToCartesian();
+                };
+
+                ExecuteTest(method, "Com.PointD4D.ToCartesian()");
+            }
+
+            // 距离与夹角
+
+            {
+                Com.PointD4D pointD4D = _GetRandomPointD4D();
+                Com.PointD4D pt = _GetRandomPointD4D();
+
+                Action method = () =>
+                {
+                    _ = pointD4D.DistanceFrom(pt);
+                };
+
+                ExecuteTest(method, "Com.PointD4D.DistanceFrom(Com.PointD4D)");
+            }
+
+            {
+                Com.PointD4D pointD4D = _GetRandomPointD4D();
+                Com.PointD4D pt = _GetRandomPointD4D();
+
+                Action method = () =>
+                {
+                    _ = pointD4D.AngleFrom(pt);
+                };
+
+                ExecuteTest(method, "Com.PointD4D.AngleFrom(Com.PointD4D)");
             }
 
             // Offset
@@ -11079,7 +12886,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD4D result = pointD4D.OffsetCopy(d);
+                    _ = pointD4D.OffsetCopy(d);
                 };
 
                 ExecuteTest(method, "Com.PointD4D.OffsetCopy(double)");
@@ -11094,7 +12901,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD4D result = pointD4D.OffsetCopy(dx, dy, dz, du);
+                    _ = pointD4D.OffsetCopy(dx, dy, dz, du);
                 };
 
                 ExecuteTest(method, "Com.PointD4D.OffsetCopy(double, double, double, double)");
@@ -11106,7 +12913,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD4D result = pointD4D.OffsetCopy(pt);
+                    _ = pointD4D.OffsetCopy(pt);
                 };
 
                 ExecuteTest(method, "Com.PointD4D.OffsetCopy(Com.PointD4D)");
@@ -11159,7 +12966,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD4D result = pointD4D.ScaleCopy(s);
+                    _ = pointD4D.ScaleCopy(s);
                 };
 
                 ExecuteTest(method, "Com.PointD4D.ScaleCopy(double)");
@@ -11174,7 +12981,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD4D result = pointD4D.ScaleCopy(sx, sy, sz, su);
+                    _ = pointD4D.ScaleCopy(sx, sy, sz, su);
                 };
 
                 ExecuteTest(method, "Com.PointD4D.ScaleCopy(double, double, double, double)");
@@ -11186,166 +12993,110 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD4D result = pointD4D.ScaleCopy(pt);
+                    _ = pointD4D.ScaleCopy(pt);
                 };
 
                 ExecuteTest(method, "Com.PointD4D.ScaleCopy(Com.PointD4D)");
+            }
+
+            // Reflect
+
+            {
+                Com.PointD4D pointD4D = _GetRandomPointD4D();
+                int index = Com.Statistics.RandomInteger(4);
+
+                Action method = () =>
+                {
+                    pointD4D.Reflect(index);
+                };
+
+                ExecuteTest(method, "Com.PointD4D.Reflect(int)");
+            }
+
+            {
+                Com.PointD4D pointD4D = _GetRandomPointD4D();
+                int index = Com.Statistics.RandomInteger(4);
+
+                Action method = () =>
+                {
+                    _ = pointD4D.ReflectCopy(index);
+                };
+
+                ExecuteTest(method, "Com.PointD4D.ReflectCopy(int)");
+            }
+
+            // Shear
+
+            {
+                Com.PointD4D pointD4D = _GetRandomPointD4D();
+                int index1 = Com.Statistics.RandomInteger(4);
+                int index2 = Com.Statistics.RandomInteger(3);
+                if (index2 == index1) index2++;
+                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
+
+                Action method = () =>
+                {
+                    pointD4D.Shear(index1, index2, angle);
+                };
+
+                ExecuteTest(method, "Com.PointD4D.Shear(int, int, double)");
+            }
+
+            {
+                Com.PointD4D pointD4D = _GetRandomPointD4D();
+                int index1 = Com.Statistics.RandomInteger(4);
+                int index2 = Com.Statistics.RandomInteger(3);
+                if (index2 == index1) index2++;
+                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
+
+                Action method = () =>
+                {
+                    _ = pointD4D.ShearCopy(index1, index2, angle);
+                };
+
+                ExecuteTest(method, "Com.PointD4D.ShearCopy(int, int, double)");
             }
 
             // Rotate
 
             {
                 Com.PointD4D pointD4D = _GetRandomPointD4D();
+                int index1 = Com.Statistics.RandomInteger(4);
+                int index2 = Com.Statistics.RandomInteger(3);
+                if (index2 == index1) index2++;
                 double angle = Com.Statistics.RandomDouble(2 * Math.PI);
 
                 Action method = () =>
                 {
-                    pointD4D.RotateXY(angle);
+                    pointD4D.Rotate(index1, index2, angle);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.RotateXY(double)");
+                ExecuteTest(method, "Com.PointD4D.Rotate(int, int, double)");
             }
 
             {
                 Com.PointD4D pointD4D = _GetRandomPointD4D();
+                int index1 = Com.Statistics.RandomInteger(4);
+                int index2 = Com.Statistics.RandomInteger(3);
+                if (index2 == index1) index2++;
                 double angle = Com.Statistics.RandomDouble(2 * Math.PI);
 
                 Action method = () =>
                 {
-                    pointD4D.RotateXZ(angle);
+                    _ = pointD4D.RotateCopy(index1, index2, angle);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.RotateXZ(double)");
-            }
-
-            {
-                Com.PointD4D pointD4D = _GetRandomPointD4D();
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    pointD4D.RotateXU(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD4D.RotateXU(double)");
-            }
-
-            {
-                Com.PointD4D pointD4D = _GetRandomPointD4D();
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    pointD4D.RotateYZ(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD4D.RotateYZ(double)");
-            }
-
-            {
-                Com.PointD4D pointD4D = _GetRandomPointD4D();
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    pointD4D.RotateYU(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD4D.RotateYU(double)");
-            }
-
-            {
-                Com.PointD4D pointD4D = _GetRandomPointD4D();
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    pointD4D.RotateZU(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD4D.RotateZU(double)");
-            }
-
-            {
-                Com.PointD4D pointD4D = _GetRandomPointD4D();
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    Com.PointD4D result = pointD4D.RotateXYCopy(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD4D.RotateXYCopy(double)");
-            }
-
-            {
-                Com.PointD4D pointD4D = _GetRandomPointD4D();
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    Com.PointD4D result = pointD4D.RotateXZCopy(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD4D.RotateXZCopy(double)");
-            }
-
-            {
-                Com.PointD4D pointD4D = _GetRandomPointD4D();
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    Com.PointD4D result = pointD4D.RotateXUCopy(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD4D.RotateXUCopy(double)");
-            }
-
-            {
-                Com.PointD4D pointD4D = _GetRandomPointD4D();
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    Com.PointD4D result = pointD4D.RotateYZCopy(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD4D.RotateYZCopy(double)");
-            }
-
-            {
-                Com.PointD4D pointD4D = _GetRandomPointD4D();
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    Com.PointD4D result = pointD4D.RotateYUCopy(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD4D.RotateYUCopy(double)");
-            }
-
-            {
-                Com.PointD4D pointD4D = _GetRandomPointD4D();
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    Com.PointD4D result = pointD4D.RotateZUCopy(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD4D.RotateZUCopy(double)");
+                ExecuteTest(method, "Com.PointD4D.RotateCopy(int, int, double)");
             }
 
             // Affine
 
             {
                 Com.PointD4D pointD4D = _GetRandomPointD4D();
-                Com.PointD4D ex = _GetRandomPointD4D().VectorNormalize;
-                Com.PointD4D ey = _GetRandomPointD4D().VectorNormalize;
-                Com.PointD4D ez = _GetRandomPointD4D().VectorNormalize;
-                Com.PointD4D eu = _GetRandomPointD4D().VectorNormalize;
+                Com.PointD4D ex = _GetRandomPointD4D().Normalize;
+                Com.PointD4D ey = _GetRandomPointD4D().Normalize;
+                Com.PointD4D ez = _GetRandomPointD4D().Normalize;
+                Com.PointD4D eu = _GetRandomPointD4D().Normalize;
                 Com.PointD4D offset = _GetRandomPointD4D();
 
                 Action method = () =>
@@ -11387,15 +13138,15 @@ namespace Test
 
             {
                 Com.PointD4D pointD4D = _GetRandomPointD4D();
-                Com.PointD4D ex = _GetRandomPointD4D().VectorNormalize;
-                Com.PointD4D ey = _GetRandomPointD4D().VectorNormalize;
-                Com.PointD4D ez = _GetRandomPointD4D().VectorNormalize;
-                Com.PointD4D eu = _GetRandomPointD4D().VectorNormalize;
+                Com.PointD4D ex = _GetRandomPointD4D().Normalize;
+                Com.PointD4D ey = _GetRandomPointD4D().Normalize;
+                Com.PointD4D ez = _GetRandomPointD4D().Normalize;
+                Com.PointD4D eu = _GetRandomPointD4D().Normalize;
                 Com.PointD4D offset = _GetRandomPointD4D();
 
                 Action method = () =>
                 {
-                    Com.PointD4D result = pointD4D.AffineTransformCopy(ex, ey, ez, eu, offset);
+                    _ = pointD4D.AffineTransformCopy(ex, ey, ez, eu, offset);
                 };
 
                 ExecuteTest(method, "Com.PointD4D.AffineTransformCopy(Com.PointD4D, Com.PointD4D, Com.PointD4D, Com.PointD4D, Com.PointD4D)");
@@ -11407,7 +13158,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD4D result = pointD4D.AffineTransformCopy(matrixLeft);
+                    _ = pointD4D.AffineTransformCopy(matrixLeft);
                 };
 
                 ExecuteTest(method, "Com.PointD4D.AffineTransformCopy(Com.Matrix)");
@@ -11424,7 +13175,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD4D result = pointD4D.AffineTransformCopy(matrixLeftList);
+                    _ = pointD4D.AffineTransformCopy(matrixLeftList);
                 };
 
                 ExecuteTest(method, "Com.PointD4D.AffineTransformCopy(System.Collections.Generic.List<Com.Matrix>)", "total 8 matrices");
@@ -11432,10 +13183,10 @@ namespace Test
 
             {
                 Com.PointD4D pointD4D = _GetRandomPointD4D();
-                Com.PointD4D ex = _GetRandomPointD4D().VectorNormalize;
-                Com.PointD4D ey = _GetRandomPointD4D().VectorNormalize;
-                Com.PointD4D ez = _GetRandomPointD4D().VectorNormalize;
-                Com.PointD4D eu = _GetRandomPointD4D().VectorNormalize;
+                Com.PointD4D ex = _GetRandomPointD4D().Normalize;
+                Com.PointD4D ey = _GetRandomPointD4D().Normalize;
+                Com.PointD4D ez = _GetRandomPointD4D().Normalize;
+                Com.PointD4D eu = _GetRandomPointD4D().Normalize;
                 Com.PointD4D offset = _GetRandomPointD4D();
 
                 Action method = () =>
@@ -11477,15 +13228,15 @@ namespace Test
 
             {
                 Com.PointD4D pointD4D = _GetRandomPointD4D();
-                Com.PointD4D ex = _GetRandomPointD4D().VectorNormalize;
-                Com.PointD4D ey = _GetRandomPointD4D().VectorNormalize;
-                Com.PointD4D ez = _GetRandomPointD4D().VectorNormalize;
-                Com.PointD4D eu = _GetRandomPointD4D().VectorNormalize;
+                Com.PointD4D ex = _GetRandomPointD4D().Normalize;
+                Com.PointD4D ey = _GetRandomPointD4D().Normalize;
+                Com.PointD4D ez = _GetRandomPointD4D().Normalize;
+                Com.PointD4D eu = _GetRandomPointD4D().Normalize;
                 Com.PointD4D offset = _GetRandomPointD4D();
 
                 Action method = () =>
                 {
-                    Com.PointD4D result = pointD4D.InverseAffineTransformCopy(ex, ey, ez, eu, offset);
+                    _ = pointD4D.InverseAffineTransformCopy(ex, ey, ez, eu, offset);
                 };
 
                 ExecuteTest(method, "Com.PointD4D.InverseAffineTransformCopy(Com.PointD4D, Com.PointD4D, Com.PointD4D, Com.PointD4D, Com.PointD4D)");
@@ -11497,7 +13248,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD4D result = pointD4D.InverseAffineTransformCopy(matrixLeft);
+                    _ = pointD4D.InverseAffineTransformCopy(matrixLeft);
                 };
 
                 ExecuteTest(method, "Com.PointD4D.InverseAffineTransformCopy(Com.Matrix)");
@@ -11514,7 +13265,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD4D result = pointD4D.InverseAffineTransformCopy(matrixLeftList);
+                    _ = pointD4D.InverseAffineTransformCopy(matrixLeftList);
                 };
 
                 ExecuteTest(method, "Com.PointD4D.InverseAffineTransformCopy(System.Collections.Generic.List<Com.Matrix>)", "total 8 matrices");
@@ -11529,7 +13280,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD3D result = pointD4D.ProjectToXYZ(prjCenter, trueLenDist);
+                    _ = pointD4D.ProjectToXYZ(prjCenter, trueLenDist);
                 };
 
                 ExecuteTest(method, "Com.PointD4D.ProjectToXYZ(Com.PointD4D, double)");
@@ -11542,7 +13293,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD3D result = pointD4D.ProjectToYZU(prjCenter, trueLenDist);
+                    _ = pointD4D.ProjectToYZU(prjCenter, trueLenDist);
                 };
 
                 ExecuteTest(method, "Com.PointD4D.ProjectToYZU(Com.PointD4D, double)");
@@ -11555,7 +13306,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD3D result = pointD4D.ProjectToZUX(prjCenter, trueLenDist);
+                    _ = pointD4D.ProjectToZUX(prjCenter, trueLenDist);
                 };
 
                 ExecuteTest(method, "Com.PointD4D.ProjectToZUX(Com.PointD4D, double)");
@@ -11568,60 +13319,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD3D result = pointD4D.ProjectToUXY(prjCenter, trueLenDist);
+                    _ = pointD4D.ProjectToUXY(prjCenter, trueLenDist);
                 };
 
                 ExecuteTest(method, "Com.PointD4D.ProjectToUXY(Com.PointD4D, double)");
-            }
-
-            // 距离与角度
-
-            {
-                Com.PointD4D pointD4D = _GetRandomPointD4D();
-                Com.PointD4D pt = _GetRandomPointD4D();
-
-                Action method = () =>
-                {
-                    double result = pointD4D.DistanceFrom(pt);
-                };
-
-                ExecuteTest(method, "Com.PointD4D.DistanceFrom(Com.PointD4D)");
-            }
-
-            {
-                Com.PointD4D pointD4D = _GetRandomPointD4D();
-                Com.PointD4D pt = _GetRandomPointD4D();
-
-                Action method = () =>
-                {
-                    double result = pointD4D.AngleFrom(pt);
-                };
-
-                ExecuteTest(method, "Com.PointD4D.AngleFrom(Com.PointD4D)");
-            }
-
-            // 坐标系转换
-
-            {
-                Com.PointD4D pointD4D = _GetRandomPointD4D();
-
-                Action method = () =>
-                {
-                    Com.PointD4D result = pointD4D.ToSpherical();
-                };
-
-                ExecuteTest(method, "Com.PointD4D.ToSpherical()");
-            }
-
-            {
-                Com.PointD4D pointD4D = _GetRandomPointD4D();
-
-                Action method = () =>
-                {
-                    Com.PointD4D result = pointD4D.ToCartesian();
-                };
-
-                ExecuteTest(method, "Com.PointD4D.ToCartesian()");
             }
 
             // ToVector
@@ -11631,10 +13332,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Vector result = pointD4D.ToVector();
+                    _ = pointD4D.ToColumnVector();
                 };
 
-                ExecuteTest(method, "Com.PointD4D.ToVector()");
+                ExecuteTest(method, "Com.PointD4D.ToColumnVector()");
             }
 
             {
@@ -11642,34 +13343,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Vector result = pointD4D.ToVectorColumn();
+                    _ = pointD4D.ToRowVector();
                 };
 
-                ExecuteTest(method, "Com.PointD4D.ToVectorColumn()");
-            }
-
-            {
-                Com.PointD4D pointD4D = _GetRandomPointD4D();
-
-                Action method = () =>
-                {
-                    Com.Vector result = pointD4D.ToVectorRow();
-                };
-
-                ExecuteTest(method, "Com.PointD4D.ToVectorRow()");
-            }
-
-            // ToArray
-
-            {
-                Com.PointD4D pointD4D = _GetRandomPointD4D();
-
-                Action method = () =>
-                {
-                    double[] result = pointD4D.ToArray();
-                };
-
-                ExecuteTest(method, "Com.PointD4D.ToArray()");
+                ExecuteTest(method, "Com.PointD4D.ToRowVector()");
             }
         }
 
@@ -11683,10 +13360,24 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = Com.PointD4D.Equals(left, right);
+                    _ = Com.PointD4D.Equals(left, right);
                 };
 
                 ExecuteTest(method, "Com.PointD4D.Equals(Com.PointD4D, Com.PointD4D)");
+            }
+
+            // Compare
+
+            {
+                Com.PointD4D left = _GetRandomPointD4D();
+                Com.PointD4D right = left;
+
+                Action method = () =>
+                {
+                    _ = Com.PointD4D.Compare(left, right);
+                };
+
+                ExecuteTest(method, "Com.PointD4D.Compare(Com.PointD4D, Com.PointD4D)");
             }
 
             // Matrix
@@ -11694,7 +13385,7 @@ namespace Test
             {
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD4D.IdentityMatrix();
+                    _ = Com.PointD4D.IdentityMatrix();
                 };
 
                 ExecuteTest(method, "Com.PointD4D.IdentityMatrix()");
@@ -11705,7 +13396,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD4D.OffsetMatrix(d);
+                    _ = Com.PointD4D.OffsetMatrix(d);
                 };
 
                 ExecuteTest(method, "Com.PointD4D.OffsetMatrix(double)");
@@ -11719,7 +13410,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD4D.OffsetMatrix(dx, dy, dz, du);
+                    _ = Com.PointD4D.OffsetMatrix(dx, dy, dz, du);
                 };
 
                 ExecuteTest(method, "Com.PointD4D.OffsetMatrix(double, double, double, double)");
@@ -11730,7 +13421,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD4D.OffsetMatrix(pt);
+                    _ = Com.PointD4D.OffsetMatrix(pt);
                 };
 
                 ExecuteTest(method, "Com.PointD4D.OffsetMatrix(Com.PointD4D)");
@@ -11741,7 +13432,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD4D.ScaleMatrix(s);
+                    _ = Com.PointD4D.ScaleMatrix(s);
                 };
 
                 ExecuteTest(method, "Com.PointD4D.ScaleMatrix(double)");
@@ -11755,7 +13446,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD4D.ScaleMatrix(sx, sy, sz, su);
+                    _ = Com.PointD4D.ScaleMatrix(sx, sy, sz, su);
                 };
 
                 ExecuteTest(method, "Com.PointD4D.ScaleMatrix(double, double, double, double)");
@@ -11766,79 +13457,52 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD4D.ScaleMatrix(pt);
+                    _ = Com.PointD4D.ScaleMatrix(pt);
                 };
 
                 ExecuteTest(method, "Com.PointD4D.ScaleMatrix(Com.PointD4D)");
             }
 
             {
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
+                int index = Com.Statistics.RandomInteger(3);
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD4D.RotateXYMatrix(angle);
+                    _ = Com.PointD4D.ReflectMatrix(index);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.RotateXYMatrix(double)");
+                ExecuteTest(method, "Com.PointD4D.ReflectMatrix(int)");
             }
 
             {
+                int index1 = Com.Statistics.RandomInteger(4);
+                int index2 = Com.Statistics.RandomInteger(3);
+                if (index2 == index1) index2++;
                 double angle = Com.Statistics.RandomDouble(2 * Math.PI);
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD4D.RotateXZMatrix(angle);
+                    _ = Com.PointD4D.ShearMatrix(index1, index2, angle);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.RotateXZMatrix(double)");
+                ExecuteTest(method, "Com.PointD4D.ShearMatrix(int, int, double)");
             }
 
             {
+                int index1 = Com.Statistics.RandomInteger(4);
+                int index2 = Com.Statistics.RandomInteger(3);
+                if (index2 == index1) index2++;
                 double angle = Com.Statistics.RandomDouble(2 * Math.PI);
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD4D.RotateXUMatrix(angle);
+                    _ = Com.PointD4D.RotateMatrix(index1, index2, angle);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.RotateXUMatrix(double)");
+                ExecuteTest(method, "Com.PointD4D.RotateMatrix(int, int, double)");
             }
 
-            {
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    Com.Matrix result = Com.PointD4D.RotateYZMatrix(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD4D.RotateYZMatrix(double)");
-            }
-
-            {
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    Com.Matrix result = Com.PointD4D.RotateYUMatrix(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD4D.RotateYUMatrix(double)");
-            }
-
-            {
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    Com.Matrix result = Com.PointD4D.RotateZUMatrix(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD4D.RotateZUMatrix(double)");
-            }
-
-            // 距离与角度
+            // 距离与夹角
 
             {
                 Com.PointD4D left = _GetRandomPointD4D();
@@ -11846,7 +13510,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = Com.PointD4D.DistanceBetween(left, right);
+                    _ = Com.PointD4D.DistanceBetween(left, right);
                 };
 
                 ExecuteTest(method, "Com.PointD4D.DistanceBetween(Com.PointD4D, Com.PointD4D)");
@@ -11858,7 +13522,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = Com.PointD4D.AngleBetween(left, right);
+                    _ = Com.PointD4D.AngleBetween(left, right);
                 };
 
                 ExecuteTest(method, "Com.PointD4D.AngleBetween(Com.PointD4D, Com.PointD4D)");
@@ -11872,7 +13536,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = Com.PointD4D.DotProduct(left, right);
+                    _ = Com.PointD4D.DotProduct(left, right);
                 };
 
                 ExecuteTest(method, "Com.PointD4D.DotProduct(Com.PointD4D, Com.PointD4D)");
@@ -11884,7 +13548,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Vector result = Com.PointD4D.CrossProduct(left, right);
+                    _ = Com.PointD4D.CrossProduct(left, right);
                 };
 
                 ExecuteTest(method, "Com.PointD4D.CrossProduct(Com.PointD4D, Com.PointD4D)");
@@ -11897,7 +13561,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD4D result = Com.PointD4D.Abs(pointD4D);
+                    _ = Com.PointD4D.Abs(pointD4D);
                 };
 
                 ExecuteTest(method, "Com.PointD4D.Abs(Com.PointD4D)");
@@ -11908,7 +13572,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD4D result = Com.PointD4D.Sign(pointD4D);
+                    _ = Com.PointD4D.Sign(pointD4D);
                 };
 
                 ExecuteTest(method, "Com.PointD4D.Sign(Com.PointD4D)");
@@ -11919,7 +13583,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD4D result = Com.PointD4D.Ceiling(pointD4D);
+                    _ = Com.PointD4D.Ceiling(pointD4D);
                 };
 
                 ExecuteTest(method, "Com.PointD4D.Ceiling(Com.PointD4D)");
@@ -11930,7 +13594,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD4D result = Com.PointD4D.Floor(pointD4D);
+                    _ = Com.PointD4D.Floor(pointD4D);
                 };
 
                 ExecuteTest(method, "Com.PointD4D.Floor(Com.PointD4D)");
@@ -11941,7 +13605,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD4D result = Com.PointD4D.Round(pointD4D);
+                    _ = Com.PointD4D.Round(pointD4D);
                 };
 
                 ExecuteTest(method, "Com.PointD4D.Round(Com.PointD4D)");
@@ -11952,7 +13616,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD4D result = Com.PointD4D.Truncate(pointD4D);
+                    _ = Com.PointD4D.Truncate(pointD4D);
                 };
 
                 ExecuteTest(method, "Com.PointD4D.Truncate(Com.PointD4D)");
@@ -11964,7 +13628,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD4D result = Com.PointD4D.Max(left, right);
+                    _ = Com.PointD4D.Max(left, right);
                 };
 
                 ExecuteTest(method, "Com.PointD4D.Max(Com.PointD4D, Com.PointD4D)");
@@ -11976,7 +13640,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD4D result = Com.PointD4D.Min(left, right);
+                    _ = Com.PointD4D.Min(left, right);
                 };
 
                 ExecuteTest(method, "Com.PointD4D.Min(Com.PointD4D, Com.PointD4D)");
@@ -11993,7 +13657,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = (left == right);
+                    _ = (left == right);
                 };
 
                 ExecuteTest(method, "Com.PointD4D.operator ==(Com.PointD4D, Com.PointD4D)");
@@ -12005,7 +13669,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = (left != right);
+                    _ = (left != right);
                 };
 
                 ExecuteTest(method, "Com.PointD4D.operator !=(Com.PointD4D, Com.PointD4D)");
@@ -12017,7 +13681,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = (left < right);
+                    _ = (left < right);
                 };
 
                 ExecuteTest(method, "Com.PointD4D.operator <(Com.PointD4D, Com.PointD4D)");
@@ -12029,7 +13693,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = (left > right);
+                    _ = (left > right);
                 };
 
                 ExecuteTest(method, "Com.PointD4D.operator >(Com.PointD4D, Com.PointD4D)");
@@ -12041,7 +13705,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = (left <= right);
+                    _ = (left <= right);
                 };
 
                 ExecuteTest(method, "Com.PointD4D.operator <=(Com.PointD4D, Com.PointD4D)");
@@ -12053,7 +13717,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = (left >= right);
+                    _ = (left >= right);
                 };
 
                 ExecuteTest(method, "Com.PointD4D.operator >=(Com.PointD4D, Com.PointD4D)");
@@ -12066,7 +13730,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD4D result = +pointD4D;
+                    _ = +pointD4D;
                 };
 
                 ExecuteTest(method, "Com.PointD4D.operator +(Com.PointD4D)");
@@ -12077,7 +13741,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD4D result = -pointD4D;
+                    _ = -pointD4D;
                 };
 
                 ExecuteTest(method, "Com.PointD4D.operator -(Com.PointD4D)");
@@ -12089,7 +13753,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD4D result = pt + n;
+                    _ = pt + n;
                 };
 
                 ExecuteTest(method, "Com.PointD4D.operator +(Com.PointD4D, double)");
@@ -12101,7 +13765,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD4D result = n + pt;
+                    _ = n + pt;
                 };
 
                 ExecuteTest(method, "Com.PointD4D.operator +(double, Com.PointD4D)");
@@ -12113,7 +13777,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD4D result = left + right;
+                    _ = left + right;
                 };
 
                 ExecuteTest(method, "Com.PointD4D.operator +(Com.PointD4D, Com.PointD4D)");
@@ -12125,7 +13789,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD4D result = pt - n;
+                    _ = pt - n;
                 };
 
                 ExecuteTest(method, "Com.PointD4D.operator -(Com.PointD4D, double)");
@@ -12137,7 +13801,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD4D result = n - pt;
+                    _ = n - pt;
                 };
 
                 ExecuteTest(method, "Com.PointD4D.operator -(double, Com.PointD4D)");
@@ -12149,7 +13813,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD4D result = left - right;
+                    _ = left - right;
                 };
 
                 ExecuteTest(method, "Com.PointD4D.operator -(Com.PointD4D, Com.PointD4D)");
@@ -12161,7 +13825,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD4D result = pt * n;
+                    _ = pt * n;
                 };
 
                 ExecuteTest(method, "Com.PointD4D.operator *(Com.PointD4D, double)");
@@ -12173,7 +13837,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD4D result = n * pt;
+                    _ = n * pt;
                 };
 
                 ExecuteTest(method, "Com.PointD4D.operator *(double, Com.PointD4D)");
@@ -12185,7 +13849,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD4D result = left * right;
+                    _ = left * right;
                 };
 
                 ExecuteTest(method, "Com.PointD4D.operator *(Com.PointD4D, Com.PointD4D)");
@@ -12197,7 +13861,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD4D result = pt / n;
+                    _ = pt / n;
                 };
 
                 ExecuteTest(method, "Com.PointD4D.operator /(Com.PointD4D, double)");
@@ -12209,7 +13873,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD4D result = n / pt;
+                    _ = n / pt;
                 };
 
                 ExecuteTest(method, "Com.PointD4D.operator /(double, Com.PointD4D)");
@@ -12221,7 +13885,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD4D result = left / right;
+                    _ = left / right;
                 };
 
                 ExecuteTest(method, "Com.PointD4D.operator /(Com.PointD4D, Com.PointD4D)");
@@ -12259,7 +13923,7 @@ namespace Test
             }
             else
             {
-                return Com.Matrix.NonMatrix;
+                return Com.Matrix.Empty;
             }
         }
 
@@ -12276,7 +13940,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD5D pointD5D = new Com.PointD5D(x, y, z, u, v);
+                    _ = new Com.PointD5D(x, y, z, u, v);
                 };
 
                 ExecuteTest(method, "Com.PointD5D.PointD5D(double, double, double, double, double)");
@@ -12293,7 +13957,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD5D[index];
+                    _ = pointD5D[index];
                 };
 
                 ExecuteTest(method, "Com.PointD5D.this[int].get()");
@@ -12312,52 +13976,6 @@ namespace Test
                 ExecuteTest(method, "Com.PointD5D.this[int].set(double)");
             }
 
-            // Is
-
-            {
-                Com.PointD5D pointD5D = _GetRandomPointD5D();
-
-                Action method = () =>
-                {
-                    bool result = pointD5D.IsEmpty;
-                };
-
-                ExecuteTest(method, "Com.PointD5D.IsEmpty.get()");
-            }
-
-            {
-                Com.PointD5D pointD5D = _GetRandomPointD5D();
-
-                Action method = () =>
-                {
-                    bool result = pointD5D.IsNaN;
-                };
-
-                ExecuteTest(method, "Com.PointD5D.IsNaN.get()");
-            }
-
-            {
-                Com.PointD5D pointD5D = _GetRandomPointD5D();
-
-                Action method = () =>
-                {
-                    bool result = pointD5D.IsInfinity;
-                };
-
-                ExecuteTest(method, "Com.PointD5D.IsInfinity.get()");
-            }
-
-            {
-                Com.PointD5D pointD5D = _GetRandomPointD5D();
-
-                Action method = () =>
-                {
-                    bool result = pointD5D.IsNaNOrInfinity;
-                };
-
-                ExecuteTest(method, "Com.PointD5D.IsNaNOrInfinity.get()");
-            }
-
             // 分量
 
             {
@@ -12365,7 +13983,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD5D.X;
+                    _ = pointD5D.X;
                 };
 
                 ExecuteTest(method, "Com.PointD5D.X.get()");
@@ -12388,7 +14006,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD5D.Y;
+                    _ = pointD5D.Y;
                 };
 
                 ExecuteTest(method, "Com.PointD5D.Y.get()");
@@ -12411,7 +14029,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD5D.Z;
+                    _ = pointD5D.Z;
                 };
 
                 ExecuteTest(method, "Com.PointD5D.Z.get()");
@@ -12434,7 +14052,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD5D.U;
+                    _ = pointD5D.U;
                 };
 
                 ExecuteTest(method, "Com.PointD5D.U.get()");
@@ -12457,7 +14075,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD5D.V;
+                    _ = pointD5D.V;
                 };
 
                 ExecuteTest(method, "Com.PointD5D.V.get()");
@@ -12475,12 +14093,154 @@ namespace Test
                 ExecuteTest(method, "Com.PointD5D.V.set(double)");
             }
 
+            // Dimension
+
             {
                 Com.PointD5D pointD5D = _GetRandomPointD5D();
 
                 Action method = () =>
                 {
-                    Com.PointD4D result = pointD5D.XYZU;
+                    _ = pointD5D.Dimension;
+                };
+
+                ExecuteTest(method, "Com.PointD5D.Dimension.get()");
+            }
+
+            // Is
+
+            {
+                Com.PointD5D pointD5D = _GetRandomPointD5D();
+
+                Action method = () =>
+                {
+                    _ = pointD5D.IsEmpty;
+                };
+
+                ExecuteTest(method, "Com.PointD5D.IsEmpty.get()");
+            }
+
+            {
+                Com.PointD5D pointD5D = _GetRandomPointD5D();
+
+                Action method = () =>
+                {
+                    _ = pointD5D.IsZero;
+                };
+
+                ExecuteTest(method, "Com.PointD5D.IsZero.get()");
+            }
+
+            {
+                Com.PointD5D pointD5D = _GetRandomPointD5D();
+
+                Action method = () =>
+                {
+                    _ = pointD5D.IsReadOnly;
+                };
+
+                ExecuteTest(method, "Com.PointD5D.IsReadOnly.get()");
+            }
+
+            {
+                Com.PointD5D pointD5D = _GetRandomPointD5D();
+
+                Action method = () =>
+                {
+                    _ = pointD5D.IsFixedSize;
+                };
+
+                ExecuteTest(method, "Com.PointD5D.IsFixedSize.get()");
+            }
+
+            {
+                Com.PointD5D pointD5D = _GetRandomPointD5D();
+
+                Action method = () =>
+                {
+                    _ = pointD5D.IsNaN;
+                };
+
+                ExecuteTest(method, "Com.PointD5D.IsNaN.get()");
+            }
+
+            {
+                Com.PointD5D pointD5D = _GetRandomPointD5D();
+
+                Action method = () =>
+                {
+                    _ = pointD5D.IsInfinity;
+                };
+
+                ExecuteTest(method, "Com.PointD5D.IsInfinity.get()");
+            }
+
+            {
+                Com.PointD5D pointD5D = _GetRandomPointD5D();
+
+                Action method = () =>
+                {
+                    _ = pointD5D.IsNaNOrInfinity;
+                };
+
+                ExecuteTest(method, "Com.PointD5D.IsNaNOrInfinity.get()");
+            }
+
+            // 模
+
+            {
+                Com.PointD5D pointD5D = _GetRandomPointD5D();
+
+                Action method = () =>
+                {
+                    _ = pointD5D.Module;
+                };
+
+                ExecuteTest(method, "Com.PointD5D.Module.get()");
+            }
+
+            {
+                Com.PointD5D pointD5D = _GetRandomPointD5D();
+
+                Action method = () =>
+                {
+                    _ = pointD5D.ModuleSquared;
+                };
+
+                ExecuteTest(method, "Com.PointD5D.ModuleSquared.get()");
+            }
+
+            // 向量
+
+            {
+                Com.PointD5D pointD5D = _GetRandomPointD5D();
+
+                Action method = () =>
+                {
+                    _ = pointD5D.Opposite;
+                };
+
+                ExecuteTest(method, "Com.PointD5D.Opposite.get()");
+            }
+
+            {
+                Com.PointD5D pointD5D = _GetRandomPointD5D();
+
+                Action method = () =>
+                {
+                    _ = pointD5D.Normalize;
+                };
+
+                ExecuteTest(method, "Com.PointD5D.Normalize.get()");
+            }
+
+            // 子空间分量
+
+            {
+                Com.PointD5D pointD5D = _GetRandomPointD5D();
+
+                Action method = () =>
+                {
+                    _ = pointD5D.XYZU;
                 };
 
                 ExecuteTest(method, "Com.PointD5D.XYZU.get()");
@@ -12503,7 +14263,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD4D result = pointD5D.YZUV;
+                    _ = pointD5D.YZUV;
                 };
 
                 ExecuteTest(method, "Com.PointD5D.YZUV.get()");
@@ -12526,7 +14286,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD4D result = pointD5D.ZUVX;
+                    _ = pointD5D.ZUVX;
                 };
 
                 ExecuteTest(method, "Com.PointD5D.ZUVX.get()");
@@ -12549,7 +14309,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD4D result = pointD5D.UVXY;
+                    _ = pointD5D.UVXY;
                 };
 
                 ExecuteTest(method, "Com.PointD5D.UVXY.get()");
@@ -12572,7 +14332,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD4D result = pointD5D.VXYZ;
+                    _ = pointD5D.VXYZ;
                 };
 
                 ExecuteTest(method, "Com.PointD5D.VXYZ.get()");
@@ -12597,10 +14357,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD5D.AngleX;
+                    _ = pointD5D.AngleFromX;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.AngleX.get()");
+                ExecuteTest(method, "Com.PointD5D.AngleFromX.get()");
             }
 
             {
@@ -12608,10 +14368,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD5D.AngleY;
+                    _ = pointD5D.AngleFromY;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.AngleY.get()");
+                ExecuteTest(method, "Com.PointD5D.AngleFromY.get()");
             }
 
             {
@@ -12619,10 +14379,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD5D.AngleZ;
+                    _ = pointD5D.AngleFromZ;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.AngleZ.get()");
+                ExecuteTest(method, "Com.PointD5D.AngleFromZ.get()");
             }
 
             {
@@ -12630,10 +14390,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD5D.AngleU;
+                    _ = pointD5D.AngleFromU;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.AngleU.get()");
+                ExecuteTest(method, "Com.PointD5D.AngleFromU.get()");
             }
 
             {
@@ -12641,10 +14401,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD5D.AngleV;
+                    _ = pointD5D.AngleFromV;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.AngleV.get()");
+                ExecuteTest(method, "Com.PointD5D.AngleFromV.get()");
             }
 
             {
@@ -12652,10 +14412,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD5D.AngleXYZU;
+                    _ = pointD5D.AngleFromXYZU;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.AngleXYZU.get()");
+                ExecuteTest(method, "Com.PointD5D.AngleFromXYZU.get()");
             }
 
             {
@@ -12663,10 +14423,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD5D.AngleYZUV;
+                    _ = pointD5D.AngleFromYZUV;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.AngleYZUV.get()");
+                ExecuteTest(method, "Com.PointD5D.AngleFromYZUV.get()");
             }
 
             {
@@ -12674,10 +14434,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD5D.AngleZUVX;
+                    _ = pointD5D.AngleFromZUVX;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.AngleZUVX.get()");
+                ExecuteTest(method, "Com.PointD5D.AngleFromZUVX.get()");
             }
 
             {
@@ -12685,10 +14445,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD5D.AngleUVXY;
+                    _ = pointD5D.AngleFromUVXY;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.AngleUVXY.get()");
+                ExecuteTest(method, "Com.PointD5D.AngleFromUVXY.get()");
             }
 
             {
@@ -12696,100 +14456,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD5D.AngleVXYZ;
+                    _ = pointD5D.AngleFromVXYZ;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.AngleVXYZ.get()");
-            }
-
-            // 向量
-
-            {
-                Com.PointD5D pointD5D = _GetRandomPointD5D();
-
-                Action method = () =>
-                {
-                    double result = pointD5D.VectorModule;
-                };
-
-                ExecuteTest(method, "Com.PointD5D.VectorModule.get()");
-            }
-
-            {
-                Com.PointD5D pointD5D = _GetRandomPointD5D();
-
-                Action method = () =>
-                {
-                    double result = pointD5D.VectorModuleSquared;
-                };
-
-                ExecuteTest(method, "Com.PointD5D.VectorModuleSquared.get()");
-            }
-
-            {
-                Com.PointD5D pointD5D = _GetRandomPointD5D();
-
-                Action method = () =>
-                {
-                    double result = pointD5D.VectorAngleX;
-                };
-
-                ExecuteTest(method, "Com.PointD5D.VectorAngleX.get()");
-            }
-
-            {
-                Com.PointD5D pointD5D = _GetRandomPointD5D();
-
-                Action method = () =>
-                {
-                    double result = pointD5D.VectorAngleY;
-                };
-
-                ExecuteTest(method, "Com.PointD5D.VectorAngleY.get()");
-            }
-
-            {
-                Com.PointD5D pointD5D = _GetRandomPointD5D();
-
-                Action method = () =>
-                {
-                    double result = pointD5D.VectorAngleZ;
-                };
-
-                ExecuteTest(method, "Com.PointD5D.VectorAngleZ.get()");
-            }
-
-            {
-                Com.PointD5D pointD5D = _GetRandomPointD5D();
-
-                Action method = () =>
-                {
-                    double result = pointD5D.VectorAngleUV;
-                };
-
-                ExecuteTest(method, "Com.PointD5D.VectorAngleUV.get()");
-            }
-
-            {
-                Com.PointD5D pointD5D = _GetRandomPointD5D();
-
-                Action method = () =>
-                {
-                    Com.PointD5D result = pointD5D.VectorNegate;
-                };
-
-                ExecuteTest(method, "Com.PointD5D.VectorNegate.get()");
-            }
-
-            {
-                Com.PointD5D pointD5D = _GetRandomPointD5D();
-
-                Action method = () =>
-                {
-                    Com.PointD5D result = pointD5D.VectorNormalize;
-                };
-
-                ExecuteTest(method, "Com.PointD5D.VectorNormalize.get()");
+                ExecuteTest(method, "Com.PointD5D.AngleFromVXYZ.get()");
             }
         }
 
@@ -12804,11 +14474,11 @@ namespace Test
 
             {
                 Com.PointD5D pointD5D = _GetRandomPointD5D();
-                object obj = (object)pointD5D;
+                object obj = pointD5D;
 
                 Action method = () =>
                 {
-                    bool result = pointD5D.Equals(obj);
+                    _ = pointD5D.Equals(obj);
                 };
 
                 ExecuteTest(method, "Com.PointD5D.Equals(object)");
@@ -12819,7 +14489,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    int result = pointD5D.GetHashCode();
+                    _ = pointD5D.GetHashCode();
                 };
 
                 ExecuteTest(method, "Com.PointD5D.GetHashCode()");
@@ -12830,7 +14500,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    string result = pointD5D.ToString();
+                    _ = pointD5D.ToString();
                 };
 
                 ExecuteTest(method, "Com.PointD5D.ToString()");
@@ -12844,10 +14514,202 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = left.Equals(right);
+                    _ = left.Equals(right);
                 };
 
                 ExecuteTest(method, "Com.PointD5D.Equals(Com.PointD5D)");
+            }
+
+            // CompareTo
+
+            {
+                Com.PointD5D pointD5D = _GetRandomPointD5D();
+                object obj = pointD5D;
+
+                Action method = () =>
+                {
+                    _ = pointD5D.CompareTo(obj);
+                };
+
+                ExecuteTest(method, "Com.PointD5D.CompareTo(object)");
+            }
+
+            {
+                Com.PointD5D left = _GetRandomPointD5D();
+                Com.PointD5D right = left;
+
+                Action method = () =>
+                {
+                    _ = left.CompareTo(right);
+                };
+
+                ExecuteTest(method, "Com.PointD5D.CompareTo(Com.PointD5D)");
+            }
+
+            // 检索
+
+            {
+                Com.PointD5D pointD5D = _GetRandomPointD5D();
+                double item = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = pointD5D.IndexOf(item);
+                };
+
+                ExecuteTest(method, "Com.PointD5D.IndexOf(double)");
+            }
+
+            {
+                Com.PointD5D pointD5D = _GetRandomPointD5D();
+                double item = Com.Statistics.RandomDouble(-1E18, 1E18);
+                int startIndex = 0;
+
+                Action method = () =>
+                {
+                    _ = pointD5D.IndexOf(item, startIndex);
+                };
+
+                ExecuteTest(method, "Com.PointD5D.IndexOf(double, int)");
+            }
+
+            {
+                Com.PointD5D pointD5D = _GetRandomPointD5D();
+                double item = Com.Statistics.RandomDouble(-1E18, 1E18);
+                int startIndex = 0;
+                int count = 5;
+
+                Action method = () =>
+                {
+                    _ = pointD5D.IndexOf(item, startIndex, count);
+                };
+
+                ExecuteTest(method, "Com.PointD5D.IndexOf(double, int, int)");
+            }
+
+            {
+                Com.PointD5D pointD5D = _GetRandomPointD5D();
+                double item = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = pointD5D.LastIndexOf(item);
+                };
+
+                ExecuteTest(method, "Com.PointD5D.LastIndexOf(double)");
+            }
+
+            {
+                Com.PointD5D pointD5D = _GetRandomPointD5D();
+                double item = Com.Statistics.RandomDouble(-1E18, 1E18);
+                int startIndex = 4;
+
+                Action method = () =>
+                {
+                    _ = pointD5D.LastIndexOf(item, startIndex);
+                };
+
+                ExecuteTest(method, "Com.PointD5D.LastIndexOf(double, int)");
+            }
+
+            {
+                Com.PointD5D pointD5D = _GetRandomPointD5D();
+                double item = Com.Statistics.RandomDouble(-1E18, 1E18);
+                int startIndex = 4;
+                int count = 5;
+
+                Action method = () =>
+                {
+                    _ = pointD5D.LastIndexOf(item, startIndex, count);
+                };
+
+                ExecuteTest(method, "Com.PointD5D.LastIndexOf(double, int, int)");
+            }
+
+            {
+                Com.PointD5D pointD5D = _GetRandomPointD5D();
+                double item = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = pointD5D.Contains(item);
+                };
+
+                ExecuteTest(method, "Com.PointD5D.Contains(double)");
+            }
+
+            // ToArray，ToList
+
+            {
+                Com.PointD5D pointD5D = _GetRandomPointD5D();
+
+                Action method = () =>
+                {
+                    _ = pointD5D.ToArray();
+                };
+
+                ExecuteTest(method, "Com.PointD5D.ToArray()");
+            }
+
+            {
+                Com.PointD5D pointD5D = _GetRandomPointD5D();
+
+                Action method = () =>
+                {
+                    _ = pointD5D.ToList();
+                };
+
+                ExecuteTest(method, "Com.PointD5D.ToList()");
+            }
+
+            // 坐标系转换
+
+            {
+                Com.PointD5D pointD5D = _GetRandomPointD5D();
+
+                Action method = () =>
+                {
+                    _ = pointD5D.ToSpherical();
+                };
+
+                ExecuteTest(method, "Com.PointD5D.ToSpherical()");
+            }
+
+            {
+                Com.PointD5D pointD5D = _GetRandomPointD5D();
+
+                Action method = () =>
+                {
+                    _ = pointD5D.ToCartesian();
+                };
+
+                ExecuteTest(method, "Com.PointD5D.ToCartesian()");
+            }
+
+            // 距离与夹角
+
+            {
+                Com.PointD5D pointD5D = _GetRandomPointD5D();
+                Com.PointD5D pt = _GetRandomPointD5D();
+
+                Action method = () =>
+                {
+                    _ = pointD5D.DistanceFrom(pt);
+                };
+
+                ExecuteTest(method, "Com.PointD5D.DistanceFrom(Com.PointD5D)");
+            }
+
+            {
+                Com.PointD5D pointD5D = _GetRandomPointD5D();
+                Com.PointD5D pt = _GetRandomPointD5D();
+
+                Action method = () =>
+                {
+                    _ = pointD5D.AngleFrom(pt);
+                };
+
+                ExecuteTest(method, "Com.PointD5D.AngleFrom(Com.PointD5D)");
             }
 
             // Offset
@@ -12898,7 +14760,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD5D result = pointD5D.OffsetCopy(d);
+                    _ = pointD5D.OffsetCopy(d);
                 };
 
                 ExecuteTest(method, "Com.PointD5D.OffsetCopy(double)");
@@ -12914,7 +14776,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD5D result = pointD5D.OffsetCopy(dx, dy, dz, du, dv);
+                    _ = pointD5D.OffsetCopy(dx, dy, dz, du, dv);
                 };
 
                 ExecuteTest(method, "Com.PointD5D.OffsetCopy(double, double, double, double, double)");
@@ -12926,7 +14788,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD5D result = pointD5D.OffsetCopy(pt);
+                    _ = pointD5D.OffsetCopy(pt);
                 };
 
                 ExecuteTest(method, "Com.PointD5D.OffsetCopy(Com.PointD5D)");
@@ -12980,7 +14842,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD5D result = pointD5D.ScaleCopy(s);
+                    _ = pointD5D.ScaleCopy(s);
                 };
 
                 ExecuteTest(method, "Com.PointD5D.ScaleCopy(double)");
@@ -12996,7 +14858,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD5D result = pointD5D.ScaleCopy(sx, sy, sz, su, sv);
+                    _ = pointD5D.ScaleCopy(sx, sy, sz, su, sv);
                 };
 
                 ExecuteTest(method, "Com.PointD5D.ScaleCopy(double, double, double, double, double)");
@@ -13008,263 +14870,111 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD5D result = pointD5D.ScaleCopy(pt);
+                    _ = pointD5D.ScaleCopy(pt);
                 };
 
                 ExecuteTest(method, "Com.PointD5D.ScaleCopy(Com.PointD5D)");
+            }
+
+            // Reflect
+
+            {
+                Com.PointD5D pointD5D = _GetRandomPointD5D();
+                int index = Com.Statistics.RandomInteger(5);
+
+                Action method = () =>
+                {
+                    pointD5D.Reflect(index);
+                };
+
+                ExecuteTest(method, "Com.PointD5D.Reflect(int)");
+            }
+
+            {
+                Com.PointD5D pointD5D = _GetRandomPointD5D();
+                int index = Com.Statistics.RandomInteger(5);
+
+                Action method = () =>
+                {
+                    _ = pointD5D.ReflectCopy(index);
+                };
+
+                ExecuteTest(method, "Com.PointD5D.ReflectCopy(int)");
+            }
+
+            // Shear
+
+            {
+                Com.PointD5D pointD5D = _GetRandomPointD5D();
+                int index1 = Com.Statistics.RandomInteger(5);
+                int index2 = Com.Statistics.RandomInteger(4);
+                if (index2 == index1) index2++;
+                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
+
+                Action method = () =>
+                {
+                    pointD5D.Shear(index1, index2, angle);
+                };
+
+                ExecuteTest(method, "Com.PointD5D.Shear(int, int, double)");
+            }
+
+            {
+                Com.PointD5D pointD5D = _GetRandomPointD5D();
+                int index1 = Com.Statistics.RandomInteger(5);
+                int index2 = Com.Statistics.RandomInteger(4);
+                if (index2 == index1) index2++;
+                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
+
+                Action method = () =>
+                {
+                    _ = pointD5D.ShearCopy(index1, index2, angle);
+                };
+
+                ExecuteTest(method, "Com.PointD5D.ShearCopy(int, int, double)");
             }
 
             // Rotate
 
             {
                 Com.PointD5D pointD5D = _GetRandomPointD5D();
+                int index1 = Com.Statistics.RandomInteger(5);
+                int index2 = Com.Statistics.RandomInteger(4);
+                if (index2 == index1) index2++;
                 double angle = Com.Statistics.RandomDouble(2 * Math.PI);
 
                 Action method = () =>
                 {
-                    pointD5D.RotateXY(angle);
+                    pointD5D.Rotate(index1, index2, angle);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.RotateXY(double)");
+                ExecuteTest(method, "Com.PointD5D.Rotate(int, int, double)");
             }
 
             {
                 Com.PointD5D pointD5D = _GetRandomPointD5D();
+                int index1 = Com.Statistics.RandomInteger(5);
+                int index2 = Com.Statistics.RandomInteger(4);
+                if (index2 == index1) index2++;
                 double angle = Com.Statistics.RandomDouble(2 * Math.PI);
 
                 Action method = () =>
                 {
-                    pointD5D.RotateXZ(angle);
+                    _ = pointD5D.RotateCopy(index1, index2, angle);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.RotateXZ(double)");
-            }
-
-            {
-                Com.PointD5D pointD5D = _GetRandomPointD5D();
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    pointD5D.RotateXU(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD5D.RotateXU(double)");
-            }
-
-            {
-                Com.PointD5D pointD5D = _GetRandomPointD5D();
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    pointD5D.RotateXV(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD5D.RotateXV(double)");
-            }
-
-            {
-                Com.PointD5D pointD5D = _GetRandomPointD5D();
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    pointD5D.RotateYZ(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD5D.RotateYZ(double)");
-            }
-
-            {
-                Com.PointD5D pointD5D = _GetRandomPointD5D();
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    pointD5D.RotateYU(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD5D.RotateYU(double)");
-            }
-
-            {
-                Com.PointD5D pointD5D = _GetRandomPointD5D();
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    pointD5D.RotateYV(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD5D.RotateYV(double)");
-            }
-
-            {
-                Com.PointD5D pointD5D = _GetRandomPointD5D();
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    pointD5D.RotateZU(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD5D.RotateZU(double)");
-            }
-
-            {
-                Com.PointD5D pointD5D = _GetRandomPointD5D();
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    pointD5D.RotateZV(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD5D.RotateZV(double)");
-            }
-
-            {
-                Com.PointD5D pointD5D = _GetRandomPointD5D();
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    pointD5D.RotateUV(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD5D.RotateUV(double)");
-            }
-
-            {
-                Com.PointD5D pointD5D = _GetRandomPointD5D();
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    Com.PointD5D result = pointD5D.RotateXYCopy(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD5D.RotateXYCopy(double)");
-            }
-
-            {
-                Com.PointD5D pointD5D = _GetRandomPointD5D();
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    Com.PointD5D result = pointD5D.RotateXZCopy(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD5D.RotateXZCopy(double)");
-            }
-
-            {
-                Com.PointD5D pointD5D = _GetRandomPointD5D();
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    Com.PointD5D result = pointD5D.RotateXUCopy(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD5D.RotateXUCopy(double)");
-            }
-
-            {
-                Com.PointD5D pointD5D = _GetRandomPointD5D();
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    Com.PointD5D result = pointD5D.RotateXVCopy(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD5D.RotateXVCopy(double)");
-            }
-
-            {
-                Com.PointD5D pointD5D = _GetRandomPointD5D();
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    Com.PointD5D result = pointD5D.RotateYZCopy(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD5D.RotateYZCopy(double)");
-            }
-
-            {
-                Com.PointD5D pointD5D = _GetRandomPointD5D();
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    Com.PointD5D result = pointD5D.RotateYUCopy(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD5D.RotateYUCopy(double)");
-            }
-
-            {
-                Com.PointD5D pointD5D = _GetRandomPointD5D();
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    Com.PointD5D result = pointD5D.RotateYVCopy(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD5D.RotateYVCopy(double)");
-            }
-
-            {
-                Com.PointD5D pointD5D = _GetRandomPointD5D();
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    Com.PointD5D result = pointD5D.RotateZUCopy(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD5D.RotateZUCopy(double)");
-            }
-
-            {
-                Com.PointD5D pointD5D = _GetRandomPointD5D();
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    Com.PointD5D result = pointD5D.RotateZVCopy(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD5D.RotateZVCopy(double)");
-            }
-
-            {
-                Com.PointD5D pointD5D = _GetRandomPointD5D();
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    Com.PointD5D result = pointD5D.RotateUVCopy(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD5D.RotateUVCopy(double)");
+                ExecuteTest(method, "Com.PointD5D.RotateCopy(int, int, double)");
             }
 
             // Affine
 
             {
                 Com.PointD5D pointD5D = _GetRandomPointD5D();
-                Com.PointD5D ex = _GetRandomPointD5D().VectorNormalize;
-                Com.PointD5D ey = _GetRandomPointD5D().VectorNormalize;
-                Com.PointD5D ez = _GetRandomPointD5D().VectorNormalize;
-                Com.PointD5D eu = _GetRandomPointD5D().VectorNormalize;
-                Com.PointD5D ev = _GetRandomPointD5D().VectorNormalize;
+                Com.PointD5D ex = _GetRandomPointD5D().Normalize;
+                Com.PointD5D ey = _GetRandomPointD5D().Normalize;
+                Com.PointD5D ez = _GetRandomPointD5D().Normalize;
+                Com.PointD5D eu = _GetRandomPointD5D().Normalize;
+                Com.PointD5D ev = _GetRandomPointD5D().Normalize;
                 Com.PointD5D offset = _GetRandomPointD5D();
 
                 Action method = () =>
@@ -13306,16 +15016,16 @@ namespace Test
 
             {
                 Com.PointD5D pointD5D = _GetRandomPointD5D();
-                Com.PointD5D ex = _GetRandomPointD5D().VectorNormalize;
-                Com.PointD5D ey = _GetRandomPointD5D().VectorNormalize;
-                Com.PointD5D ez = _GetRandomPointD5D().VectorNormalize;
-                Com.PointD5D eu = _GetRandomPointD5D().VectorNormalize;
-                Com.PointD5D ev = _GetRandomPointD5D().VectorNormalize;
+                Com.PointD5D ex = _GetRandomPointD5D().Normalize;
+                Com.PointD5D ey = _GetRandomPointD5D().Normalize;
+                Com.PointD5D ez = _GetRandomPointD5D().Normalize;
+                Com.PointD5D eu = _GetRandomPointD5D().Normalize;
+                Com.PointD5D ev = _GetRandomPointD5D().Normalize;
                 Com.PointD5D offset = _GetRandomPointD5D();
 
                 Action method = () =>
                 {
-                    Com.PointD5D result = pointD5D.AffineTransformCopy(ex, ey, ez, eu, ev, offset);
+                    _ = pointD5D.AffineTransformCopy(ex, ey, ez, eu, ev, offset);
                 };
 
                 ExecuteTest(method, "Com.PointD5D.AffineTransformCopy(Com.PointD5D, Com.PointD5D, Com.PointD5D, Com.PointD5D, Com.PointD5D, Com.PointD5D)");
@@ -13327,7 +15037,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD5D result = pointD5D.AffineTransformCopy(matrixLeft);
+                    _ = pointD5D.AffineTransformCopy(matrixLeft);
                 };
 
                 ExecuteTest(method, "Com.PointD5D.AffineTransformCopy(Com.Matrix)");
@@ -13344,7 +15054,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD5D result = pointD5D.AffineTransformCopy(matrixLeftList);
+                    _ = pointD5D.AffineTransformCopy(matrixLeftList);
                 };
 
                 ExecuteTest(method, "Com.PointD5D.AffineTransformCopy(System.Collections.Generic.List<Com.Matrix>)", "total 8 matrices");
@@ -13352,11 +15062,11 @@ namespace Test
 
             {
                 Com.PointD5D pointD5D = _GetRandomPointD5D();
-                Com.PointD5D ex = _GetRandomPointD5D().VectorNormalize;
-                Com.PointD5D ey = _GetRandomPointD5D().VectorNormalize;
-                Com.PointD5D ez = _GetRandomPointD5D().VectorNormalize;
-                Com.PointD5D eu = _GetRandomPointD5D().VectorNormalize;
-                Com.PointD5D ev = _GetRandomPointD5D().VectorNormalize;
+                Com.PointD5D ex = _GetRandomPointD5D().Normalize;
+                Com.PointD5D ey = _GetRandomPointD5D().Normalize;
+                Com.PointD5D ez = _GetRandomPointD5D().Normalize;
+                Com.PointD5D eu = _GetRandomPointD5D().Normalize;
+                Com.PointD5D ev = _GetRandomPointD5D().Normalize;
                 Com.PointD5D offset = _GetRandomPointD5D();
 
                 Action method = () =>
@@ -13398,16 +15108,16 @@ namespace Test
 
             {
                 Com.PointD5D pointD5D = _GetRandomPointD5D();
-                Com.PointD5D ex = _GetRandomPointD5D().VectorNormalize;
-                Com.PointD5D ey = _GetRandomPointD5D().VectorNormalize;
-                Com.PointD5D ez = _GetRandomPointD5D().VectorNormalize;
-                Com.PointD5D eu = _GetRandomPointD5D().VectorNormalize;
-                Com.PointD5D ev = _GetRandomPointD5D().VectorNormalize;
+                Com.PointD5D ex = _GetRandomPointD5D().Normalize;
+                Com.PointD5D ey = _GetRandomPointD5D().Normalize;
+                Com.PointD5D ez = _GetRandomPointD5D().Normalize;
+                Com.PointD5D eu = _GetRandomPointD5D().Normalize;
+                Com.PointD5D ev = _GetRandomPointD5D().Normalize;
                 Com.PointD5D offset = _GetRandomPointD5D();
 
                 Action method = () =>
                 {
-                    Com.PointD5D result = pointD5D.InverseAffineTransformCopy(ex, ey, ez, eu, ev, offset);
+                    _ = pointD5D.InverseAffineTransformCopy(ex, ey, ez, eu, ev, offset);
                 };
 
                 ExecuteTest(method, "Com.PointD5D.InverseAffineTransformCopy(Com.PointD5D, Com.PointD5D, Com.PointD5D, Com.PointD5D, Com.PointD5D, Com.PointD5D)");
@@ -13419,7 +15129,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD5D result = pointD5D.InverseAffineTransformCopy(matrixLeft);
+                    _ = pointD5D.InverseAffineTransformCopy(matrixLeft);
                 };
 
                 ExecuteTest(method, "Com.PointD5D.InverseAffineTransformCopy(Com.Matrix)");
@@ -13436,7 +15146,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD5D result = pointD5D.InverseAffineTransformCopy(matrixLeftList);
+                    _ = pointD5D.InverseAffineTransformCopy(matrixLeftList);
                 };
 
                 ExecuteTest(method, "Com.PointD5D.InverseAffineTransformCopy(System.Collections.Generic.List<Com.Matrix>)", "total 8 matrices");
@@ -13451,7 +15161,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD4D result = pointD5D.ProjectToXYZU(prjCenter, trueLenDist);
+                    _ = pointD5D.ProjectToXYZU(prjCenter, trueLenDist);
                 };
 
                 ExecuteTest(method, "Com.PointD5D.ProjectToXYZU(Com.PointD5D, double)");
@@ -13464,7 +15174,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD4D result = pointD5D.ProjectToYZUV(prjCenter, trueLenDist);
+                    _ = pointD5D.ProjectToYZUV(prjCenter, trueLenDist);
                 };
 
                 ExecuteTest(method, "Com.PointD5D.ProjectToYZUV(Com.PointD5D, double)");
@@ -13477,7 +15187,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD4D result = pointD5D.ProjectToZUVX(prjCenter, trueLenDist);
+                    _ = pointD5D.ProjectToZUVX(prjCenter, trueLenDist);
                 };
 
                 ExecuteTest(method, "Com.PointD5D.ProjectToZUVX(Com.PointD5D, double)");
@@ -13490,7 +15200,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD4D result = pointD5D.ProjectToUVXY(prjCenter, trueLenDist);
+                    _ = pointD5D.ProjectToUVXY(prjCenter, trueLenDist);
                 };
 
                 ExecuteTest(method, "Com.PointD5D.ProjectToUVXY(Com.PointD5D, double)");
@@ -13503,60 +15213,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD4D result = pointD5D.ProjectToVXYZ(prjCenter, trueLenDist);
+                    _ = pointD5D.ProjectToVXYZ(prjCenter, trueLenDist);
                 };
 
                 ExecuteTest(method, "Com.PointD5D.ProjectToVXYZ(Com.PointD5D, double)");
-            }
-
-            // 距离与角度
-
-            {
-                Com.PointD5D pointD5D = _GetRandomPointD5D();
-                Com.PointD5D pt = _GetRandomPointD5D();
-
-                Action method = () =>
-                {
-                    double result = pointD5D.DistanceFrom(pt);
-                };
-
-                ExecuteTest(method, "Com.PointD5D.DistanceFrom(Com.PointD5D)");
-            }
-
-            {
-                Com.PointD5D pointD5D = _GetRandomPointD5D();
-                Com.PointD5D pt = _GetRandomPointD5D();
-
-                Action method = () =>
-                {
-                    double result = pointD5D.AngleFrom(pt);
-                };
-
-                ExecuteTest(method, "Com.PointD5D.AngleFrom(Com.PointD5D)");
-            }
-
-            // 坐标系转换
-
-            {
-                Com.PointD5D pointD5D = _GetRandomPointD5D();
-
-                Action method = () =>
-                {
-                    Com.PointD5D result = pointD5D.ToSpherical();
-                };
-
-                ExecuteTest(method, "Com.PointD5D.ToSpherical()");
-            }
-
-            {
-                Com.PointD5D pointD5D = _GetRandomPointD5D();
-
-                Action method = () =>
-                {
-                    Com.PointD5D result = pointD5D.ToCartesian();
-                };
-
-                ExecuteTest(method, "Com.PointD5D.ToCartesian()");
             }
 
             // ToVector
@@ -13566,10 +15226,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Vector result = pointD5D.ToVector();
+                    _ = pointD5D.ToColumnVector();
                 };
 
-                ExecuteTest(method, "Com.PointD5D.ToVector()");
+                ExecuteTest(method, "Com.PointD5D.ToColumnVector()");
             }
 
             {
@@ -13577,34 +15237,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Vector result = pointD5D.ToVectorColumn();
+                    _ = pointD5D.ToRowVector();
                 };
 
-                ExecuteTest(method, "Com.PointD5D.ToVectorColumn()");
-            }
-
-            {
-                Com.PointD5D pointD5D = _GetRandomPointD5D();
-
-                Action method = () =>
-                {
-                    Com.Vector result = pointD5D.ToVectorRow();
-                };
-
-                ExecuteTest(method, "Com.PointD5D.ToVectorRow()");
-            }
-
-            // ToArray
-
-            {
-                Com.PointD5D pointD5D = _GetRandomPointD5D();
-
-                Action method = () =>
-                {
-                    double[] result = pointD5D.ToArray();
-                };
-
-                ExecuteTest(method, "Com.PointD5D.ToArray()");
+                ExecuteTest(method, "Com.PointD5D.ToRowVector()");
             }
         }
 
@@ -13618,10 +15254,24 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = Com.PointD5D.Equals(left, right);
+                    _ = Com.PointD5D.Equals(left, right);
                 };
 
                 ExecuteTest(method, "Com.PointD5D.Equals(Com.PointD5D, Com.PointD5D)");
+            }
+
+            // Compare
+
+            {
+                Com.PointD5D left = _GetRandomPointD5D();
+                Com.PointD5D right = left;
+
+                Action method = () =>
+                {
+                    _ = Com.PointD5D.Compare(left, right);
+                };
+
+                ExecuteTest(method, "Com.PointD5D.Compare(Com.PointD5D, Com.PointD5D)");
             }
 
             // Matrix
@@ -13629,7 +15279,7 @@ namespace Test
             {
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD5D.IdentityMatrix();
+                    _ = Com.PointD5D.IdentityMatrix();
                 };
 
                 ExecuteTest(method, "Com.PointD5D.IdentityMatrix()");
@@ -13640,7 +15290,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD5D.OffsetMatrix(d);
+                    _ = Com.PointD5D.OffsetMatrix(d);
                 };
 
                 ExecuteTest(method, "Com.PointD5D.OffsetMatrix(double)");
@@ -13655,7 +15305,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD5D.OffsetMatrix(dx, dy, dz, du, dv);
+                    _ = Com.PointD5D.OffsetMatrix(dx, dy, dz, du, dv);
                 };
 
                 ExecuteTest(method, "Com.PointD5D.OffsetMatrix(double, double, double, double, double)");
@@ -13666,7 +15316,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD5D.OffsetMatrix(pt);
+                    _ = Com.PointD5D.OffsetMatrix(pt);
                 };
 
                 ExecuteTest(method, "Com.PointD5D.OffsetMatrix(Com.PointD5D)");
@@ -13677,7 +15327,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD5D.ScaleMatrix(s);
+                    _ = Com.PointD5D.ScaleMatrix(s);
                 };
 
                 ExecuteTest(method, "Com.PointD5D.ScaleMatrix(double)");
@@ -13692,7 +15342,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD5D.ScaleMatrix(sx, sy, sz, su, sv);
+                    _ = Com.PointD5D.ScaleMatrix(sx, sy, sz, su, sv);
                 };
 
                 ExecuteTest(method, "Com.PointD5D.ScaleMatrix(double, double, double, double, double)");
@@ -13703,123 +15353,52 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD5D.ScaleMatrix(pt);
+                    _ = Com.PointD5D.ScaleMatrix(pt);
                 };
 
                 ExecuteTest(method, "Com.PointD5D.ScaleMatrix(Com.PointD5D)");
             }
 
             {
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
+                int index = Com.Statistics.RandomInteger(3);
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD5D.RotateXYMatrix(angle);
+                    _ = Com.PointD5D.ReflectMatrix(index);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.RotateXYMatrix(double)");
+                ExecuteTest(method, "Com.PointD5D.ReflectMatrix(int)");
             }
 
             {
+                int index1 = Com.Statistics.RandomInteger(5);
+                int index2 = Com.Statistics.RandomInteger(4);
+                if (index2 == index1) index2++;
                 double angle = Com.Statistics.RandomDouble(2 * Math.PI);
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD5D.RotateXZMatrix(angle);
+                    _ = Com.PointD5D.ShearMatrix(index1, index2, angle);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.RotateXZMatrix(double)");
+                ExecuteTest(method, "Com.PointD5D.ShearMatrix(int, int, double)");
             }
 
             {
+                int index1 = Com.Statistics.RandomInteger(5);
+                int index2 = Com.Statistics.RandomInteger(4);
+                if (index2 == index1) index2++;
                 double angle = Com.Statistics.RandomDouble(2 * Math.PI);
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD5D.RotateXUMatrix(angle);
+                    _ = Com.PointD5D.RotateMatrix(index1, index2, angle);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.RotateXUMatrix(double)");
+                ExecuteTest(method, "Com.PointD5D.RotateMatrix(int, int, double)");
             }
 
-            {
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    Com.Matrix result = Com.PointD5D.RotateXVMatrix(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD5D.RotateXVMatrix(double)");
-            }
-
-            {
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    Com.Matrix result = Com.PointD5D.RotateYZMatrix(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD5D.RotateYZMatrix(double)");
-            }
-
-            {
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    Com.Matrix result = Com.PointD5D.RotateYUMatrix(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD5D.RotateYUMatrix(double)");
-            }
-
-            {
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    Com.Matrix result = Com.PointD5D.RotateYVMatrix(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD5D.RotateYVMatrix(double)");
-            }
-
-            {
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    Com.Matrix result = Com.PointD5D.RotateZUMatrix(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD5D.RotateZUMatrix(double)");
-            }
-
-            {
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    Com.Matrix result = Com.PointD5D.RotateZVMatrix(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD5D.RotateZVMatrix(double)");
-            }
-
-            {
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    Com.Matrix result = Com.PointD5D.RotateUVMatrix(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD5D.RotateUVMatrix(double)");
-            }
-
-            // 距离与角度
+            // 距离与夹角
 
             {
                 Com.PointD5D left = _GetRandomPointD5D();
@@ -13827,7 +15406,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = Com.PointD5D.DistanceBetween(left, right);
+                    _ = Com.PointD5D.DistanceBetween(left, right);
                 };
 
                 ExecuteTest(method, "Com.PointD5D.DistanceBetween(Com.PointD5D, Com.PointD5D)");
@@ -13839,7 +15418,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = Com.PointD5D.AngleBetween(left, right);
+                    _ = Com.PointD5D.AngleBetween(left, right);
                 };
 
                 ExecuteTest(method, "Com.PointD5D.AngleBetween(Com.PointD5D, Com.PointD5D)");
@@ -13853,7 +15432,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = Com.PointD5D.DotProduct(left, right);
+                    _ = Com.PointD5D.DotProduct(left, right);
                 };
 
                 ExecuteTest(method, "Com.PointD5D.DotProduct(Com.PointD5D, Com.PointD5D)");
@@ -13865,7 +15444,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Vector result = Com.PointD5D.CrossProduct(left, right);
+                    _ = Com.PointD5D.CrossProduct(left, right);
                 };
 
                 ExecuteTest(method, "Com.PointD5D.CrossProduct(Com.PointD5D, Com.PointD5D)");
@@ -13878,7 +15457,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD5D result = Com.PointD5D.Abs(pointD5D);
+                    _ = Com.PointD5D.Abs(pointD5D);
                 };
 
                 ExecuteTest(method, "Com.PointD5D.Abs(Com.PointD5D)");
@@ -13889,7 +15468,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD5D result = Com.PointD5D.Sign(pointD5D);
+                    _ = Com.PointD5D.Sign(pointD5D);
                 };
 
                 ExecuteTest(method, "Com.PointD5D.Sign(Com.PointD5D)");
@@ -13900,7 +15479,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD5D result = Com.PointD5D.Ceiling(pointD5D);
+                    _ = Com.PointD5D.Ceiling(pointD5D);
                 };
 
                 ExecuteTest(method, "Com.PointD5D.Ceiling(Com.PointD5D)");
@@ -13911,7 +15490,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD5D result = Com.PointD5D.Floor(pointD5D);
+                    _ = Com.PointD5D.Floor(pointD5D);
                 };
 
                 ExecuteTest(method, "Com.PointD5D.Floor(Com.PointD5D)");
@@ -13922,7 +15501,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD5D result = Com.PointD5D.Round(pointD5D);
+                    _ = Com.PointD5D.Round(pointD5D);
                 };
 
                 ExecuteTest(method, "Com.PointD5D.Round(Com.PointD5D)");
@@ -13933,7 +15512,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD5D result = Com.PointD5D.Truncate(pointD5D);
+                    _ = Com.PointD5D.Truncate(pointD5D);
                 };
 
                 ExecuteTest(method, "Com.PointD5D.Truncate(Com.PointD5D)");
@@ -13945,7 +15524,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD5D result = Com.PointD5D.Max(left, right);
+                    _ = Com.PointD5D.Max(left, right);
                 };
 
                 ExecuteTest(method, "Com.PointD5D.Max(Com.PointD5D, Com.PointD5D)");
@@ -13957,7 +15536,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD5D result = Com.PointD5D.Min(left, right);
+                    _ = Com.PointD5D.Min(left, right);
                 };
 
                 ExecuteTest(method, "Com.PointD5D.Min(Com.PointD5D, Com.PointD5D)");
@@ -13974,7 +15553,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = (left == right);
+                    _ = (left == right);
                 };
 
                 ExecuteTest(method, "Com.PointD5D.operator ==(Com.PointD5D, Com.PointD5D)");
@@ -13986,7 +15565,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = (left != right);
+                    _ = (left != right);
                 };
 
                 ExecuteTest(method, "Com.PointD5D.operator !=(Com.PointD5D, Com.PointD5D)");
@@ -13998,7 +15577,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = (left < right);
+                    _ = (left < right);
                 };
 
                 ExecuteTest(method, "Com.PointD5D.operator <(Com.PointD5D, Com.PointD5D)");
@@ -14010,7 +15589,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = (left > right);
+                    _ = (left > right);
                 };
 
                 ExecuteTest(method, "Com.PointD5D.operator >(Com.PointD5D, Com.PointD5D)");
@@ -14022,7 +15601,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = (left <= right);
+                    _ = (left <= right);
                 };
 
                 ExecuteTest(method, "Com.PointD5D.operator <=(Com.PointD5D, Com.PointD5D)");
@@ -14034,7 +15613,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = (left >= right);
+                    _ = (left >= right);
                 };
 
                 ExecuteTest(method, "Com.PointD5D.operator >=(Com.PointD5D, Com.PointD5D)");
@@ -14047,7 +15626,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD5D result = +pointD5D;
+                    _ = +pointD5D;
                 };
 
                 ExecuteTest(method, "Com.PointD5D.operator +(Com.PointD5D)");
@@ -14058,7 +15637,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD5D result = -pointD5D;
+                    _ = -pointD5D;
                 };
 
                 ExecuteTest(method, "Com.PointD5D.operator -(Com.PointD5D)");
@@ -14070,7 +15649,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD5D result = pt + n;
+                    _ = pt + n;
                 };
 
                 ExecuteTest(method, "Com.PointD5D.operator +(Com.PointD5D, double)");
@@ -14082,7 +15661,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD5D result = n + pt;
+                    _ = n + pt;
                 };
 
                 ExecuteTest(method, "Com.PointD5D.operator +(double, Com.PointD5D)");
@@ -14094,7 +15673,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD5D result = left + right;
+                    _ = left + right;
                 };
 
                 ExecuteTest(method, "Com.PointD5D.operator +(Com.PointD5D, Com.PointD5D)");
@@ -14106,7 +15685,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD5D result = pt - n;
+                    _ = pt - n;
                 };
 
                 ExecuteTest(method, "Com.PointD5D.operator -(Com.PointD5D, double)");
@@ -14118,7 +15697,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD5D result = n - pt;
+                    _ = n - pt;
                 };
 
                 ExecuteTest(method, "Com.PointD5D.operator -(double, Com.PointD5D)");
@@ -14130,7 +15709,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD5D result = left - right;
+                    _ = left - right;
                 };
 
                 ExecuteTest(method, "Com.PointD5D.operator -(Com.PointD5D, Com.PointD5D)");
@@ -14142,7 +15721,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD5D result = pt * n;
+                    _ = pt * n;
                 };
 
                 ExecuteTest(method, "Com.PointD5D.operator *(Com.PointD5D, double)");
@@ -14154,7 +15733,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD5D result = n * pt;
+                    _ = n * pt;
                 };
 
                 ExecuteTest(method, "Com.PointD5D.operator *(double, Com.PointD5D)");
@@ -14166,7 +15745,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD5D result = left * right;
+                    _ = left * right;
                 };
 
                 ExecuteTest(method, "Com.PointD5D.operator *(Com.PointD5D, Com.PointD5D)");
@@ -14178,7 +15757,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD5D result = pt / n;
+                    _ = pt / n;
                 };
 
                 ExecuteTest(method, "Com.PointD5D.operator /(Com.PointD5D, double)");
@@ -14190,7 +15769,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD5D result = n / pt;
+                    _ = n / pt;
                 };
 
                 ExecuteTest(method, "Com.PointD5D.operator /(double, Com.PointD5D)");
@@ -14202,7 +15781,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD5D result = left / right;
+                    _ = left / right;
                 };
 
                 ExecuteTest(method, "Com.PointD5D.operator /(Com.PointD5D, Com.PointD5D)");
@@ -14240,7 +15819,7 @@ namespace Test
             }
             else
             {
-                return Com.Matrix.NonMatrix;
+                return Com.Matrix.Empty;
             }
         }
 
@@ -14258,7 +15837,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD6D pointD6D = new Com.PointD6D(x, y, z, u, v, w);
+                    _ = new Com.PointD6D(x, y, z, u, v, w);
                 };
 
                 ExecuteTest(method, "Com.PointD6D.PointD6D(double, double, double, double, double, double)");
@@ -14275,7 +15854,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD6D[index];
+                    _ = pointD6D[index];
                 };
 
                 ExecuteTest(method, "Com.PointD6D.this[int].get()");
@@ -14294,52 +15873,6 @@ namespace Test
                 ExecuteTest(method, "Com.PointD6D.this[int].set(double)");
             }
 
-            // Is
-
-            {
-                Com.PointD6D pointD6D = _GetRandomPointD6D();
-
-                Action method = () =>
-                {
-                    bool result = pointD6D.IsEmpty;
-                };
-
-                ExecuteTest(method, "Com.PointD6D.IsEmpty.get()");
-            }
-
-            {
-                Com.PointD6D pointD6D = _GetRandomPointD6D();
-
-                Action method = () =>
-                {
-                    bool result = pointD6D.IsNaN;
-                };
-
-                ExecuteTest(method, "Com.PointD6D.IsNaN.get()");
-            }
-
-            {
-                Com.PointD6D pointD6D = _GetRandomPointD6D();
-
-                Action method = () =>
-                {
-                    bool result = pointD6D.IsInfinity;
-                };
-
-                ExecuteTest(method, "Com.PointD6D.IsInfinity.get()");
-            }
-
-            {
-                Com.PointD6D pointD6D = _GetRandomPointD6D();
-
-                Action method = () =>
-                {
-                    bool result = pointD6D.IsNaNOrInfinity;
-                };
-
-                ExecuteTest(method, "Com.PointD6D.IsNaNOrInfinity.get()");
-            }
-
             // 分量
 
             {
@@ -14347,7 +15880,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD6D.X;
+                    _ = pointD6D.X;
                 };
 
                 ExecuteTest(method, "Com.PointD6D.X.get()");
@@ -14370,7 +15903,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD6D.Y;
+                    _ = pointD6D.Y;
                 };
 
                 ExecuteTest(method, "Com.PointD6D.Y.get()");
@@ -14393,7 +15926,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD6D.Z;
+                    _ = pointD6D.Z;
                 };
 
                 ExecuteTest(method, "Com.PointD6D.Z.get()");
@@ -14416,7 +15949,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD6D.U;
+                    _ = pointD6D.U;
                 };
 
                 ExecuteTest(method, "Com.PointD6D.U.get()");
@@ -14439,7 +15972,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD6D.V;
+                    _ = pointD6D.V;
                 };
 
                 ExecuteTest(method, "Com.PointD6D.V.get()");
@@ -14462,7 +15995,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD6D.W;
+                    _ = pointD6D.W;
                 };
 
                 ExecuteTest(method, "Com.PointD6D.W.get()");
@@ -14480,12 +16013,154 @@ namespace Test
                 ExecuteTest(method, "Com.PointD6D.W.set(double)");
             }
 
+            // Dimension
+
             {
                 Com.PointD6D pointD6D = _GetRandomPointD6D();
 
                 Action method = () =>
                 {
-                    Com.PointD5D result = pointD6D.XYZUV;
+                    _ = pointD6D.Dimension;
+                };
+
+                ExecuteTest(method, "Com.PointD6D.Dimension.get()");
+            }
+
+            // Is
+
+            {
+                Com.PointD6D pointD6D = _GetRandomPointD6D();
+
+                Action method = () =>
+                {
+                    _ = pointD6D.IsEmpty;
+                };
+
+                ExecuteTest(method, "Com.PointD6D.IsEmpty.get()");
+            }
+
+            {
+                Com.PointD6D pointD6D = _GetRandomPointD6D();
+
+                Action method = () =>
+                {
+                    _ = pointD6D.IsZero;
+                };
+
+                ExecuteTest(method, "Com.PointD6D.IsZero.get()");
+            }
+
+            {
+                Com.PointD6D pointD6D = _GetRandomPointD6D();
+
+                Action method = () =>
+                {
+                    _ = pointD6D.IsReadOnly;
+                };
+
+                ExecuteTest(method, "Com.PointD6D.IsReadOnly.get()");
+            }
+
+            {
+                Com.PointD6D pointD6D = _GetRandomPointD6D();
+
+                Action method = () =>
+                {
+                    _ = pointD6D.IsFixedSize;
+                };
+
+                ExecuteTest(method, "Com.PointD6D.IsFixedSize.get()");
+            }
+
+            {
+                Com.PointD6D pointD6D = _GetRandomPointD6D();
+
+                Action method = () =>
+                {
+                    _ = pointD6D.IsNaN;
+                };
+
+                ExecuteTest(method, "Com.PointD6D.IsNaN.get()");
+            }
+
+            {
+                Com.PointD6D pointD6D = _GetRandomPointD6D();
+
+                Action method = () =>
+                {
+                    _ = pointD6D.IsInfinity;
+                };
+
+                ExecuteTest(method, "Com.PointD6D.IsInfinity.get()");
+            }
+
+            {
+                Com.PointD6D pointD6D = _GetRandomPointD6D();
+
+                Action method = () =>
+                {
+                    _ = pointD6D.IsNaNOrInfinity;
+                };
+
+                ExecuteTest(method, "Com.PointD6D.IsNaNOrInfinity.get()");
+            }
+
+            // 模
+
+            {
+                Com.PointD6D pointD6D = _GetRandomPointD6D();
+
+                Action method = () =>
+                {
+                    _ = pointD6D.Module;
+                };
+
+                ExecuteTest(method, "Com.PointD6D.Module.get()");
+            }
+
+            {
+                Com.PointD6D pointD6D = _GetRandomPointD6D();
+
+                Action method = () =>
+                {
+                    _ = pointD6D.ModuleSquared;
+                };
+
+                ExecuteTest(method, "Com.PointD6D.ModuleSquared.get()");
+            }
+
+            // 向量
+
+            {
+                Com.PointD6D pointD6D = _GetRandomPointD6D();
+
+                Action method = () =>
+                {
+                    _ = pointD6D.Opposite;
+                };
+
+                ExecuteTest(method, "Com.PointD6D.Opposite.get()");
+            }
+
+            {
+                Com.PointD6D pointD6D = _GetRandomPointD6D();
+
+                Action method = () =>
+                {
+                    _ = pointD6D.Normalize;
+                };
+
+                ExecuteTest(method, "Com.PointD6D.Normalize.get()");
+            }
+
+            // 子空间分量
+
+            {
+                Com.PointD6D pointD6D = _GetRandomPointD6D();
+
+                Action method = () =>
+                {
+                    _ = pointD6D.XYZUV;
                 };
 
                 ExecuteTest(method, "Com.PointD6D.XYZUV.get()");
@@ -14508,7 +16183,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD5D result = pointD6D.YZUVW;
+                    _ = pointD6D.YZUVW;
                 };
 
                 ExecuteTest(method, "Com.PointD6D.YZUVW.get()");
@@ -14531,7 +16206,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD5D result = pointD6D.ZUVWX;
+                    _ = pointD6D.ZUVWX;
                 };
 
                 ExecuteTest(method, "Com.PointD6D.ZUVWX.get()");
@@ -14554,7 +16229,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD5D result = pointD6D.UVWXY;
+                    _ = pointD6D.UVWXY;
                 };
 
                 ExecuteTest(method, "Com.PointD6D.UVWXY.get()");
@@ -14577,7 +16252,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD5D result = pointD6D.VWXYZ;
+                    _ = pointD6D.VWXYZ;
                 };
 
                 ExecuteTest(method, "Com.PointD6D.VWXYZ.get()");
@@ -14600,7 +16275,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD5D result = pointD6D.WXYZU;
+                    _ = pointD6D.WXYZU;
                 };
 
                 ExecuteTest(method, "Com.PointD6D.WXYZU.get()");
@@ -14625,10 +16300,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD6D.AngleX;
+                    _ = pointD6D.AngleFromX;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.AngleX.get()");
+                ExecuteTest(method, "Com.PointD6D.AngleFromX.get()");
             }
 
             {
@@ -14636,10 +16311,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD6D.AngleY;
+                    _ = pointD6D.AngleFromY;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.AngleY.get()");
+                ExecuteTest(method, "Com.PointD6D.AngleFromY.get()");
             }
 
             {
@@ -14647,10 +16322,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD6D.AngleZ;
+                    _ = pointD6D.AngleFromZ;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.AngleZ.get()");
+                ExecuteTest(method, "Com.PointD6D.AngleFromZ.get()");
             }
 
             {
@@ -14658,10 +16333,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD6D.AngleU;
+                    _ = pointD6D.AngleFromU;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.AngleU.get()");
+                ExecuteTest(method, "Com.PointD6D.AngleFromU.get()");
             }
 
             {
@@ -14669,10 +16344,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD6D.AngleV;
+                    _ = pointD6D.AngleFromV;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.AngleV.get()");
+                ExecuteTest(method, "Com.PointD6D.AngleFromV.get()");
             }
 
             {
@@ -14680,10 +16355,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD6D.AngleW;
+                    _ = pointD6D.AngleFromW;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.AngleW.get()");
+                ExecuteTest(method, "Com.PointD6D.AngleFromW.get()");
             }
 
             {
@@ -14691,10 +16366,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD6D.AngleXYZUV;
+                    _ = pointD6D.AngleFromXYZUV;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.AngleXYZUV.get()");
+                ExecuteTest(method, "Com.PointD6D.AngleFromXYZUV.get()");
             }
 
             {
@@ -14702,10 +16377,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD6D.AngleYZUVW;
+                    _ = pointD6D.AngleFromYZUVW;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.AngleYZUVW.get()");
+                ExecuteTest(method, "Com.PointD6D.AngleFromYZUVW.get()");
             }
 
             {
@@ -14713,10 +16388,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD6D.AngleZUVWX;
+                    _ = pointD6D.AngleFromZUVWX;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.AngleZUVWX.get()");
+                ExecuteTest(method, "Com.PointD6D.AngleFromZUVWX.get()");
             }
 
             {
@@ -14724,10 +16399,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD6D.AngleUVWXY;
+                    _ = pointD6D.AngleFromUVWXY;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.AngleUVWXY.get()");
+                ExecuteTest(method, "Com.PointD6D.AngleFromUVWXY.get()");
             }
 
             {
@@ -14735,10 +16410,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD6D.AngleVWXYZ;
+                    _ = pointD6D.AngleFromVWXYZ;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.AngleVWXYZ.get()");
+                ExecuteTest(method, "Com.PointD6D.AngleFromVWXYZ.get()");
             }
 
             {
@@ -14746,111 +16421,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = pointD6D.AngleWXYZU;
+                    _ = pointD6D.AngleFromWXYZU;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.AngleWXYZU.get()");
-            }
-
-            // 向量
-
-            {
-                Com.PointD6D pointD6D = _GetRandomPointD6D();
-
-                Action method = () =>
-                {
-                    double result = pointD6D.VectorModule;
-                };
-
-                ExecuteTest(method, "Com.PointD6D.VectorModule.get()");
-            }
-
-            {
-                Com.PointD6D pointD6D = _GetRandomPointD6D();
-
-                Action method = () =>
-                {
-                    double result = pointD6D.VectorModuleSquared;
-                };
-
-                ExecuteTest(method, "Com.PointD6D.VectorModuleSquared.get()");
-            }
-
-            {
-                Com.PointD6D pointD6D = _GetRandomPointD6D();
-
-                Action method = () =>
-                {
-                    double result = pointD6D.VectorAngleX;
-                };
-
-                ExecuteTest(method, "Com.PointD6D.VectorAngleX.get()");
-            }
-
-            {
-                Com.PointD6D pointD6D = _GetRandomPointD6D();
-
-                Action method = () =>
-                {
-                    double result = pointD6D.VectorAngleY;
-                };
-
-                ExecuteTest(method, "Com.PointD6D.VectorAngleY.get()");
-            }
-
-            {
-                Com.PointD6D pointD6D = _GetRandomPointD6D();
-
-                Action method = () =>
-                {
-                    double result = pointD6D.VectorAngleZ;
-                };
-
-                ExecuteTest(method, "Com.PointD6D.VectorAngleZ.get()");
-            }
-
-            {
-                Com.PointD6D pointD6D = _GetRandomPointD6D();
-
-                Action method = () =>
-                {
-                    double result = pointD6D.VectorAngleU;
-                };
-
-                ExecuteTest(method, "Com.PointD6D.VectorAngleU.get()");
-            }
-
-            {
-                Com.PointD6D pointD6D = _GetRandomPointD6D();
-
-                Action method = () =>
-                {
-                    double result = pointD6D.VectorAngleVW;
-                };
-
-                ExecuteTest(method, "Com.PointD6D.VectorAngleVW.get()");
-            }
-
-            {
-                Com.PointD6D pointD6D = _GetRandomPointD6D();
-
-                Action method = () =>
-                {
-                    Com.PointD6D result = pointD6D.VectorNegate;
-                };
-
-                ExecuteTest(method, "Com.PointD6D.VectorNegate.get()");
-            }
-
-            {
-                Com.PointD6D pointD6D = _GetRandomPointD6D();
-
-                Action method = () =>
-                {
-                    Com.PointD6D result = pointD6D.VectorNormalize;
-                };
-
-                ExecuteTest(method, "Com.PointD6D.VectorNormalize.get()");
+                ExecuteTest(method, "Com.PointD6D.AngleFromWXYZU.get()");
             }
         }
 
@@ -14865,11 +16439,11 @@ namespace Test
 
             {
                 Com.PointD6D pointD6D = _GetRandomPointD6D();
-                object obj = (object)pointD6D;
+                object obj = pointD6D;
 
                 Action method = () =>
                 {
-                    bool result = pointD6D.Equals(obj);
+                    _ = pointD6D.Equals(obj);
                 };
 
                 ExecuteTest(method, "Com.PointD6D.Equals(object)");
@@ -14880,7 +16454,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    int result = pointD6D.GetHashCode();
+                    _ = pointD6D.GetHashCode();
                 };
 
                 ExecuteTest(method, "Com.PointD6D.GetHashCode()");
@@ -14891,7 +16465,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    string result = pointD6D.ToString();
+                    _ = pointD6D.ToString();
                 };
 
                 ExecuteTest(method, "Com.PointD6D.ToString()");
@@ -14905,10 +16479,202 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = left.Equals(right);
+                    _ = left.Equals(right);
                 };
 
                 ExecuteTest(method, "Com.PointD6D.Equals(Com.PointD6D)");
+            }
+
+            // CompareTo
+
+            {
+                Com.PointD6D pointD6D = _GetRandomPointD6D();
+                object obj = pointD6D;
+
+                Action method = () =>
+                {
+                    _ = pointD6D.CompareTo(obj);
+                };
+
+                ExecuteTest(method, "Com.PointD6D.CompareTo(object)");
+            }
+
+            {
+                Com.PointD6D left = _GetRandomPointD6D();
+                Com.PointD6D right = left;
+
+                Action method = () =>
+                {
+                    _ = left.CompareTo(right);
+                };
+
+                ExecuteTest(method, "Com.PointD6D.CompareTo(Com.PointD6D)");
+            }
+
+            // 检索
+
+            {
+                Com.PointD6D pointD6D = _GetRandomPointD6D();
+                double item = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = pointD6D.IndexOf(item);
+                };
+
+                ExecuteTest(method, "Com.PointD6D.IndexOf(double)");
+            }
+
+            {
+                Com.PointD6D pointD6D = _GetRandomPointD6D();
+                double item = Com.Statistics.RandomDouble(-1E18, 1E18);
+                int startIndex = 0;
+
+                Action method = () =>
+                {
+                    _ = pointD6D.IndexOf(item, startIndex);
+                };
+
+                ExecuteTest(method, "Com.PointD6D.IndexOf(double, int)");
+            }
+
+            {
+                Com.PointD6D pointD6D = _GetRandomPointD6D();
+                double item = Com.Statistics.RandomDouble(-1E18, 1E18);
+                int startIndex = 0;
+                int count = 6;
+
+                Action method = () =>
+                {
+                    _ = pointD6D.IndexOf(item, startIndex, count);
+                };
+
+                ExecuteTest(method, "Com.PointD6D.IndexOf(double, int, int)");
+            }
+
+            {
+                Com.PointD6D pointD6D = _GetRandomPointD6D();
+                double item = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = pointD6D.LastIndexOf(item);
+                };
+
+                ExecuteTest(method, "Com.PointD6D.LastIndexOf(double)");
+            }
+
+            {
+                Com.PointD6D pointD6D = _GetRandomPointD6D();
+                double item = Com.Statistics.RandomDouble(-1E18, 1E18);
+                int startIndex = 5;
+
+                Action method = () =>
+                {
+                    _ = pointD6D.LastIndexOf(item, startIndex);
+                };
+
+                ExecuteTest(method, "Com.PointD6D.LastIndexOf(double, int)");
+            }
+
+            {
+                Com.PointD6D pointD6D = _GetRandomPointD6D();
+                double item = Com.Statistics.RandomDouble(-1E18, 1E18);
+                int startIndex = 5;
+                int count = 6;
+
+                Action method = () =>
+                {
+                    _ = pointD6D.LastIndexOf(item, startIndex, count);
+                };
+
+                ExecuteTest(method, "Com.PointD6D.LastIndexOf(double, int, int)");
+            }
+
+            {
+                Com.PointD6D pointD6D = _GetRandomPointD6D();
+                double item = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = pointD6D.Contains(item);
+                };
+
+                ExecuteTest(method, "Com.PointD6D.Contains(double)");
+            }
+
+            // ToArray，ToList
+
+            {
+                Com.PointD6D pointD6D = _GetRandomPointD6D();
+
+                Action method = () =>
+                {
+                    _ = pointD6D.ToArray();
+                };
+
+                ExecuteTest(method, "Com.PointD6D.ToArray()");
+            }
+
+            {
+                Com.PointD6D pointD6D = _GetRandomPointD6D();
+
+                Action method = () =>
+                {
+                    _ = pointD6D.ToList();
+                };
+
+                ExecuteTest(method, "Com.PointD6D.ToList()");
+            }
+
+            // 坐标系转换
+
+            {
+                Com.PointD6D pointD6D = _GetRandomPointD6D();
+
+                Action method = () =>
+                {
+                    _ = pointD6D.ToSpherical();
+                };
+
+                ExecuteTest(method, "Com.PointD6D.ToSpherical()");
+            }
+
+            {
+                Com.PointD6D pointD6D = _GetRandomPointD6D();
+
+                Action method = () =>
+                {
+                    _ = pointD6D.ToCartesian();
+                };
+
+                ExecuteTest(method, "Com.PointD6D.ToCartesian()");
+            }
+
+            // 距离与夹角
+
+            {
+                Com.PointD6D pointD6D = _GetRandomPointD6D();
+                Com.PointD6D pt = _GetRandomPointD6D();
+
+                Action method = () =>
+                {
+                    _ = pointD6D.DistanceFrom(pt);
+                };
+
+                ExecuteTest(method, "Com.PointD6D.DistanceFrom(Com.PointD6D)");
+            }
+
+            {
+                Com.PointD6D pointD6D = _GetRandomPointD6D();
+                Com.PointD6D pt = _GetRandomPointD6D();
+
+                Action method = () =>
+                {
+                    _ = pointD6D.AngleFrom(pt);
+                };
+
+                ExecuteTest(method, "Com.PointD6D.AngleFrom(Com.PointD6D)");
             }
 
             // Offset
@@ -14960,7 +16726,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD6D result = pointD6D.OffsetCopy(d);
+                    _ = pointD6D.OffsetCopy(d);
                 };
 
                 ExecuteTest(method, "Com.PointD6D.OffsetCopy(double)");
@@ -14977,7 +16743,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD6D result = pointD6D.OffsetCopy(dx, dy, dz, du, dv, dw);
+                    _ = pointD6D.OffsetCopy(dx, dy, dz, du, dv, dw);
                 };
 
                 ExecuteTest(method, "Com.PointD6D.OffsetCopy(double, double, double, double, double, double)");
@@ -14989,7 +16755,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD6D result = pointD6D.OffsetCopy(pt);
+                    _ = pointD6D.OffsetCopy(pt);
                 };
 
                 ExecuteTest(method, "Com.PointD6D.OffsetCopy(Com.PointD6D)");
@@ -15044,7 +16810,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD6D result = pointD6D.ScaleCopy(s);
+                    _ = pointD6D.ScaleCopy(s);
                 };
 
                 ExecuteTest(method, "Com.PointD6D.ScaleCopy(double)");
@@ -15061,7 +16827,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD6D result = pointD6D.ScaleCopy(sx, sy, sz, su, sv, sw);
+                    _ = pointD6D.ScaleCopy(sx, sy, sz, su, sv, sw);
                 };
 
                 ExecuteTest(method, "Com.PointD6D.ScaleCopy(double, double, double, double, double, double)");
@@ -15073,384 +16839,112 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD6D result = pointD6D.ScaleCopy(pt);
+                    _ = pointD6D.ScaleCopy(pt);
                 };
 
                 ExecuteTest(method, "Com.PointD6D.ScaleCopy(Com.PointD6D)");
+            }
+
+            // Reflect
+
+            {
+                Com.PointD6D pointD6D = _GetRandomPointD6D();
+                int index = Com.Statistics.RandomInteger(6);
+
+                Action method = () =>
+                {
+                    pointD6D.Reflect(index);
+                };
+
+                ExecuteTest(method, "Com.PointD6D.Reflect(int)");
+            }
+
+            {
+                Com.PointD6D pointD6D = _GetRandomPointD6D();
+                int index = Com.Statistics.RandomInteger(6);
+
+                Action method = () =>
+                {
+                    _ = pointD6D.ReflectCopy(index);
+                };
+
+                ExecuteTest(method, "Com.PointD6D.ReflectCopy(int)");
+            }
+
+            // Shear
+
+            {
+                Com.PointD6D pointD6D = _GetRandomPointD6D();
+                int index1 = Com.Statistics.RandomInteger(6);
+                int index2 = Com.Statistics.RandomInteger(5);
+                if (index2 == index1) index2++;
+                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
+
+                Action method = () =>
+                {
+                    pointD6D.Shear(index1, index2, angle);
+                };
+
+                ExecuteTest(method, "Com.PointD6D.Shear(int, int, double)");
+            }
+
+            {
+                Com.PointD6D pointD6D = _GetRandomPointD6D();
+                int index1 = Com.Statistics.RandomInteger(6);
+                int index2 = Com.Statistics.RandomInteger(5);
+                if (index2 == index1) index2++;
+                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
+
+                Action method = () =>
+                {
+                    _ = pointD6D.ShearCopy(index1, index2, angle);
+                };
+
+                ExecuteTest(method, "Com.PointD6D.ShearCopy(int, int, double)");
             }
 
             // Rotate
 
             {
                 Com.PointD6D pointD6D = _GetRandomPointD6D();
+                int index1 = Com.Statistics.RandomInteger(6);
+                int index2 = Com.Statistics.RandomInteger(5);
+                if (index2 == index1) index2++;
                 double angle = Com.Statistics.RandomDouble(2 * Math.PI);
 
                 Action method = () =>
                 {
-                    pointD6D.RotateXY(angle);
+                    pointD6D.Rotate(index1, index2, angle);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.RotateXY(double)");
+                ExecuteTest(method, "Com.PointD6D.Rotate(int, int, double)");
             }
 
             {
                 Com.PointD6D pointD6D = _GetRandomPointD6D();
+                int index1 = Com.Statistics.RandomInteger(6);
+                int index2 = Com.Statistics.RandomInteger(5);
+                if (index2 == index1) index2++;
                 double angle = Com.Statistics.RandomDouble(2 * Math.PI);
 
                 Action method = () =>
                 {
-                    pointD6D.RotateXZ(angle);
+                    _ = pointD6D.RotateCopy(index1, index2, angle);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.RotateXZ(double)");
-            }
-
-            {
-                Com.PointD6D pointD6D = _GetRandomPointD6D();
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    pointD6D.RotateXU(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD6D.RotateXU(double)");
-            }
-
-            {
-                Com.PointD6D pointD6D = _GetRandomPointD6D();
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    pointD6D.RotateXV(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD6D.RotateXV(double)");
-            }
-
-            {
-                Com.PointD6D pointD6D = _GetRandomPointD6D();
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    pointD6D.RotateXW(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD6D.RotateXW(double)");
-            }
-
-            {
-                Com.PointD6D pointD6D = _GetRandomPointD6D();
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    pointD6D.RotateYZ(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD6D.RotateYZ(double)");
-            }
-
-            {
-                Com.PointD6D pointD6D = _GetRandomPointD6D();
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    pointD6D.RotateYU(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD6D.RotateYU(double)");
-            }
-
-            {
-                Com.PointD6D pointD6D = _GetRandomPointD6D();
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    pointD6D.RotateYV(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD6D.RotateYV(double)");
-            }
-
-            {
-                Com.PointD6D pointD6D = _GetRandomPointD6D();
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    pointD6D.RotateYW(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD6D.RotateYW(double)");
-            }
-
-            {
-                Com.PointD6D pointD6D = _GetRandomPointD6D();
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    pointD6D.RotateZU(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD6D.RotateZU(double)");
-            }
-
-            {
-                Com.PointD6D pointD6D = _GetRandomPointD6D();
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    pointD6D.RotateZV(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD6D.RotateZV(double)");
-            }
-
-            {
-                Com.PointD6D pointD6D = _GetRandomPointD6D();
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    pointD6D.RotateZW(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD6D.RotateZW(double)");
-            }
-
-            {
-                Com.PointD6D pointD6D = _GetRandomPointD6D();
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    pointD6D.RotateUV(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD6D.RotateUV(double)");
-            }
-
-            {
-                Com.PointD6D pointD6D = _GetRandomPointD6D();
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    pointD6D.RotateUW(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD6D.RotateUW(double)");
-            }
-
-            {
-                Com.PointD6D pointD6D = _GetRandomPointD6D();
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    pointD6D.RotateVW(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD6D.RotateVW(double)");
-            }
-
-            {
-                Com.PointD6D pointD6D = _GetRandomPointD6D();
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    Com.PointD6D result = pointD6D.RotateXYCopy(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD6D.RotateXYCopy(double)");
-            }
-
-            {
-                Com.PointD6D pointD6D = _GetRandomPointD6D();
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    Com.PointD6D result = pointD6D.RotateXZCopy(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD6D.RotateXZCopy(double)");
-            }
-
-            {
-                Com.PointD6D pointD6D = _GetRandomPointD6D();
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    Com.PointD6D result = pointD6D.RotateXUCopy(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD6D.RotateXUCopy(double)");
-            }
-
-            {
-                Com.PointD6D pointD6D = _GetRandomPointD6D();
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    Com.PointD6D result = pointD6D.RotateXVCopy(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD6D.RotateXVCopy(double)");
-            }
-
-            {
-                Com.PointD6D pointD6D = _GetRandomPointD6D();
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    Com.PointD6D result = pointD6D.RotateXWCopy(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD6D.RotateXWCopy(double)");
-            }
-
-            {
-                Com.PointD6D pointD6D = _GetRandomPointD6D();
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    Com.PointD6D result = pointD6D.RotateYZCopy(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD6D.RotateYZCopy(double)");
-            }
-
-            {
-                Com.PointD6D pointD6D = _GetRandomPointD6D();
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    Com.PointD6D result = pointD6D.RotateYUCopy(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD6D.RotateYUCopy(double)");
-            }
-
-            {
-                Com.PointD6D pointD6D = _GetRandomPointD6D();
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    Com.PointD6D result = pointD6D.RotateYVCopy(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD6D.RotateYVCopy(double)");
-            }
-
-            {
-                Com.PointD6D pointD6D = _GetRandomPointD6D();
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    Com.PointD6D result = pointD6D.RotateYWCopy(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD6D.RotateYWCopy(double)");
-            }
-
-            {
-                Com.PointD6D pointD6D = _GetRandomPointD6D();
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    Com.PointD6D result = pointD6D.RotateZUCopy(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD6D.RotateZUCopy(double)");
-            }
-
-            {
-                Com.PointD6D pointD6D = _GetRandomPointD6D();
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    Com.PointD6D result = pointD6D.RotateZVCopy(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD6D.RotateZVCopy(double)");
-            }
-
-            {
-                Com.PointD6D pointD6D = _GetRandomPointD6D();
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    Com.PointD6D result = pointD6D.RotateZWCopy(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD6D.RotateZWCopy(double)");
-            }
-
-            {
-                Com.PointD6D pointD6D = _GetRandomPointD6D();
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    Com.PointD6D result = pointD6D.RotateUVCopy(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD6D.RotateUVCopy(double)");
-            }
-
-            {
-                Com.PointD6D pointD6D = _GetRandomPointD6D();
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    Com.PointD6D result = pointD6D.RotateUWCopy(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD6D.RotateUWCopy(double)");
-            }
-
-            {
-                Com.PointD6D pointD6D = _GetRandomPointD6D();
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    Com.PointD6D result = pointD6D.RotateVWCopy(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD6D.RotateVWCopy(double)");
+                ExecuteTest(method, "Com.PointD6D.RotateCopy(int, int, double)");
             }
 
             // Affine
 
             {
                 Com.PointD6D pointD6D = _GetRandomPointD6D();
-                Com.PointD6D ex = _GetRandomPointD6D().VectorNormalize;
-                Com.PointD6D ey = _GetRandomPointD6D().VectorNormalize;
-                Com.PointD6D ez = _GetRandomPointD6D().VectorNormalize;
-                Com.PointD6D eu = _GetRandomPointD6D().VectorNormalize;
-                Com.PointD6D ev = _GetRandomPointD6D().VectorNormalize;
-                Com.PointD6D ew = _GetRandomPointD6D().VectorNormalize;
+                Com.PointD6D ex = _GetRandomPointD6D().Normalize;
+                Com.PointD6D ey = _GetRandomPointD6D().Normalize;
+                Com.PointD6D ez = _GetRandomPointD6D().Normalize;
+                Com.PointD6D eu = _GetRandomPointD6D().Normalize;
+                Com.PointD6D ev = _GetRandomPointD6D().Normalize;
+                Com.PointD6D ew = _GetRandomPointD6D().Normalize;
                 Com.PointD6D offset = _GetRandomPointD6D();
 
                 Action method = () =>
@@ -15463,7 +16957,7 @@ namespace Test
 
             {
                 Com.PointD6D pointD6D = _GetRandomPointD6D();
-                Com.Matrix matrixLeft = _GetRandomMatrix(6, 6);
+                Com.Matrix matrixLeft = _GetRandomMatrix(7, 7);
 
                 Action method = () =>
                 {
@@ -15479,7 +16973,7 @@ namespace Test
 
                 for (int i = 0; i < 8; i++)
                 {
-                    matrixLeftList.Add(_GetRandomMatrix(6, 6));
+                    matrixLeftList.Add(_GetRandomMatrix(7, 7));
                 }
 
                 Action method = () =>
@@ -15492,17 +16986,17 @@ namespace Test
 
             {
                 Com.PointD6D pointD6D = _GetRandomPointD6D();
-                Com.PointD6D ex = _GetRandomPointD6D().VectorNormalize;
-                Com.PointD6D ey = _GetRandomPointD6D().VectorNormalize;
-                Com.PointD6D ez = _GetRandomPointD6D().VectorNormalize;
-                Com.PointD6D eu = _GetRandomPointD6D().VectorNormalize;
-                Com.PointD6D ev = _GetRandomPointD6D().VectorNormalize;
-                Com.PointD6D ew = _GetRandomPointD6D().VectorNormalize;
+                Com.PointD6D ex = _GetRandomPointD6D().Normalize;
+                Com.PointD6D ey = _GetRandomPointD6D().Normalize;
+                Com.PointD6D ez = _GetRandomPointD6D().Normalize;
+                Com.PointD6D eu = _GetRandomPointD6D().Normalize;
+                Com.PointD6D ev = _GetRandomPointD6D().Normalize;
+                Com.PointD6D ew = _GetRandomPointD6D().Normalize;
                 Com.PointD6D offset = _GetRandomPointD6D();
 
                 Action method = () =>
                 {
-                    Com.PointD6D result = pointD6D.AffineTransformCopy(ex, ey, ez, eu, ev, ew, offset);
+                    _ = pointD6D.AffineTransformCopy(ex, ey, ez, eu, ev, ew, offset);
                 };
 
                 ExecuteTest(method, "Com.PointD6D.AffineTransformCopy(Com.PointD6D, Com.PointD6D, Com.PointD6D, Com.PointD6D, Com.PointD6D, Com.PointD6D, Com.PointD6D)");
@@ -15510,11 +17004,11 @@ namespace Test
 
             {
                 Com.PointD6D pointD6D = _GetRandomPointD6D();
-                Com.Matrix matrixLeft = _GetRandomMatrix(6, 6);
+                Com.Matrix matrixLeft = _GetRandomMatrix(7, 7);
 
                 Action method = () =>
                 {
-                    Com.PointD6D result = pointD6D.AffineTransformCopy(matrixLeft);
+                    _ = pointD6D.AffineTransformCopy(matrixLeft);
                 };
 
                 ExecuteTest(method, "Com.PointD6D.AffineTransformCopy(Com.Matrix)");
@@ -15526,12 +17020,12 @@ namespace Test
 
                 for (int i = 0; i < 8; i++)
                 {
-                    matrixLeftList.Add(_GetRandomMatrix(6, 6));
+                    matrixLeftList.Add(_GetRandomMatrix(7, 7));
                 }
 
                 Action method = () =>
                 {
-                    Com.PointD6D result = pointD6D.AffineTransformCopy(matrixLeftList);
+                    _ = pointD6D.AffineTransformCopy(matrixLeftList);
                 };
 
                 ExecuteTest(method, "Com.PointD6D.AffineTransformCopy(System.Collections.Generic.List<Com.Matrix>)", "total 8 matrices");
@@ -15539,12 +17033,12 @@ namespace Test
 
             {
                 Com.PointD6D pointD6D = _GetRandomPointD6D();
-                Com.PointD6D ex = _GetRandomPointD6D().VectorNormalize;
-                Com.PointD6D ey = _GetRandomPointD6D().VectorNormalize;
-                Com.PointD6D ez = _GetRandomPointD6D().VectorNormalize;
-                Com.PointD6D eu = _GetRandomPointD6D().VectorNormalize;
-                Com.PointD6D ev = _GetRandomPointD6D().VectorNormalize;
-                Com.PointD6D ew = _GetRandomPointD6D().VectorNormalize;
+                Com.PointD6D ex = _GetRandomPointD6D().Normalize;
+                Com.PointD6D ey = _GetRandomPointD6D().Normalize;
+                Com.PointD6D ez = _GetRandomPointD6D().Normalize;
+                Com.PointD6D eu = _GetRandomPointD6D().Normalize;
+                Com.PointD6D ev = _GetRandomPointD6D().Normalize;
+                Com.PointD6D ew = _GetRandomPointD6D().Normalize;
                 Com.PointD6D offset = _GetRandomPointD6D();
 
                 Action method = () =>
@@ -15557,7 +17051,7 @@ namespace Test
 
             {
                 Com.PointD6D pointD6D = _GetRandomPointD6D();
-                Com.Matrix matrixLeft = _GetRandomMatrix(6, 6);
+                Com.Matrix matrixLeft = _GetRandomMatrix(7, 7);
 
                 Action method = () =>
                 {
@@ -15573,7 +17067,7 @@ namespace Test
 
                 for (int i = 0; i < 8; i++)
                 {
-                    matrixLeftList.Add(_GetRandomMatrix(6, 6));
+                    matrixLeftList.Add(_GetRandomMatrix(7, 7));
                 }
 
                 Action method = () =>
@@ -15586,17 +17080,17 @@ namespace Test
 
             {
                 Com.PointD6D pointD6D = _GetRandomPointD6D();
-                Com.PointD6D ex = _GetRandomPointD6D().VectorNormalize;
-                Com.PointD6D ey = _GetRandomPointD6D().VectorNormalize;
-                Com.PointD6D ez = _GetRandomPointD6D().VectorNormalize;
-                Com.PointD6D eu = _GetRandomPointD6D().VectorNormalize;
-                Com.PointD6D ev = _GetRandomPointD6D().VectorNormalize;
-                Com.PointD6D ew = _GetRandomPointD6D().VectorNormalize;
+                Com.PointD6D ex = _GetRandomPointD6D().Normalize;
+                Com.PointD6D ey = _GetRandomPointD6D().Normalize;
+                Com.PointD6D ez = _GetRandomPointD6D().Normalize;
+                Com.PointD6D eu = _GetRandomPointD6D().Normalize;
+                Com.PointD6D ev = _GetRandomPointD6D().Normalize;
+                Com.PointD6D ew = _GetRandomPointD6D().Normalize;
                 Com.PointD6D offset = _GetRandomPointD6D();
 
                 Action method = () =>
                 {
-                    Com.PointD6D result = pointD6D.InverseAffineTransformCopy(ex, ey, ez, eu, ev, ew, offset);
+                    _ = pointD6D.InverseAffineTransformCopy(ex, ey, ez, eu, ev, ew, offset);
                 };
 
                 ExecuteTest(method, "Com.PointD6D.InverseAffineTransformCopy(Com.PointD6D, Com.PointD6D, Com.PointD6D, Com.PointD6D, Com.PointD6D, Com.PointD6D, Com.PointD6D)");
@@ -15604,11 +17098,11 @@ namespace Test
 
             {
                 Com.PointD6D pointD6D = _GetRandomPointD6D();
-                Com.Matrix matrixLeft = _GetRandomMatrix(6, 6);
+                Com.Matrix matrixLeft = _GetRandomMatrix(7, 7);
 
                 Action method = () =>
                 {
-                    Com.PointD6D result = pointD6D.InverseAffineTransformCopy(matrixLeft);
+                    _ = pointD6D.InverseAffineTransformCopy(matrixLeft);
                 };
 
                 ExecuteTest(method, "Com.PointD6D.InverseAffineTransformCopy(Com.Matrix)");
@@ -15620,12 +17114,12 @@ namespace Test
 
                 for (int i = 0; i < 8; i++)
                 {
-                    matrixLeftList.Add(_GetRandomMatrix(6, 6));
+                    matrixLeftList.Add(_GetRandomMatrix(7, 7));
                 }
 
                 Action method = () =>
                 {
-                    Com.PointD6D result = pointD6D.InverseAffineTransformCopy(matrixLeftList);
+                    _ = pointD6D.InverseAffineTransformCopy(matrixLeftList);
                 };
 
                 ExecuteTest(method, "Com.PointD6D.InverseAffineTransformCopy(System.Collections.Generic.List<Com.Matrix>)", "total 8 matrices");
@@ -15640,7 +17134,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD5D result = pointD6D.ProjectToXYZUV(prjCenter, trueLenDist);
+                    _ = pointD6D.ProjectToXYZUV(prjCenter, trueLenDist);
                 };
 
                 ExecuteTest(method, "Com.PointD6D.ProjectToXYZUV(Com.PointD6D, double)");
@@ -15653,7 +17147,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD5D result = pointD6D.ProjectToYZUVW(prjCenter, trueLenDist);
+                    _ = pointD6D.ProjectToYZUVW(prjCenter, trueLenDist);
                 };
 
                 ExecuteTest(method, "Com.PointD6D.ProjectToYZUVW(Com.PointD6D, double)");
@@ -15666,7 +17160,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD5D result = pointD6D.ProjectToZUVWX(prjCenter, trueLenDist);
+                    _ = pointD6D.ProjectToZUVWX(prjCenter, trueLenDist);
                 };
 
                 ExecuteTest(method, "Com.PointD6D.ProjectToZUVWX(Com.PointD6D, double)");
@@ -15679,7 +17173,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD5D result = pointD6D.ProjectToUVWXY(prjCenter, trueLenDist);
+                    _ = pointD6D.ProjectToUVWXY(prjCenter, trueLenDist);
                 };
 
                 ExecuteTest(method, "Com.PointD6D.ProjectToUVWXY(Com.PointD6D, double)");
@@ -15692,7 +17186,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD5D result = pointD6D.ProjectToVWXYZ(prjCenter, trueLenDist);
+                    _ = pointD6D.ProjectToVWXYZ(prjCenter, trueLenDist);
                 };
 
                 ExecuteTest(method, "Com.PointD6D.ProjectToVWXYZ(Com.PointD6D, double)");
@@ -15705,60 +17199,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD5D result = pointD6D.ProjectToWXYZU(prjCenter, trueLenDist);
+                    _ = pointD6D.ProjectToWXYZU(prjCenter, trueLenDist);
                 };
 
                 ExecuteTest(method, "Com.PointD6D.ProjectToWXYZU(Com.PointD6D, double)");
-            }
-
-            // 距离与角度
-
-            {
-                Com.PointD6D pointD6D = _GetRandomPointD6D();
-                Com.PointD6D pt = _GetRandomPointD6D();
-
-                Action method = () =>
-                {
-                    double result = pointD6D.DistanceFrom(pt);
-                };
-
-                ExecuteTest(method, "Com.PointD6D.DistanceFrom(Com.PointD6D)");
-            }
-
-            {
-                Com.PointD6D pointD6D = _GetRandomPointD6D();
-                Com.PointD6D pt = _GetRandomPointD6D();
-
-                Action method = () =>
-                {
-                    double result = pointD6D.AngleFrom(pt);
-                };
-
-                ExecuteTest(method, "Com.PointD6D.AngleFrom(Com.PointD6D)");
-            }
-
-            // 坐标系转换
-
-            {
-                Com.PointD6D pointD6D = _GetRandomPointD6D();
-
-                Action method = () =>
-                {
-                    Com.PointD6D result = pointD6D.ToSpherical();
-                };
-
-                ExecuteTest(method, "Com.PointD6D.ToSpherical()");
-            }
-
-            {
-                Com.PointD6D pointD6D = _GetRandomPointD6D();
-
-                Action method = () =>
-                {
-                    Com.PointD6D result = pointD6D.ToCartesian();
-                };
-
-                ExecuteTest(method, "Com.PointD6D.ToCartesian()");
             }
 
             // ToVector
@@ -15768,10 +17212,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Vector result = pointD6D.ToVector();
+                    _ = pointD6D.ToColumnVector();
                 };
 
-                ExecuteTest(method, "Com.PointD6D.ToVector()");
+                ExecuteTest(method, "Com.PointD6D.ToColumnVector()");
             }
 
             {
@@ -15779,34 +17223,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Vector result = pointD6D.ToVectorColumn();
+                    _ = pointD6D.ToRowVector();
                 };
 
-                ExecuteTest(method, "Com.PointD6D.ToVectorColumn()");
-            }
-
-            {
-                Com.PointD6D pointD6D = _GetRandomPointD6D();
-
-                Action method = () =>
-                {
-                    Com.Vector result = pointD6D.ToVectorRow();
-                };
-
-                ExecuteTest(method, "Com.PointD6D.ToVectorRow()");
-            }
-
-            // ToArray
-
-            {
-                Com.PointD6D pointD6D = _GetRandomPointD6D();
-
-                Action method = () =>
-                {
-                    double[] result = pointD6D.ToArray();
-                };
-
-                ExecuteTest(method, "Com.PointD6D.ToArray()");
+                ExecuteTest(method, "Com.PointD6D.ToRowVector()");
             }
         }
 
@@ -15820,10 +17240,24 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = Com.PointD6D.Equals(left, right);
+                    _ = Com.PointD6D.Equals(left, right);
                 };
 
                 ExecuteTest(method, "Com.PointD6D.Equals(Com.PointD6D, Com.PointD6D)");
+            }
+
+            // Compare
+
+            {
+                Com.PointD6D left = _GetRandomPointD6D();
+                Com.PointD6D right = left;
+
+                Action method = () =>
+                {
+                    _ = Com.PointD6D.Compare(left, right);
+                };
+
+                ExecuteTest(method, "Com.PointD6D.Compare(Com.PointD6D, Com.PointD6D)");
             }
 
             // Matrix
@@ -15831,7 +17265,7 @@ namespace Test
             {
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD6D.IdentityMatrix();
+                    _ = Com.PointD6D.IdentityMatrix();
                 };
 
                 ExecuteTest(method, "Com.PointD6D.IdentityMatrix()");
@@ -15842,7 +17276,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD6D.OffsetMatrix(d);
+                    _ = Com.PointD6D.OffsetMatrix(d);
                 };
 
                 ExecuteTest(method, "Com.PointD6D.OffsetMatrix(double)");
@@ -15858,7 +17292,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD6D.OffsetMatrix(dx, dy, dz, du, dv, dw);
+                    _ = Com.PointD6D.OffsetMatrix(dx, dy, dz, du, dv, dw);
                 };
 
                 ExecuteTest(method, "Com.PointD6D.OffsetMatrix(double, double, double, double, double, double)");
@@ -15869,7 +17303,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD6D.OffsetMatrix(pt);
+                    _ = Com.PointD6D.OffsetMatrix(pt);
                 };
 
                 ExecuteTest(method, "Com.PointD6D.OffsetMatrix(Com.PointD6D)");
@@ -15880,7 +17314,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD6D.ScaleMatrix(s);
+                    _ = Com.PointD6D.ScaleMatrix(s);
                 };
 
                 ExecuteTest(method, "Com.PointD6D.ScaleMatrix(double)");
@@ -15896,7 +17330,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD6D.ScaleMatrix(sx, sy, sz, su, sv, sw);
+                    _ = Com.PointD6D.ScaleMatrix(sx, sy, sz, su, sv, sw);
                 };
 
                 ExecuteTest(method, "Com.PointD6D.ScaleMatrix(double, double, double, double, double, double)");
@@ -15907,178 +17341,52 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD6D.ScaleMatrix(pt);
+                    _ = Com.PointD6D.ScaleMatrix(pt);
                 };
 
                 ExecuteTest(method, "Com.PointD6D.ScaleMatrix(Com.PointD6D)");
             }
 
             {
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
+                int index = Com.Statistics.RandomInteger(3);
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD6D.RotateXYMatrix(angle);
+                    _ = Com.PointD6D.ReflectMatrix(index);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.RotateXYMatrix(double)");
+                ExecuteTest(method, "Com.PointD6D.ReflectMatrix(int)");
             }
 
             {
+                int index1 = Com.Statistics.RandomInteger(6);
+                int index2 = Com.Statistics.RandomInteger(5);
+                if (index2 == index1) index2++;
                 double angle = Com.Statistics.RandomDouble(2 * Math.PI);
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD6D.RotateXZMatrix(angle);
+                    _ = Com.PointD6D.ShearMatrix(index1, index2, angle);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.RotateXZMatrix(double)");
+                ExecuteTest(method, "Com.PointD6D.ShearMatrix(int, int, double)");
             }
 
             {
+                int index1 = Com.Statistics.RandomInteger(6);
+                int index2 = Com.Statistics.RandomInteger(5);
+                if (index2 == index1) index2++;
                 double angle = Com.Statistics.RandomDouble(2 * Math.PI);
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.PointD6D.RotateXUMatrix(angle);
+                    _ = Com.PointD6D.RotateMatrix(index1, index2, angle);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.RotateXUMatrix(double)");
+                ExecuteTest(method, "Com.PointD6D.RotateMatrix(int, int, double)");
             }
 
-            {
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    Com.Matrix result = Com.PointD6D.RotateXVMatrix(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD6D.RotateXVMatrix(double)");
-            }
-
-            {
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    Com.Matrix result = Com.PointD6D.RotateXWMatrix(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD6D.RotateXWMatrix(double)");
-            }
-
-            {
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    Com.Matrix result = Com.PointD6D.RotateYZMatrix(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD6D.RotateYZMatrix(double)");
-            }
-
-            {
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    Com.Matrix result = Com.PointD6D.RotateYUMatrix(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD6D.RotateYUMatrix(double)");
-            }
-
-            {
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    Com.Matrix result = Com.PointD6D.RotateYVMatrix(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD6D.RotateYVMatrix(double)");
-            }
-
-            {
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    Com.Matrix result = Com.PointD6D.RotateYWMatrix(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD6D.RotateYWMatrix(double)");
-            }
-
-            {
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    Com.Matrix result = Com.PointD6D.RotateZUMatrix(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD6D.RotateZUMatrix(double)");
-            }
-
-            {
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    Com.Matrix result = Com.PointD6D.RotateZVMatrix(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD6D.RotateZVMatrix(double)");
-            }
-
-            {
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    Com.Matrix result = Com.PointD6D.RotateZWMatrix(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD6D.RotateZWMatrix(double)");
-            }
-
-            {
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    Com.Matrix result = Com.PointD6D.RotateUVMatrix(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD6D.RotateUVMatrix(double)");
-            }
-
-            {
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    Com.Matrix result = Com.PointD6D.RotateUWMatrix(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD6D.RotateUWMatrix(double)");
-            }
-
-            {
-                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
-
-                Action method = () =>
-                {
-                    Com.Matrix result = Com.PointD6D.RotateVWMatrix(angle);
-                };
-
-                ExecuteTest(method, "Com.PointD6D.RotateVWMatrix(double)");
-            }
-
-            // 距离与角度
+            // 距离与夹角
 
             {
                 Com.PointD6D left = _GetRandomPointD6D();
@@ -16086,7 +17394,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = Com.PointD6D.DistanceBetween(left, right);
+                    _ = Com.PointD6D.DistanceBetween(left, right);
                 };
 
                 ExecuteTest(method, "Com.PointD6D.DistanceBetween(Com.PointD6D, Com.PointD6D)");
@@ -16098,7 +17406,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = Com.PointD6D.AngleBetween(left, right);
+                    _ = Com.PointD6D.AngleBetween(left, right);
                 };
 
                 ExecuteTest(method, "Com.PointD6D.AngleBetween(Com.PointD6D, Com.PointD6D)");
@@ -16112,7 +17420,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = Com.PointD6D.DotProduct(left, right);
+                    _ = Com.PointD6D.DotProduct(left, right);
                 };
 
                 ExecuteTest(method, "Com.PointD6D.DotProduct(Com.PointD6D, Com.PointD6D)");
@@ -16124,7 +17432,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Vector result = Com.PointD6D.CrossProduct(left, right);
+                    _ = Com.PointD6D.CrossProduct(left, right);
                 };
 
                 ExecuteTest(method, "Com.PointD6D.CrossProduct(Com.PointD6D, Com.PointD6D)");
@@ -16137,7 +17445,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD6D result = Com.PointD6D.Abs(pointD6D);
+                    _ = Com.PointD6D.Abs(pointD6D);
                 };
 
                 ExecuteTest(method, "Com.PointD6D.Abs(Com.PointD6D)");
@@ -16148,7 +17456,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD6D result = Com.PointD6D.Sign(pointD6D);
+                    _ = Com.PointD6D.Sign(pointD6D);
                 };
 
                 ExecuteTest(method, "Com.PointD6D.Sign(Com.PointD6D)");
@@ -16159,7 +17467,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD6D result = Com.PointD6D.Ceiling(pointD6D);
+                    _ = Com.PointD6D.Ceiling(pointD6D);
                 };
 
                 ExecuteTest(method, "Com.PointD6D.Ceiling(Com.PointD6D)");
@@ -16170,7 +17478,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD6D result = Com.PointD6D.Floor(pointD6D);
+                    _ = Com.PointD6D.Floor(pointD6D);
                 };
 
                 ExecuteTest(method, "Com.PointD6D.Floor(Com.PointD6D)");
@@ -16181,7 +17489,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD6D result = Com.PointD6D.Round(pointD6D);
+                    _ = Com.PointD6D.Round(pointD6D);
                 };
 
                 ExecuteTest(method, "Com.PointD6D.Round(Com.PointD6D)");
@@ -16192,7 +17500,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD6D result = Com.PointD6D.Truncate(pointD6D);
+                    _ = Com.PointD6D.Truncate(pointD6D);
                 };
 
                 ExecuteTest(method, "Com.PointD6D.Truncate(Com.PointD6D)");
@@ -16204,7 +17512,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD6D result = Com.PointD6D.Max(left, right);
+                    _ = Com.PointD6D.Max(left, right);
                 };
 
                 ExecuteTest(method, "Com.PointD6D.Max(Com.PointD6D, Com.PointD6D)");
@@ -16216,7 +17524,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD6D result = Com.PointD6D.Min(left, right);
+                    _ = Com.PointD6D.Min(left, right);
                 };
 
                 ExecuteTest(method, "Com.PointD6D.Min(Com.PointD6D, Com.PointD6D)");
@@ -16233,7 +17541,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = (left == right);
+                    _ = (left == right);
                 };
 
                 ExecuteTest(method, "Com.PointD6D.operator ==(Com.PointD6D, Com.PointD6D)");
@@ -16245,7 +17553,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = (left != right);
+                    _ = (left != right);
                 };
 
                 ExecuteTest(method, "Com.PointD6D.operator !=(Com.PointD6D, Com.PointD6D)");
@@ -16257,7 +17565,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = (left < right);
+                    _ = (left < right);
                 };
 
                 ExecuteTest(method, "Com.PointD6D.operator <(Com.PointD6D, Com.PointD6D)");
@@ -16269,7 +17577,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = (left > right);
+                    _ = (left > right);
                 };
 
                 ExecuteTest(method, "Com.PointD6D.operator >(Com.PointD6D, Com.PointD6D)");
@@ -16281,7 +17589,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = (left <= right);
+                    _ = (left <= right);
                 };
 
                 ExecuteTest(method, "Com.PointD6D.operator <=(Com.PointD6D, Com.PointD6D)");
@@ -16293,7 +17601,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = (left >= right);
+                    _ = (left >= right);
                 };
 
                 ExecuteTest(method, "Com.PointD6D.operator >=(Com.PointD6D, Com.PointD6D)");
@@ -16306,7 +17614,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD6D result = +pointD6D;
+                    _ = +pointD6D;
                 };
 
                 ExecuteTest(method, "Com.PointD6D.operator +(Com.PointD6D)");
@@ -16317,7 +17625,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD6D result = -pointD6D;
+                    _ = -pointD6D;
                 };
 
                 ExecuteTest(method, "Com.PointD6D.operator -(Com.PointD6D)");
@@ -16329,7 +17637,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD6D result = pt + n;
+                    _ = pt + n;
                 };
 
                 ExecuteTest(method, "Com.PointD6D.operator +(Com.PointD6D, double)");
@@ -16341,7 +17649,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD6D result = n + pt;
+                    _ = n + pt;
                 };
 
                 ExecuteTest(method, "Com.PointD6D.operator +(double, Com.PointD6D)");
@@ -16353,7 +17661,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD6D result = left + right;
+                    _ = left + right;
                 };
 
                 ExecuteTest(method, "Com.PointD6D.operator +(Com.PointD6D, Com.PointD6D)");
@@ -16365,7 +17673,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD6D result = pt - n;
+                    _ = pt - n;
                 };
 
                 ExecuteTest(method, "Com.PointD6D.operator -(Com.PointD6D, double)");
@@ -16377,7 +17685,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD6D result = n - pt;
+                    _ = n - pt;
                 };
 
                 ExecuteTest(method, "Com.PointD6D.operator -(double, Com.PointD6D)");
@@ -16389,7 +17697,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD6D result = left - right;
+                    _ = left - right;
                 };
 
                 ExecuteTest(method, "Com.PointD6D.operator -(Com.PointD6D, Com.PointD6D)");
@@ -16401,7 +17709,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD6D result = pt * n;
+                    _ = pt * n;
                 };
 
                 ExecuteTest(method, "Com.PointD6D.operator *(Com.PointD6D, double)");
@@ -16413,7 +17721,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD6D result = n * pt;
+                    _ = n * pt;
                 };
 
                 ExecuteTest(method, "Com.PointD6D.operator *(double, Com.PointD6D)");
@@ -16425,7 +17733,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD6D result = left * right;
+                    _ = left * right;
                 };
 
                 ExecuteTest(method, "Com.PointD6D.operator *(Com.PointD6D, Com.PointD6D)");
@@ -16437,7 +17745,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD6D result = pt / n;
+                    _ = pt / n;
                 };
 
                 ExecuteTest(method, "Com.PointD6D.operator /(Com.PointD6D, double)");
@@ -16449,7 +17757,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD6D result = n / pt;
+                    _ = n / pt;
                 };
 
                 ExecuteTest(method, "Com.PointD6D.operator /(double, Com.PointD6D)");
@@ -16461,7 +17769,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.PointD6D result = left / right;
+                    _ = left / right;
                 };
 
                 ExecuteTest(method, "Com.PointD6D.operator /(Com.PointD6D, Com.PointD6D)");
@@ -16469,8 +17777,1444 @@ namespace Test
         }
     }
 
+    sealed class RealTest : ClassPerformanceTestBase
+    {
+        private static Com.Real _GetRandomReal()
+        {
+            return new Com.Real(Com.Statistics.RandomDouble(1, 10), Com.Statistics.RandomInteger());
+        }
+
+        //
+
+        protected override void Constructor()
+        {
+            {
+                double value = Com.Statistics.RandomDouble(-10, 10);
+                long magnitude = Com.Statistics.RandomInteger();
+
+                Action method = () =>
+                {
+                    _ = new Com.Real(value, magnitude);
+                };
+
+                ExecuteTest(method, "Com.Real.Real(double, long)");
+            }
+
+            {
+                double value = Com.Statistics.RandomDouble(-1E150, 1E150);
+
+                Action method = () =>
+                {
+                    _ = new Com.Real(value);
+                };
+
+                ExecuteTest(method, "Com.Real.Real(double)");
+            }
+
+            {
+                float value = (float)Com.Statistics.RandomDouble(-1E30, 1E30);
+
+                Action method = () =>
+                {
+                    _ = new Com.Real(value);
+                };
+
+                ExecuteTest(method, "Com.Real.Real(float)");
+            }
+
+            {
+                decimal value = (decimal)Com.Statistics.RandomDouble(-1E20, 1E20);
+
+                Action method = () =>
+                {
+                    _ = new Com.Real(value);
+                };
+
+                ExecuteTest(method, "Com.Real.Real(decimal)");
+            }
+
+            {
+                ulong value = unchecked((ulong)Com.Statistics.RandomInteger());
+
+                Action method = () =>
+                {
+                    _ = new Com.Real(value);
+                };
+
+                ExecuteTest(method, "Com.Real.Real(ulong)");
+            }
+
+            {
+                long value = Com.Statistics.RandomInteger();
+
+                Action method = () =>
+                {
+                    _ = new Com.Real(value);
+                };
+
+                ExecuteTest(method, "Com.Real.Real(long)");
+            }
+
+            {
+                uint value = unchecked((uint)Com.Statistics.RandomInteger());
+
+                Action method = () =>
+                {
+                    _ = new Com.Real(value);
+                };
+
+                ExecuteTest(method, "Com.Real.Real(uint)");
+            }
+
+            {
+                int value = Com.Statistics.RandomInteger();
+
+                Action method = () =>
+                {
+                    _ = new Com.Real(value);
+                };
+
+                ExecuteTest(method, "Com.Real.Real(int)");
+            }
+
+            {
+                ushort value = unchecked((ushort)Com.Statistics.RandomInteger());
+
+                Action method = () =>
+                {
+                    _ = new Com.Real(value);
+                };
+
+                ExecuteTest(method, "Com.Real.Real(ushort)");
+            }
+
+            {
+                short value = unchecked((short)Com.Statistics.RandomInteger());
+
+                Action method = () =>
+                {
+                    _ = new Com.Real(value);
+                };
+
+                ExecuteTest(method, "Com.Real.Real(short)");
+            }
+
+            {
+                byte value = unchecked((byte)Com.Statistics.RandomInteger());
+
+                Action method = () =>
+                {
+                    _ = new Com.Real(value);
+                };
+
+                ExecuteTest(method, "Com.Real.Real(byte)");
+            }
+
+            {
+                sbyte value = unchecked((sbyte)Com.Statistics.RandomInteger());
+
+                Action method = () =>
+                {
+                    _ = new Com.Real(value);
+                };
+
+                ExecuteTest(method, "Com.Real.Real(sbyte)");
+            }
+        }
+
+        protected override void Property()
+        {
+            // Is
+
+            {
+                Com.Real real = _GetRandomReal();
+
+                Action method = () =>
+                {
+                    _ = real.IsNaN;
+                };
+
+                ExecuteTest(method, "Com.Real.IsNaN.get()");
+            }
+
+            {
+                Com.Real real = _GetRandomReal();
+
+                Action method = () =>
+                {
+                    _ = real.IsPositiveInfinity;
+                };
+
+                ExecuteTest(method, "Com.Real.IsPositiveInfinity.get()");
+            }
+
+            {
+                Com.Real real = _GetRandomReal();
+
+                Action method = () =>
+                {
+                    _ = real.IsNegativeInfinity;
+                };
+
+                ExecuteTest(method, "Com.Real.IsNegativeInfinity.get()");
+            }
+
+            {
+                Com.Real real = _GetRandomReal();
+
+                Action method = () =>
+                {
+                    _ = real.IsInfinity;
+                };
+
+                ExecuteTest(method, "Com.Real.IsInfinity.get()");
+            }
+
+            {
+                Com.Real real = _GetRandomReal();
+
+                Action method = () =>
+                {
+                    _ = real.IsNaNOrInfinity;
+                };
+
+                ExecuteTest(method, "Com.Real.IsNaNOrInfinity.get()");
+            }
+
+            {
+                Com.Real real = _GetRandomReal();
+
+                Action method = () =>
+                {
+                    _ = real.IsZero;
+                };
+
+                ExecuteTest(method, "Com.Real.IsZero.get()");
+            }
+
+            {
+                Com.Real real = _GetRandomReal();
+
+                Action method = () =>
+                {
+                    _ = real.IsOne;
+                };
+
+                ExecuteTest(method, "Com.Real.IsOne.get()");
+            }
+
+            {
+                Com.Real real = _GetRandomReal();
+
+                Action method = () =>
+                {
+                    _ = real.IsMinusOne;
+                };
+
+                ExecuteTest(method, "Com.Real.IsMinusOne.get()");
+            }
+
+            {
+                Com.Real real = _GetRandomReal();
+
+                Action method = () =>
+                {
+                    _ = real.IsPositive;
+                };
+
+                ExecuteTest(method, "Com.Real.IsPositive.get()");
+            }
+
+            {
+                Com.Real real = _GetRandomReal();
+
+                Action method = () =>
+                {
+                    _ = real.IsNegative;
+                };
+
+                ExecuteTest(method, "Com.Real.IsNegative.get()");
+            }
+
+            {
+                Com.Real real = _GetRandomReal();
+
+                Action method = () =>
+                {
+                    _ = real.IsInteger;
+                };
+
+                ExecuteTest(method, "Com.Real.IsInteger.get()");
+            }
+
+            {
+                Com.Real real = _GetRandomReal();
+
+                Action method = () =>
+                {
+                    _ = real.IsDecimal;
+                };
+
+                ExecuteTest(method, "Com.Real.IsDecimal.get()");
+            }
+
+            {
+                Com.Real real = _GetRandomReal();
+
+                Action method = () =>
+                {
+                    _ = real.IsEven;
+                };
+
+                ExecuteTest(method, "Com.Real.IsEven.get()");
+            }
+
+            {
+                Com.Real real = _GetRandomReal();
+
+                Action method = () =>
+                {
+                    _ = real.IsOdd;
+                };
+
+                ExecuteTest(method, "Com.Real.IsOdd.get()");
+            }
+
+            // 分量
+
+            {
+                Com.Real real = _GetRandomReal();
+
+                Action method = () =>
+                {
+                    _ = real.Value;
+                };
+
+                ExecuteTest(method, "Com.Real.Value.get()");
+            }
+
+            {
+                Com.Real real = _GetRandomReal();
+                double value = Com.Statistics.RandomDouble(1, 10);
+
+                Action method = () =>
+                {
+                    real.Value = value;
+                };
+
+                ExecuteTest(method, "Com.Real.Value.set(double)");
+            }
+
+            {
+                Com.Real real = _GetRandomReal();
+
+                Action method = () =>
+                {
+                    _ = real.Magnitude;
+                };
+
+                ExecuteTest(method, "Com.Real.Magnitude.get()");
+            }
+
+            {
+                Com.Real real = _GetRandomReal();
+                long value = Com.Statistics.RandomInteger();
+
+                Action method = () =>
+                {
+                    real.Magnitude = value;
+                };
+
+                ExecuteTest(method, "Com.Real.Magnitude.set(long)");
+            }
+        }
+
+        protected override void StaticProperty()
+        {
+
+        }
+
+        protected override void Method()
+        {
+            // object
+
+            {
+                Com.Real real = _GetRandomReal();
+                object obj = real;
+
+                Action method = () =>
+                {
+                    _ = real.Equals(obj);
+                };
+
+                ExecuteTest(method, "Com.Real.Equals(object)");
+            }
+
+            {
+                Com.Real real = _GetRandomReal();
+
+                Action method = () =>
+                {
+                    _ = real.GetHashCode();
+                };
+
+                ExecuteTest(method, "Com.Real.GetHashCode()");
+            }
+
+            {
+                Com.Real real = _GetRandomReal();
+
+                Action method = () =>
+                {
+                    _ = real.ToString();
+                };
+
+                ExecuteTest(method, "Com.Real.ToString()");
+            }
+
+            // Equals
+
+            {
+                Com.Real left = _GetRandomReal();
+                Com.Real right = left;
+
+                Action method = () =>
+                {
+                    _ = left.Equals(right);
+                };
+
+                ExecuteTest(method, "Com.Real.Equals(Com.Real)");
+            }
+
+            // CompareTo
+
+            {
+                Com.Real left = _GetRandomReal();
+                object right = left;
+
+                Action method = () =>
+                {
+                    _ = left.CompareTo(right);
+                };
+
+                ExecuteTest(method, "Com.Real.CompareTo(object)");
+            }
+
+            {
+                Com.Real left = _GetRandomReal();
+                Com.Real right = left;
+
+                Action method = () =>
+                {
+                    _ = left.CompareTo(right);
+                };
+
+                ExecuteTest(method, "Com.Real.CompareTo(Com.Real)");
+            }
+        }
+
+        protected override void StaticMethod()
+        {
+            // Equals
+
+            {
+                Com.Real left = _GetRandomReal();
+                Com.Real right = left;
+
+                Action method = () =>
+                {
+                    _ = Com.Real.Equals(left, right);
+                };
+
+                ExecuteTest(method, "Com.Real.Equals(Com.Real, Com.Real)");
+            }
+
+            // Compare
+
+            {
+                Com.Real left = _GetRandomReal();
+                Com.Real right = left;
+
+                Action method = () =>
+                {
+                    _ = Com.Real.Compare(left, right);
+                };
+
+                ExecuteTest(method, "Com.Real.CompareTo(Com.Real, Com.Real)");
+            }
+
+            // 幂函数，指数函数，对数函数
+
+            {
+                Com.Real real = _GetRandomReal();
+
+                Action method = () =>
+                {
+                    _ = Com.Real.Sqr(real);
+                };
+
+                ExecuteTest(method, "Com.Real.Sqr(Com.Real)");
+            }
+
+            {
+                Com.Real real = _GetRandomReal();
+
+                Action method = () =>
+                {
+                    _ = Com.Real.Sqrt(real);
+                };
+
+                ExecuteTest(method, "Com.Real.Sqrt(Com.Real)");
+            }
+
+            {
+                Com.Real real = _GetRandomReal();
+
+                Action method = () =>
+                {
+                    _ = Com.Real.Exp10(real);
+                };
+
+                ExecuteTest(method, "Com.Real.Exp10(Com.Real)");
+            }
+
+            {
+                Com.Real real = _GetRandomReal();
+
+                Action method = () =>
+                {
+                    _ = Com.Real.Exp(real);
+                };
+
+                ExecuteTest(method, "Com.Real.Exp(Com.Real)");
+            }
+
+            {
+                Com.Real left = _GetRandomReal();
+                Com.Real right = _GetRandomReal();
+
+                Action method = () =>
+                {
+                    _ = Com.Real.Pow(left, right);
+                };
+
+                ExecuteTest(method, "Com.Real.Pow(Com.Real, Com.Real)");
+            }
+
+            {
+                Com.Real real = _GetRandomReal();
+
+                Action method = () =>
+                {
+                    _ = Com.Real.Log10(real);
+                };
+
+                ExecuteTest(method, "Com.Real.Log10(Com.Real)");
+            }
+
+            {
+                Com.Real real = _GetRandomReal();
+
+                Action method = () =>
+                {
+                    _ = Com.Real.Log(real);
+                };
+
+                ExecuteTest(method, "Com.Real.Log(Com.Real)");
+            }
+
+            {
+                Com.Real left = _GetRandomReal();
+                Com.Real right = _GetRandomReal();
+
+                Action method = () =>
+                {
+                    _ = Com.Real.Log(left, right);
+                };
+
+                ExecuteTest(method, "Com.Real.Log(Com.Real, Com.Real)");
+            }
+
+            // 三角函数
+
+            {
+                Com.Real real = new Com.Real(Com.Statistics.RandomDouble(1, 10), 4096);
+
+                Action method = () =>
+                {
+                    _ = Com.Real.Sin(real);
+                };
+
+                ExecuteTest(method, "Com.Real.Sin(Com.Real)", "real at magnitude of 4096");
+            }
+
+            {
+                Com.Real real = new Com.Real(Com.Statistics.RandomDouble(1, 10), 4096);
+
+                Action method = () =>
+                {
+                    _ = Com.Real.Cos(real);
+                };
+
+                ExecuteTest(method, "Com.Real.Cos(Com.Real)", "real at magnitude of 4096");
+            }
+
+            {
+                Com.Real real = new Com.Real(Com.Statistics.RandomDouble(1, 10), 4096);
+
+                Action method = () =>
+                {
+                    _ = Com.Real.Tan(real);
+                };
+
+                ExecuteTest(method, "Com.Real.Tan(Com.Real)", "real at magnitude of 4096");
+            }
+
+            {
+                Com.Real real = Com.Statistics.RandomDouble(-1, 1);
+
+                Action method = () =>
+                {
+                    _ = Com.Real.Asin(real);
+                };
+
+                ExecuteTest(method, "Com.Real.Asin(Com.Real)");
+            }
+
+            {
+                Com.Real real = Com.Statistics.RandomDouble(-1, 1);
+
+                Action method = () =>
+                {
+                    _ = Com.Real.Acos(real);
+                };
+
+                ExecuteTest(method, "Com.Real.Acos(Com.Real)");
+            }
+
+            {
+                Com.Real real = _GetRandomReal();
+
+                Action method = () =>
+                {
+                    _ = Com.Real.Atan(real);
+                };
+
+                ExecuteTest(method, "Com.Real.Atan(Com.Real)");
+            }
+
+            {
+                Com.Real real = _GetRandomReal();
+
+                Action method = () =>
+                {
+                    _ = Com.Real.Sinh(real);
+                };
+
+                ExecuteTest(method, "Com.Real.Sinh(Com.Real)");
+            }
+
+            {
+                Com.Real real = _GetRandomReal();
+
+                Action method = () =>
+                {
+                    _ = Com.Real.Cosh(real);
+                };
+
+                ExecuteTest(method, "Com.Real.Cosh(Com.Real)");
+            }
+
+            {
+                Com.Real real = _GetRandomReal();
+
+                Action method = () =>
+                {
+                    _ = Com.Real.Tanh(real);
+                };
+
+                ExecuteTest(method, "Com.Real.Tanh(Com.Real)");
+            }
+
+            {
+                Com.Real real = Com.Real.Abs(_GetRandomReal());
+
+                Action method = () =>
+                {
+                    _ = Com.Real.Asinh(real);
+                };
+
+                ExecuteTest(method, "Com.Real.Asinh(Com.Real)");
+            }
+
+            {
+                Com.Real real = Com.Real.Abs(_GetRandomReal());
+
+                Action method = () =>
+                {
+                    _ = Com.Real.Acosh(real);
+                };
+
+                ExecuteTest(method, "Com.Real.Acosh(Com.Real)");
+            }
+
+            {
+                Com.Real real = Com.Statistics.RandomDouble(-1, 1);
+
+                Action method = () =>
+                {
+                    _ = Com.Real.Atanh(real);
+                };
+
+                ExecuteTest(method, "Com.Real.Atanh(Com.Real)");
+            }
+
+            // 初等函数
+
+            {
+                Com.Real real = _GetRandomReal();
+
+                Action method = () =>
+                {
+                    _ = Com.Real.Abs(real);
+                };
+
+                ExecuteTest(method, "Com.Real.Abs(Com.Real)");
+            }
+
+            {
+                Com.Real real = _GetRandomReal();
+
+                Action method = () =>
+                {
+                    _ = Com.Real.Sign(real);
+                };
+
+                ExecuteTest(method, "Com.Real.Sign(Com.Real)");
+            }
+
+            {
+                Com.Real real = _GetRandomReal();
+
+                Action method = () =>
+                {
+                    _ = Com.Real.Ceiling(real);
+                };
+
+                ExecuteTest(method, "Com.Real.Ceiling(Com.Real)");
+            }
+
+            {
+                Com.Real real = _GetRandomReal();
+
+                Action method = () =>
+                {
+                    _ = Com.Real.Floor(real);
+                };
+
+                ExecuteTest(method, "Com.Real.Floor(Com.Real)");
+            }
+
+            {
+                Com.Real real = _GetRandomReal();
+
+                Action method = () =>
+                {
+                    _ = Com.Real.Round(real);
+                };
+
+                ExecuteTest(method, "Com.Real.Round(Com.Real)");
+            }
+
+            {
+                Com.Real real = _GetRandomReal();
+
+                Action method = () =>
+                {
+                    _ = Com.Real.Truncate(real);
+                };
+
+                ExecuteTest(method, "Com.Real.Truncate(Com.Real)");
+            }
+
+            {
+                Com.Real left = _GetRandomReal();
+                Com.Real right = _GetRandomReal();
+
+                Action method = () =>
+                {
+                    _ = Com.Real.Max(left, right);
+                };
+
+                ExecuteTest(method, "Com.Real.Max(Com.Real, Com.Real)");
+            }
+
+            {
+                Com.Real left = _GetRandomReal();
+                Com.Real right = _GetRandomReal();
+
+                Action method = () =>
+                {
+                    _ = Com.Real.Min(left, right);
+                };
+
+                ExecuteTest(method, "Com.Real.Min(Com.Real, Com.Real)");
+            }
+        }
+
+        protected override void Operator()
+        {
+            // 比较
+
+            {
+                Com.Real left = _GetRandomReal();
+                Com.Real right = left;
+
+                Action method = () =>
+                {
+                    _ = (left == right);
+                };
+
+                ExecuteTest(method, "Com.Real.operator ==(Com.Real, Com.Real)");
+            }
+
+            {
+                Com.Real left = _GetRandomReal();
+                Com.Real right = left;
+
+                Action method = () =>
+                {
+                    _ = (left != right);
+                };
+
+                ExecuteTest(method, "Com.Real.operator !=(Com.Real, Com.Real)");
+            }
+
+            {
+                Com.Real left = _GetRandomReal();
+                Com.Real right = _GetRandomReal();
+
+                Action method = () =>
+                {
+                    _ = (left < right);
+                };
+
+                ExecuteTest(method, "Com.Real.operator <(Com.Real, Com.Real)");
+            }
+
+            {
+                Com.Real left = _GetRandomReal();
+                Com.Real right = _GetRandomReal();
+
+                Action method = () =>
+                {
+                    _ = (left > right);
+                };
+
+                ExecuteTest(method, "Com.Real.operator >(Com.Real, Com.Real)");
+            }
+
+            {
+                Com.Real left = _GetRandomReal();
+                Com.Real right = _GetRandomReal();
+
+                Action method = () =>
+                {
+                    _ = (left <= right);
+                };
+
+                ExecuteTest(method, "Com.Real.operator <=(Com.Real, Com.Real)");
+            }
+
+            {
+                Com.Real left = _GetRandomReal();
+                Com.Real right = _GetRandomReal();
+
+                Action method = () =>
+                {
+                    _ = (left >= right);
+                };
+
+                ExecuteTest(method, "Com.Real.operator >=(Com.Real, Com.Real)");
+            }
+
+            // 运算
+
+            {
+                Com.Real real = _GetRandomReal();
+
+                Action method = () =>
+                {
+                    _ = +real;
+                };
+
+                ExecuteTest(method, "Com.Real.operator +(Com.Real)");
+            }
+
+            {
+                Com.Real real = _GetRandomReal();
+
+                Action method = () =>
+                {
+                    _ = -real;
+                };
+
+                ExecuteTest(method, "Com.Real.operator -(Com.Real)");
+            }
+
+            {
+                Com.Real real = _GetRandomReal();
+
+                Action method = () =>
+                {
+                    real++;
+                };
+
+                ExecuteTest(method, "Com.Real.operator ++(Com.Real)");
+            }
+
+            {
+                Com.Real real = _GetRandomReal();
+
+                Action method = () =>
+                {
+                    real--;
+                };
+
+                ExecuteTest(method, "Com.Real.operator --(Com.Real)");
+            }
+
+            {
+                Com.Real left = _GetRandomReal();
+                Com.Real right = _GetRandomReal();
+
+                Action method = () =>
+                {
+                    _ = left + right;
+                };
+
+                ExecuteTest(method, "Com.Real.operator +(Com.Real, Com.Real)");
+            }
+
+            {
+                Com.Real left = _GetRandomReal();
+                Com.Real right = _GetRandomReal();
+
+                Action method = () =>
+                {
+                    _ = left - right;
+                };
+
+                ExecuteTest(method, "Com.Real.operator -(Com.Real, Com.Real)");
+            }
+
+            {
+                Com.Real left = _GetRandomReal();
+                Com.Real right = _GetRandomReal();
+
+                Action method = () =>
+                {
+                    _ = left * right;
+                };
+
+                ExecuteTest(method, "Com.Real.operator *(Com.Real, Com.Real)");
+            }
+
+            {
+                Com.Real left = _GetRandomReal();
+                Com.Real right = _GetRandomReal();
+
+                Action method = () =>
+                {
+                    _ = left / right;
+                };
+
+                ExecuteTest(method, "Com.Real.operator /(Com.Real, Com.Real)");
+            }
+
+            {
+                Com.Real left = new Com.Real(Com.Statistics.RandomDouble(1, 10), 4096);
+                Com.Real right = new Com.Real(Com.Statistics.RandomDouble(1, 10), 256);
+
+                Action method = () =>
+                {
+                    _ = left % right;
+                };
+
+                ExecuteTest(method, "Com.Real.operator %(Com.Real, Com.Real)", "left at magnitude of 4096, right at magnitude of 256");
+            }
+
+            {
+                Com.Real left = _GetRandomReal();
+                Com.Real right = _GetRandomReal();
+
+                Action method = () =>
+                {
+                    _ = left ^ right;
+                };
+
+                ExecuteTest(method, "Com.Real.operator ^(Com.Real, Com.Real)");
+            }
+
+            // 类型转换
+
+            {
+                Com.Real real = new Com.Real(Com.Statistics.RandomDouble(-1E150, 1E150));
+
+                Action method = () =>
+                {
+                    _ = (double)real;
+                };
+
+                ExecuteTest(method, "Com.Real.explicit operator double(Com.Real)");
+            }
+
+            {
+                Com.Real real = new Com.Real(Com.Statistics.RandomDouble(-1E30, 1E30));
+
+                Action method = () =>
+                {
+                    _ = (float)real;
+                };
+
+                ExecuteTest(method, "Com.Real.explicit operator float(Com.Real)");
+            }
+
+            {
+                Com.Real real = new Com.Real(Com.Statistics.RandomDouble(-1E20, 1E20));
+
+                Action method = () =>
+                {
+                    _ = (decimal)real;
+                };
+
+                ExecuteTest(method, "Com.Real.explicit operator decimal(Com.Real)");
+            }
+
+            {
+                Com.Real real = new Com.Real(unchecked((ulong)Com.Statistics.RandomInteger()));
+
+                Action method = () =>
+                {
+                    _ = (ulong)real;
+                };
+
+                ExecuteTest(method, "Com.Real.explicit operator ulong(Com.Real)");
+            }
+
+            {
+                Com.Real real = new Com.Real(Com.Statistics.RandomInteger());
+
+                Action method = () =>
+                {
+                    _ = (long)real;
+                };
+
+                ExecuteTest(method, "Com.Real.explicit operator long(Com.Real)");
+            }
+
+            {
+                Com.Real real = new Com.Real(unchecked((uint)Com.Statistics.RandomInteger()));
+
+                Action method = () =>
+                {
+                    _ = (uint)real;
+                };
+
+                ExecuteTest(method, "Com.Real.explicit operator uint(Com.Real)");
+            }
+
+            {
+                Com.Real real = new Com.Real(Com.Statistics.RandomInteger());
+
+                Action method = () =>
+                {
+                    _ = (int)real;
+                };
+
+                ExecuteTest(method, "Com.Real.explicit operator int(Com.Real)");
+            }
+
+            {
+                Com.Real real = new Com.Real(unchecked((ushort)Com.Statistics.RandomInteger()));
+
+                Action method = () =>
+                {
+                    _ = (ushort)real;
+                };
+
+                ExecuteTest(method, "Com.Real.explicit operator ushort(Com.Real)");
+            }
+
+            {
+                Com.Real real = new Com.Real(unchecked((short)Com.Statistics.RandomInteger()));
+
+                Action method = () =>
+                {
+                    _ = (short)real;
+                };
+
+                ExecuteTest(method, "Com.Real.explicit operator short(Com.Real)");
+            }
+
+            {
+                Com.Real real = new Com.Real(unchecked((byte)Com.Statistics.RandomInteger()));
+
+                Action method = () =>
+                {
+                    _ = (byte)real;
+                };
+
+                ExecuteTest(method, "Com.Real.explicit operator byte(Com.Real)");
+            }
+
+            {
+                Com.Real real = new Com.Real(unchecked((sbyte)Com.Statistics.RandomInteger()));
+
+                Action method = () =>
+                {
+                    _ = (sbyte)real;
+                };
+
+                ExecuteTest(method, "Com.Real.explicit operator sbyte(Com.Real)");
+            }
+
+            {
+                double value = Com.Statistics.RandomDouble(-1E150, 1E150);
+
+                Action method = () =>
+                {
+                    _ = (Com.Real)value;
+                };
+
+                ExecuteTest(method, "Com.Real.implicit operator Real(double)");
+            }
+
+            {
+                float value = (float)Com.Statistics.RandomDouble(-1E30, 1E30);
+
+                Action method = () =>
+                {
+                    _ = (Com.Real)value;
+                };
+
+                ExecuteTest(method, "Com.Real.implicit operator Real(float)");
+            }
+
+            {
+                decimal value = (decimal)Com.Statistics.RandomDouble(-1E20, 1E20);
+
+                Action method = () =>
+                {
+                    _ = (Com.Real)value;
+                };
+
+                ExecuteTest(method, "Com.Real.explicit operator Real(decimal)");
+            }
+
+            {
+                ulong value = unchecked((ulong)Com.Statistics.RandomInteger());
+
+                Action method = () =>
+                {
+                    _ = (Com.Real)value;
+                };
+
+                ExecuteTest(method, "Com.Real.implicit operator Real(ulong)");
+            }
+
+            {
+                long value = Com.Statistics.RandomInteger();
+
+                Action method = () =>
+                {
+                    _ = (Com.Real)value;
+                };
+
+                ExecuteTest(method, "Com.Real.implicit operator Real(long)");
+            }
+
+            {
+                uint value = unchecked((uint)Com.Statistics.RandomInteger());
+
+                Action method = () =>
+                {
+                    _ = (Com.Real)value;
+                };
+
+                ExecuteTest(method, "Com.Real.implicit operator Real(uint)");
+            }
+
+            {
+                int value = Com.Statistics.RandomInteger();
+
+                Action method = () =>
+                {
+                    _ = (Com.Real)value;
+                };
+
+                ExecuteTest(method, "Com.Real.implicit operator Real(int)");
+            }
+
+            {
+                ushort value = unchecked((ushort)Com.Statistics.RandomInteger());
+
+                Action method = () =>
+                {
+                    _ = (Com.Real)value;
+                };
+
+                ExecuteTest(method, "Com.Real.implicit operator Real(ushort)");
+            }
+
+            {
+                short value = unchecked((short)Com.Statistics.RandomInteger());
+
+                Action method = () =>
+                {
+                    _ = (Com.Real)value;
+                };
+
+                ExecuteTest(method, "Com.Real.implicit operator Real(short)");
+            }
+
+            {
+                byte value = unchecked((byte)Com.Statistics.RandomInteger());
+
+                Action method = () =>
+                {
+                    _ = (Com.Real)value;
+                };
+
+                ExecuteTest(method, "Com.Real.implicit operator Real(byte)");
+            }
+
+            {
+                sbyte value = unchecked((sbyte)Com.Statistics.RandomInteger());
+
+                Action method = () =>
+                {
+                    _ = (Com.Real)value;
+                };
+
+                ExecuteTest(method, "Com.Real.implicit operator Real(sbyte)");
+            }
+        }
+    }
+
     sealed class StatisticsTest : ClassPerformanceTestBase
     {
+        private static sbyte[] _GetRandomSbyteArray(int size)
+        {
+            if (size > 0)
+            {
+                sbyte[] array = new sbyte[size];
+
+                for (int i = 0; i < array.Length; i++)
+                {
+                    array[i] = unchecked((sbyte)Com.Statistics.RandomInteger());
+                }
+
+                return array;
+            }
+            else
+            {
+                return new sbyte[0];
+            }
+        }
+
+        private static byte[] _GetRandomByteArray(int size)
+        {
+            if (size > 0)
+            {
+                byte[] array = new byte[size];
+
+                for (int i = 0; i < array.Length; i++)
+                {
+                    array[i] = unchecked((byte)Com.Statistics.RandomInteger());
+                }
+
+                return array;
+            }
+            else
+            {
+                return new byte[0];
+            }
+        }
+
+        private static short[] _GetRandomShortArray(int size)
+        {
+            if (size > 0)
+            {
+                short[] array = new short[size];
+
+                for (int i = 0; i < array.Length; i++)
+                {
+                    array[i] = unchecked((short)Com.Statistics.RandomInteger());
+                }
+
+                return array;
+            }
+            else
+            {
+                return new short[0];
+            }
+        }
+
+        private static ushort[] _GetRandomUshortArray(int size)
+        {
+            if (size > 0)
+            {
+                ushort[] array = new ushort[size];
+
+                for (int i = 0; i < array.Length; i++)
+                {
+                    array[i] = unchecked((ushort)Com.Statistics.RandomInteger());
+                }
+
+                return array;
+            }
+            else
+            {
+                return new ushort[0];
+            }
+        }
+
+        private static int[] _GetRandomIntArray(int size)
+        {
+            if (size > 0)
+            {
+                int[] array = new int[size];
+
+                for (int i = 0; i < array.Length; i++)
+                {
+                    array[i] = Com.Statistics.RandomInteger();
+                }
+
+                return array;
+            }
+            else
+            {
+                return new int[0];
+            }
+        }
+
+        private static uint[] _GetRandomUintArray(int size)
+        {
+            if (size > 0)
+            {
+                uint[] array = new uint[size];
+
+                for (int i = 0; i < array.Length; i++)
+                {
+                    array[i] = unchecked((uint)Com.Statistics.RandomInteger());
+                }
+
+                return array;
+            }
+            else
+            {
+                return new uint[0];
+            }
+        }
+
+        private static long[] _GetRandomLongArray(int size)
+        {
+            if (size > 0)
+            {
+                long[] array = new long[size];
+
+                for (int i = 0; i < array.Length; i++)
+                {
+                    array[i] = Com.Statistics.RandomInteger();
+                }
+
+                return array;
+            }
+            else
+            {
+                return new long[0];
+            }
+        }
+
+        private static ulong[] _GetRandomUlongArray(int size)
+        {
+            if (size > 0)
+            {
+                ulong[] array = new ulong[size];
+
+                for (int i = 0; i < array.Length; i++)
+                {
+                    array[i] = unchecked((ulong)Com.Statistics.RandomInteger());
+                }
+
+                return array;
+            }
+            else
+            {
+                return new ulong[0];
+            }
+        }
+
+        private static decimal[] _GetRandomDecimalArray(int size)
+        {
+            if (size > 0)
+            {
+                decimal[] array = new decimal[size];
+
+                for (int i = 0; i < array.Length; i++)
+                {
+                    array[i] = Com.Statistics.RandomInteger();
+                }
+
+                return array;
+            }
+            else
+            {
+                return new decimal[0];
+            }
+        }
+
+        private static float[] _GetRandomFloatArray(int size)
+        {
+            if (size > 0)
+            {
+                float[] array = new float[size];
+
+                for (int i = 0; i < array.Length; i++)
+                {
+                    array[i] = Com.Statistics.RandomInteger();
+                }
+
+                return array;
+            }
+            else
+            {
+                return new float[0];
+            }
+        }
+
+        private static double[] _GetRandomDoubleArray(int size)
+        {
+            if (size > 0)
+            {
+                double[] array = new double[size];
+
+                for (int i = 0; i < array.Length; i++)
+                {
+                    array[i] = Com.Statistics.RandomInteger();
+                }
+
+                return array;
+            }
+            else
+            {
+                return new double[0];
+            }
+        }
+
+        //
+
         protected override void Constructor()
         {
 
@@ -16493,12 +19237,12 @@ namespace Test
 
         protected override void StaticMethod()
         {
-            // RandomInteger
+            // 随机数
 
             {
                 Action method = () =>
                 {
-                    int result = Com.Statistics.RandomInteger();
+                    _ = Com.Statistics.RandomInteger();
                 };
 
                 ExecuteTest(method, "Com.Statistics.RandomInteger()");
@@ -16509,7 +19253,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    int result = Com.Statistics.RandomInteger(right);
+                    _ = Com.Statistics.RandomInteger(right);
                 };
 
                 ExecuteTest(method, "Com.Statistics.RandomInteger(int)");
@@ -16521,18 +19265,16 @@ namespace Test
 
                 Action method = () =>
                 {
-                    int result = Com.Statistics.RandomInteger(left, right);
+                    _ = Com.Statistics.RandomInteger(left, right);
                 };
 
                 ExecuteTest(method, "Com.Statistics.RandomInteger(int, int)");
             }
 
-            // RandomDouble
-
             {
                 Action method = () =>
                 {
-                    double result = Com.Statistics.RandomDouble();
+                    _ = Com.Statistics.RandomDouble();
                 };
 
                 ExecuteTest(method, "Com.Statistics.RandomDouble()");
@@ -16543,7 +19285,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = Com.Statistics.RandomDouble(right);
+                    _ = Com.Statistics.RandomDouble(right);
                 };
 
                 ExecuteTest(method, "Com.Statistics.RandomDouble(double)");
@@ -16555,37 +19297,1107 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = Com.Statistics.RandomDouble(left, right);
+                    _ = Com.Statistics.RandomDouble(left, right);
                 };
 
                 ExecuteTest(method, "Com.Statistics.RandomDouble(double, double)");
             }
 
-            // GaussDistribution，GaussRandom
+            {
+                Action method = () =>
+                {
+                    _ = Com.Statistics.NormalDistributionRandomInteger();
+                };
+
+                ExecuteTest(method, "Com.Statistics.NormalDistributionRandomInteger()");
+            }
 
             {
                 double ev = Com.Statistics.RandomDouble(-1E18, 1E18);
                 double sd = Com.Statistics.RandomDouble(-1E18, 1E18);
-                double x = Com.Statistics.RandomDouble(-1E18, 1E18);
 
                 Action method = () =>
                 {
-                    double result = Com.Statistics.GaussDistributionProbabilityDensity(ev, sd, x);
+                    _ = Com.Statistics.NormalDistributionRandomInteger(ev, sd);
                 };
 
-                ExecuteTest(method, "Com.Statistics.GaussDistributionProbabilityDensity(double, double, double)");
+                ExecuteTest(method, "Com.Statistics.NormalDistributionRandomInteger(double, double)");
             }
 
             {
                 Action method = () =>
                 {
-                    double result = Com.Statistics.GaussRandom();
+                    _ = Com.Statistics.NormalDistributionRandomDouble();
                 };
 
-                ExecuteTest(method, "Com.Statistics.GaussRandom()");
+                ExecuteTest(method, "Com.Statistics.NormalDistributionRandomDouble()");
             }
 
-            ExecuteTest(null, "Com.Statistics.GaussRandom(double, double, double, double)");
+            {
+                double ev = Com.Statistics.RandomDouble(-1E18, 1E18);
+                double sd = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.NormalDistributionRandomDouble(ev, sd);
+                };
+
+                ExecuteTest(method, "Com.Statistics.NormalDistributionRandomDouble(double, double)");
+            }
+
+            // 排列组合
+
+            {
+                double total = 2097152;
+                double selection = 1048576;
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Arrangement(total, selection);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Arrangement(double, double)", "total at 2097152, selection at 1048576");
+            }
+
+            {
+                double total = 2097152;
+                double selection = 1048576;
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Combination(total, selection);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Combination(double, double)", "total at 2097152, selection at 1048576");
+            }
+
+            // 分布
+
+            {
+                int value = 1048576;
+                double p = 0.5;
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.GeometricDistributionProbability(value, p);
+                };
+
+                ExecuteTest(method, "Com.Statistics.GeometricDistributionProbability(int, double)", "value at 1048576, p at 0.5");
+            }
+
+            {
+                int value = 1048576;
+                int N = 8388608;
+                int M = 4194304;
+                int n = 2097152;
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.HypergeometricDistributionProbability(value, N, M, n);
+                };
+
+                ExecuteTest(method, "Com.Statistics.HypergeometricDistributionProbability(int, int, int, int)", "value at 1048576, N at 8388608, M at 4194304, n at 2097152");
+            }
+
+            {
+                int value = 1048576;
+                int n = 2097152;
+                double p = 0.5;
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.BinomialDistributionProbability(value, n, p);
+                };
+
+                ExecuteTest(method, "Com.Statistics.BinomialDistributionProbability(int, int, double)", "value at 1048576, N at 2097152, p at 0.5");
+            }
+
+            {
+                int value = 1048576;
+                double lambda = 1048576;
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.PoissonDistributionProbability(value, lambda);
+                };
+
+                ExecuteTest(method, "Com.Statistics.PoissonDistributionProbability(int, double)", "value at 1048576, lambda at 1048576");
+            }
+
+            {
+                double value = 0.5;
+                double lambda = 0.5;
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.ExponentialDistributionProbabilityDensity(value, lambda);
+                };
+
+                ExecuteTest(method, "Com.Statistics.ExponentialDistributionProbabilityDensity(double, double)", "value at 0.5, lambda at 0.5");
+            }
+
+            {
+                double lambda = 0.5;
+                double left = 0.5;
+                double right = 1;
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.ExponentialDistributionProbability(lambda, left, right);
+                };
+
+                ExecuteTest(method, "Com.Statistics.ExponentialDistributionProbabilityDensity(double, double, double)", "lambda at 0.5, left at 0.5, right at 1");
+            }
+
+            {
+                double value = 0.5;
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.NormalDistributionProbabilityDensity(value);
+                };
+
+                ExecuteTest(method, "Com.Statistics.NormalDistributionProbabilityDensity(double)", "value at 0.5");
+            }
+
+            {
+                double value = 0.5;
+                double ev = 0;
+                double sd = 1;
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.NormalDistributionProbabilityDensity(value, ev, sd);
+                };
+
+                ExecuteTest(method, "Com.Statistics.NormalDistributionProbabilityDensity(double, double, double)", "value at 0.5, ev at 0, sd at 1");
+            }
+
+            {
+                double value = 0.5;
+                int k = 1;
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.ChiSquaredDistributionProbabilityDensity(value, k);
+                };
+
+                ExecuteTest(method, "Com.Statistics.ChiSquaredDistributionProbabilityDensity(double, int)", "value at 0.5, k at 1");
+            }
+
+            // 极值，极差，求和，平均
+
+            {
+                sbyte[] values = _GetRandomSbyteArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Max(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Max(params sbyte[])", "array size at 1024");
+            }
+
+            {
+                byte[] values = _GetRandomByteArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Max(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Max(params byte[])", "array size at 1024");
+            }
+
+            {
+                short[] values = _GetRandomShortArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Max(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Max(params short[])", "array size at 1024");
+            }
+
+            {
+                ushort[] values = _GetRandomUshortArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Max(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Max(params ushort[])", "array size at 1024");
+            }
+
+            {
+                int[] values = _GetRandomIntArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Max(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Max(params int[])", "array size at 1024");
+            }
+
+            {
+                uint[] values = _GetRandomUintArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Max(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Max(params uint[])", "array size at 1024");
+            }
+
+            {
+                long[] values = _GetRandomLongArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Max(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Max(params long[])", "array size at 1024");
+            }
+
+            {
+                ulong[] values = _GetRandomUlongArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Max(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Max(params ulong[])", "array size at 1024");
+            }
+
+            {
+                decimal[] values = _GetRandomDecimalArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Max(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Max(params decimal[])", "array size at 1024");
+            }
+
+            {
+                float[] values = _GetRandomFloatArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Max(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Max(params float[])", "array size at 1024");
+            }
+
+            {
+                double[] values = _GetRandomDoubleArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Max(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Max(params double[])", "array size at 1024");
+            }
+
+            ExecuteTest(null, "Com.Statistics.Max(params IComparable[])");
+
+            {
+                sbyte[] values = _GetRandomSbyteArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Min(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Min(params sbyte[])", "array size at 1024");
+            }
+
+            {
+                byte[] values = _GetRandomByteArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Min(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Min(params byte[])", "array size at 1024");
+            }
+
+            {
+                short[] values = _GetRandomShortArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Min(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Min(params short[])", "array size at 1024");
+            }
+
+            {
+                ushort[] values = _GetRandomUshortArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Min(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Min(params ushort[])", "array size at 1024");
+            }
+
+            {
+                int[] values = _GetRandomIntArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Min(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Min(params int[])", "array size at 1024");
+            }
+
+            {
+                uint[] values = _GetRandomUintArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Min(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Min(params uint[])", "array size at 1024");
+            }
+
+            {
+                long[] values = _GetRandomLongArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Min(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Min(params long[])", "array size at 1024");
+            }
+
+            {
+                ulong[] values = _GetRandomUlongArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Min(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Min(params ulong[])", "array size at 1024");
+            }
+
+            {
+                decimal[] values = _GetRandomDecimalArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Min(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Min(params decimal[])", "array size at 1024");
+            }
+
+            {
+                float[] values = _GetRandomFloatArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Min(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Min(params float[])", "array size at 1024");
+            }
+
+            {
+                double[] values = _GetRandomDoubleArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Min(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Min(params double[])", "array size at 1024");
+            }
+
+            ExecuteTest(null, "Com.Statistics.Min(params IComparable[])");
+
+            {
+                sbyte[] values = _GetRandomSbyteArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.MinMax(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.MinMax(params sbyte[])", "array size at 1024");
+            }
+
+            {
+                byte[] values = _GetRandomByteArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.MinMax(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.MinMax(params byte[])", "array size at 1024");
+            }
+
+            {
+                short[] values = _GetRandomShortArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.MinMax(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.MinMax(params short[])", "array size at 1024");
+            }
+
+            {
+                ushort[] values = _GetRandomUshortArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.MinMax(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.MinMax(params ushort[])", "array size at 1024");
+            }
+
+            {
+                int[] values = _GetRandomIntArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.MinMax(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.MinMax(params int[])", "array size at 1024");
+            }
+
+            {
+                uint[] values = _GetRandomUintArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.MinMax(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.MinMax(params uint[])", "array size at 1024");
+            }
+
+            {
+                long[] values = _GetRandomLongArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.MinMax(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.MinMax(params long[])", "array size at 1024");
+            }
+
+            {
+                ulong[] values = _GetRandomUlongArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.MinMax(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.MinMax(params ulong[])", "array size at 1024");
+            }
+
+            {
+                decimal[] values = _GetRandomDecimalArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.MinMax(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.MinMax(params decimal[])", "array size at 1024");
+            }
+
+            {
+                float[] values = _GetRandomFloatArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.MinMax(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.MinMax(params float[])", "array size at 1024");
+            }
+
+            {
+                double[] values = _GetRandomDoubleArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.MinMax(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.MinMax(params double[])", "array size at 1024");
+            }
+
+            ExecuteTest(null, "Com.Statistics.MinMax(params IComparable[])");
+
+            {
+                sbyte[] values = _GetRandomSbyteArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Range(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Range(params sbyte[])", "array size at 1024");
+            }
+
+            {
+                byte[] values = _GetRandomByteArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Range(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Range(params byte[])", "array size at 1024");
+            }
+
+            {
+                short[] values = _GetRandomShortArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Range(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Range(params short[])", "array size at 1024");
+            }
+
+            {
+                ushort[] values = _GetRandomUshortArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Range(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Range(params ushort[])", "array size at 1024");
+            }
+
+            {
+                int[] values = _GetRandomIntArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Range(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Range(params int[])", "array size at 1024");
+            }
+
+            {
+                uint[] values = _GetRandomUintArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Range(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Range(params uint[])", "array size at 1024");
+            }
+
+            {
+                long[] values = _GetRandomLongArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Range(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Range(params long[])", "array size at 1024");
+            }
+
+            {
+                ulong[] values = _GetRandomUlongArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Range(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Range(params ulong[])", "array size at 1024");
+            }
+
+            {
+                decimal[] values = _GetRandomDecimalArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Range(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Range(params decimal[])", "array size at 1024");
+            }
+
+            {
+                float[] values = _GetRandomFloatArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Range(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Range(params float[])", "array size at 1024");
+            }
+
+            {
+                double[] values = _GetRandomDoubleArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Range(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Range(params double[])", "array size at 1024");
+            }
+
+            ExecuteTest(null, "Com.Statistics.Range(params IComparable[])");
+
+            {
+                sbyte[] values = _GetRandomSbyteArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Sum(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Sum(params sbyte[])", "array size at 1024");
+            }
+
+            {
+                byte[] values = _GetRandomByteArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Sum(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Sum(params byte[])", "array size at 1024");
+            }
+
+            {
+                short[] values = _GetRandomShortArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Sum(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Sum(params short[])", "array size at 1024");
+            }
+
+            {
+                ushort[] values = _GetRandomUshortArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Sum(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Sum(params ushort[])", "array size at 1024");
+            }
+
+            {
+                int[] values = new int[1024];
+
+                for (int i = 0; i < values.Length; i++)
+                {
+                    values[i] = Com.Statistics.RandomInteger(1048576);
+                }
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Sum(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Sum(params int[])", "array size at 1024");
+            }
+
+            {
+                uint[] values = _GetRandomUintArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Sum(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Sum(params uint[])", "array size at 1024");
+            }
+
+            {
+                long[] values = _GetRandomLongArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Sum(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Sum(params long[])", "array size at 1024");
+            }
+
+            {
+                ulong[] values = _GetRandomUlongArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Sum(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Sum(params ulong[])", "array size at 1024");
+            }
+
+            {
+                decimal[] values = _GetRandomDecimalArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Sum(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Sum(params decimal[])", "array size at 1024");
+            }
+
+            {
+                float[] values = _GetRandomFloatArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Sum(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Sum(params float[])", "array size at 1024");
+            }
+
+            {
+                double[] values = _GetRandomDoubleArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Sum(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Sum(params double[])", "array size at 1024");
+            }
+
+            ExecuteTest(null, "Com.Statistics.Sum(params IComparable[])");
+
+            {
+                sbyte[] values = _GetRandomSbyteArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Average(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Average(params sbyte[])", "array size at 1024");
+            }
+
+            {
+                byte[] values = _GetRandomByteArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Average(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Average(params byte[])", "array size at 1024");
+            }
+
+            {
+                short[] values = _GetRandomShortArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Average(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Average(params short[])", "array size at 1024");
+            }
+
+            {
+                ushort[] values = _GetRandomUshortArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Average(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Average(params ushort[])", "array size at 1024");
+            }
+
+            {
+                int[] values = _GetRandomIntArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Average(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Average(params int[])", "array size at 1024");
+            }
+
+            {
+                uint[] values = _GetRandomUintArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Average(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Average(params uint[])", "array size at 1024");
+            }
+
+            {
+                long[] values = _GetRandomLongArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Average(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Average(params long[])", "array size at 1024");
+            }
+
+            {
+                ulong[] values = _GetRandomUlongArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Average(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Average(params ulong[])", "array size at 1024");
+            }
+
+            {
+                decimal[] values = _GetRandomDecimalArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Average(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Average(params decimal[])", "array size at 1024");
+            }
+
+            {
+                float[] values = _GetRandomFloatArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Average(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Average(params float[])", "array size at 1024");
+            }
+
+            {
+                double[] values = _GetRandomDoubleArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Average(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Average(params double[])", "array size at 1024");
+            }
+
+            ExecuteTest(null, "Com.Statistics.Average(params IComparable[])");
+
+            {
+                sbyte[] values = _GetRandomSbyteArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.MinMaxAverage(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.MinMaxAverage(params sbyte[])", "array size at 1024");
+            }
+
+            {
+                byte[] values = _GetRandomByteArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.MinMaxAverage(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.MinMaxAverage(params byte[])", "array size at 1024");
+            }
+
+            {
+                short[] values = _GetRandomShortArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.MinMaxAverage(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.MinMaxAverage(params short[])", "array size at 1024");
+            }
+
+            {
+                ushort[] values = _GetRandomUshortArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.MinMaxAverage(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.MinMaxAverage(params ushort[])", "array size at 1024");
+            }
+
+            {
+                int[] values = _GetRandomIntArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.MinMaxAverage(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.MinMaxAverage(params int[])", "array size at 1024");
+            }
+
+            {
+                uint[] values = _GetRandomUintArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.MinMaxAverage(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.MinMaxAverage(params uint[])", "array size at 1024");
+            }
+
+            {
+                long[] values = _GetRandomLongArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.MinMaxAverage(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.MinMaxAverage(params long[])", "array size at 1024");
+            }
+
+            {
+                ulong[] values = _GetRandomUlongArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.MinMaxAverage(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.MinMaxAverage(params ulong[])", "array size at 1024");
+            }
+
+            {
+                decimal[] values = _GetRandomDecimalArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.MinMaxAverage(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.MinMaxAverage(params decimal[])", "array size at 1024");
+            }
+
+            {
+                float[] values = _GetRandomFloatArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.MinMaxAverage(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.MinMaxAverage(params float[])", "array size at 1024");
+            }
+
+            {
+                double[] values = _GetRandomDoubleArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.MinMaxAverage(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.MinMaxAverage(params double[])", "array size at 1024");
+            }
+
+            ExecuteTest(null, "Com.Statistics.MinMaxAverage(params IComparable[])");
+
+            // 方差与标准差
+
+            {
+                double[] values = _GetRandomDoubleArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.Deviation(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.Deviation(params double[])", "array size at 1024");
+            }
+
+            {
+                double[] values = _GetRandomDoubleArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.SampleDeviation(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.SampleDeviation(params double[])", "array size at 1024");
+            }
+
+            {
+                double[] values = _GetRandomDoubleArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.StandardDeviation(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.StandardDeviation(params double[])", "array size at 1024");
+            }
+
+            {
+                double[] values = _GetRandomDoubleArray(1024);
+
+                Action method = () =>
+                {
+                    _ = Com.Statistics.SampleStandardDeviation(values);
+                };
+
+                ExecuteTest(method, "Com.Statistics.SampleStandardDeviation(params double[])", "array size at 1024");
+            }
         }
 
         protected override void Operator()
@@ -16618,6 +20430,166 @@ namespace Test
 
         protected override void StaticMethod()
         {
+            // 科学计数法
+
+            {
+                double value = Com.Statistics.RandomDouble(-1E18, 1E18);
+                int significance = 0;
+                bool useNaturalExpression = true;
+                bool useMagnitudeOrderCode = true;
+                string unit = "U";
+
+                Action method = () =>
+                {
+                    _ = Com.Text.GetScientificNotationString(value, significance, useNaturalExpression, useMagnitudeOrderCode, unit);
+                };
+
+                ExecuteTest(method, "Com.Text.GetScientificNotationString(double, int, bool, bool, string)");
+            }
+
+            {
+                double value = Com.Statistics.RandomDouble(-1E18, 1E18);
+                int significance = 0;
+                bool useNaturalExpression = true;
+                bool useMagnitudeOrderCode = true;
+
+                Action method = () =>
+                {
+                    _ = Com.Text.GetScientificNotationString(value, significance, useNaturalExpression, useMagnitudeOrderCode);
+                };
+
+                ExecuteTest(method, "Com.Text.GetScientificNotationString(double, int, bool, bool)");
+            }
+
+            {
+                double value = Com.Statistics.RandomDouble(-1E18, 1E18);
+                int significance = 0;
+                bool useNaturalExpression = true;
+                string unit = "U";
+
+                Action method = () =>
+                {
+                    _ = Com.Text.GetScientificNotationString(value, significance, useNaturalExpression, unit);
+                };
+
+                ExecuteTest(method, "Com.Text.GetScientificNotationString(double, int, bool, string)");
+            }
+
+            {
+                double value = Com.Statistics.RandomDouble(-1E18, 1E18);
+                int significance = 0;
+                bool useNaturalExpression = true;
+
+                Action method = () =>
+                {
+                    _ = Com.Text.GetScientificNotationString(value, significance, useNaturalExpression);
+                };
+
+                ExecuteTest(method, "Com.Text.GetScientificNotationString(double, int, bool)");
+            }
+
+            {
+                double value = Com.Statistics.RandomDouble(-1E18, 1E18);
+                int significance = 0;
+                string unit = "U";
+
+                Action method = () =>
+                {
+                    _ = Com.Text.GetScientificNotationString(value, significance, unit);
+                };
+
+                ExecuteTest(method, "Com.Text.GetScientificNotationString(double, int, string)");
+            }
+
+            {
+                double value = Com.Statistics.RandomDouble(-1E18, 1E18);
+                int significance = 0;
+
+                Action method = () =>
+                {
+                    _ = Com.Text.GetScientificNotationString(value, significance);
+                };
+
+                ExecuteTest(method, "Com.Text.GetScientificNotationString(double, int)");
+            }
+
+            {
+                double value = Com.Statistics.RandomDouble(-1E18, 1E18);
+                bool useNaturalExpression = true;
+                bool useMagnitudeOrderCode = true;
+                string unit = "U";
+
+                Action method = () =>
+                {
+                    _ = Com.Text.GetScientificNotationString(value, useNaturalExpression, useMagnitudeOrderCode, unit);
+                };
+
+                ExecuteTest(method, "Com.Text.GetScientificNotationString(double, bool, bool, string)");
+            }
+
+            {
+                double value = Com.Statistics.RandomDouble(-1E18, 1E18);
+                bool useNaturalExpression = true;
+                bool useMagnitudeOrderCode = true;
+
+                Action method = () =>
+                {
+                    _ = Com.Text.GetScientificNotationString(value, useNaturalExpression, useMagnitudeOrderCode);
+                };
+
+                ExecuteTest(method, "Com.Text.GetScientificNotationString(double, bool, bool)");
+            }
+
+            {
+                double value = Com.Statistics.RandomDouble(-1E18, 1E18);
+                bool useNaturalExpression = true;
+                string unit = "U";
+
+                Action method = () =>
+                {
+                    _ = Com.Text.GetScientificNotationString(value, useNaturalExpression, unit);
+                };
+
+                ExecuteTest(method, "Com.Text.GetScientificNotationString(double, bool, string)");
+            }
+
+            {
+                double value = Com.Statistics.RandomDouble(-1E18, 1E18);
+                bool useNaturalExpression = true;
+
+                Action method = () =>
+                {
+                    _ = Com.Text.GetScientificNotationString(value, useNaturalExpression);
+                };
+
+                ExecuteTest(method, "Com.Text.GetScientificNotationString(double, bool)");
+            }
+
+            {
+                double value = Com.Statistics.RandomDouble(-1E18, 1E18);
+                string unit = "U";
+
+                Action method = () =>
+                {
+                    _ = Com.Text.GetScientificNotationString(value, unit);
+                };
+
+                ExecuteTest(method, "Com.Text.GetScientificNotationString(double, string)");
+            }
+
+            {
+                double value = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = Com.Text.GetScientificNotationString(value);
+                };
+
+                ExecuteTest(method, "Com.Text.GetScientificNotationString(double)");
+            }
+
+            // 字符串处理
+
             {
                 string sourceString = "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
                 string startString = sourceString.Substring(5, 5);
@@ -16627,7 +20599,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    string result = Com.Text.GetIntervalString(sourceString, startString, endString, includeStartString, includeEndString);
+                    _ = Com.Text.GetIntervalString(sourceString, startString, endString, includeStartString, includeEndString);
                 };
 
                 ExecuteTest(method, "Com.Text.GetIntervalString(string, string, string, bool, bool)");
@@ -16640,7 +20612,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    string result = Com.Text.StringIntercept(str, font, width);
+                    _ = Com.Text.StringIntercept(str, font, width);
                 };
 
                 ExecuteTest(method, "Com.Text.StringIntercept(string, System.Drawing.Font, int)");
@@ -16653,29 +20625,20 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Font result = Com.Text.GetSuitableFont(text, font, size);
+                    _ = Com.Text.GetSuitableFont(text, font, size);
                 };
 
                 ExecuteTest(method, "Com.Text.GetSuitableFont(string, System.Drawing.Font, System.Drawing.SizeF)");
             }
 
-            {
-                DateTime dateTime = DateTime.Now;
-
-                Action method = () =>
-                {
-                    long result = Com.Text.GetBinaryFromDateTime(dateTime);
-                };
-
-                ExecuteTest(method, "Com.Text.GetBinaryFromDateTime(System.DateTime)");
-            }
+            // 转换为字符串
 
             {
                 TimeSpan timeSpan = TimeSpan.FromDays(1) + DateTime.Now.TimeOfDay;
 
                 Action method = () =>
                 {
-                    string result = Com.Text.GetLongTimeStringFromTimeSpan(timeSpan);
+                    _ = Com.Text.GetLongTimeStringFromTimeSpan(timeSpan);
                 };
 
                 ExecuteTest(method, "Com.Text.GetLongTimeStringFromTimeSpan(System.TimeSpan)");
@@ -16686,7 +20649,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    string result = Com.Text.GetTimeStringFromTimeSpan(timeSpan);
+                    _ = Com.Text.GetTimeStringFromTimeSpan(timeSpan);
                 };
 
                 ExecuteTest(method, "Com.Text.GetTimeStringFromTimeSpan(System.TimeSpan)");
@@ -16698,7 +20661,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = Com.Text.GetStandardizationTimespanOfSecond(second, significance);
+                    _ = Com.Text.GetStandardizationTimespanOfSecond(second, significance);
                 };
 
                 ExecuteTest(method, "Com.Text.GetStandardizationTimespanOfSecond(double, int)");
@@ -16709,7 +20672,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    string result = Com.Text.GetLargeTimespanStringOfSecond(second);
+                    _ = Com.Text.GetLargeTimespanStringOfSecond(second);
                 };
 
                 ExecuteTest(method, "Com.Text.GetLargeTimespanStringOfSecond(double)");
@@ -16721,7 +20684,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = Com.Text.GetStandardizationDistanceOfMeter(meter, significance);
+                    _ = Com.Text.GetStandardizationDistanceOfMeter(meter, significance);
                 };
 
                 ExecuteTest(method, "Com.Text.GetStandardizationDistanceOfMeter(double, int)");
@@ -16732,7 +20695,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    string result = Com.Text.GetLargeDistanceStringOfMeter(meter);
+                    _ = Com.Text.GetLargeDistanceStringOfMeter(meter);
                 };
 
                 ExecuteTest(method, "Com.Text.GetLargeDistanceStringOfMeter(double)");
@@ -16745,7 +20708,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    string result = Com.Text.GetAngleStringOfDegree(degree, decimalDigits, cutdownIdleZeros);
+                    _ = Com.Text.GetAngleStringOfDegree(degree, decimalDigits, cutdownIdleZeros);
                 };
 
                 ExecuteTest(method, "Com.Text.GetAngleStringOfDegree(double, int, bool)");
@@ -16756,7 +20719,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    string result = Com.Text.GetSize64StringFromByte(b);
+                    _ = Com.Text.GetSize64StringFromByte(b);
                 };
 
                 ExecuteTest(method, "Com.Text.GetSize64StringFromByte(long)");
@@ -16786,7 +20749,7 @@ namespace Test
             }
             else
             {
-                return Com.Vector.NonVector;
+                return Com.Vector.Empty;
             }
         }
 
@@ -16805,7 +20768,7 @@ namespace Test
             }
             else
             {
-                return Com.Vector.NonVector;
+                return Com.Vector.Empty;
             }
         }
 
@@ -16827,7 +20790,7 @@ namespace Test
             }
             else
             {
-                return Com.Matrix.NonMatrix;
+                return Com.Matrix.Empty;
             }
         }
 
@@ -16846,7 +20809,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Vector vector = new Com.Vector(type, values);
+                    _ = new Com.Vector(type, values);
                 };
 
                 ExecuteTest(method, "Com.Vector.Vector(Com.Vector.Type, params double[])", "dimension at 32");
@@ -16862,7 +20825,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Vector vector = new Com.Vector(values);
+                    _ = new Com.Vector(values);
                 };
 
                 ExecuteTest(method, "Com.Vector.Vector(params double[])", "dimension at 32");
@@ -16879,7 +20842,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = vector[index];
+                    _ = vector[index];
                 };
 
                 ExecuteTest(method, "Com.Vector.this[int].get()", "dimension at 32");
@@ -16898,6 +20861,19 @@ namespace Test
                 ExecuteTest(method, "Com.Vector.this[int].set(double)", "dimension at 32");
             }
 
+            // Dimension
+
+            {
+                Com.Vector vector = _GetRandomVector(32);
+
+                Action method = () =>
+                {
+                    _ = vector.Dimension;
+                };
+
+                ExecuteTest(method, "Com.Vector.Dimension.get()", "dimension at 32");
+            }
+
             // Is
 
             {
@@ -16905,10 +20881,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = vector.IsNonVector;
+                    _ = vector.IsEmpty;
                 };
 
-                ExecuteTest(method, "Com.Vector.IsNonVector.get()", "dimension at 32");
+                ExecuteTest(method, "Com.Vector.IsEmpty.get()", "dimension at 32");
             }
 
             {
@@ -16916,7 +20892,18 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = vector.IsColumnVector;
+                    _ = vector.IsZero;
+                };
+
+                ExecuteTest(method, "Com.Vector.IsZero.get()", "dimension at 32");
+            }
+
+            {
+                Com.Vector vector = _GetRandomVector(32);
+
+                Action method = () =>
+                {
+                    _ = vector.IsColumnVector;
                 };
 
                 ExecuteTest(method, "Com.Vector.IsColumnVector.get()", "dimension at 32");
@@ -16927,33 +20914,75 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = vector.IsRowVector;
+                    _ = vector.IsRowVector;
                 };
 
                 ExecuteTest(method, "Com.Vector.IsRowVector.get()", "dimension at 32");
             }
 
-            // Size
-
             {
                 Com.Vector vector = _GetRandomVector(32);
 
                 Action method = () =>
                 {
-                    int result = vector.Dimension;
+                    _ = vector.IsReadOnly;
                 };
 
-                ExecuteTest(method, "Com.Vector.Dimension.get()", "dimension at 32");
+                ExecuteTest(method, "Com.Vector.IsReadOnly.get()", "dimension at 32");
             }
-
-            // 向量
 
             {
                 Com.Vector vector = _GetRandomVector(32);
 
                 Action method = () =>
                 {
-                    double result = vector.Module;
+                    _ = vector.IsFixedSize;
+                };
+
+                ExecuteTest(method, "Com.Vector.IsFixedSize.get()", "dimension at 32");
+            }
+
+            {
+                Com.Vector vector = _GetRandomVector(32);
+
+                Action method = () =>
+                {
+                    _ = vector.IsNaN;
+                };
+
+                ExecuteTest(method, "Com.Vector.IsNaN.get()", "dimension at 32");
+            }
+
+            {
+                Com.Vector vector = _GetRandomVector(32);
+
+                Action method = () =>
+                {
+                    _ = vector.IsInfinity;
+                };
+
+                ExecuteTest(method, "Com.Vector.IsInfinity.get()", "dimension at 32");
+            }
+
+            {
+                Com.Vector vector = _GetRandomVector(32);
+
+                Action method = () =>
+                {
+                    _ = vector.IsNaNOrInfinity;
+                };
+
+                ExecuteTest(method, "Com.Vector.IsNaNOrInfinity.get()", "dimension at 32");
+            }
+
+            // 模
+
+            {
+                Com.Vector vector = _GetRandomVector(32);
+
+                Action method = () =>
+                {
+                    _ = vector.Module;
                 };
 
                 ExecuteTest(method, "Com.Vector.Module.get()", "dimension at 32");
@@ -16964,21 +20993,23 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = vector.ModuleSquared;
+                    _ = vector.ModuleSquared;
                 };
 
                 ExecuteTest(method, "Com.Vector.ModuleSquared.get()", "dimension at 32");
             }
 
+            // 向量
+
             {
                 Com.Vector vector = _GetRandomVector(32);
 
                 Action method = () =>
                 {
-                    Com.Vector result = vector.Transport;
+                    _ = vector.Opposite;
                 };
 
-                ExecuteTest(method, "Com.Vector.Transport.get()", "dimension at 32");
+                ExecuteTest(method, "Com.Vector.Opposite.get()", "dimension at 32");
             }
 
             {
@@ -16986,33 +21017,35 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Vector result = vector.Negate;
-                };
-
-                ExecuteTest(method, "Com.Vector.Negate.get()", "dimension at 32");
-            }
-
-            {
-                Com.Vector vector = _GetRandomVector(32);
-
-                Action method = () =>
-                {
-                    Com.Vector result = vector.Normalize;
+                    _ = vector.Normalize;
                 };
 
                 ExecuteTest(method, "Com.Vector.Normalize.get()", "dimension at 32");
+            }
+
+            {
+                Com.Vector vector = _GetRandomVector(32);
+
+                Action method = () =>
+                {
+                    _ = vector.Transport;
+                };
+
+                ExecuteTest(method, "Com.Vector.Transport.get()", "dimension at 32");
             }
         }
 
         protected override void StaticProperty()
         {
+            // Empty
+
             {
                 Action method = () =>
                 {
-                    Com.Vector result = Com.Vector.NonVector;
+                    _ = Com.Vector.Empty;
                 };
 
-                ExecuteTest(method, "Com.Vector.NonVector.get()", "dimension at 32");
+                ExecuteTest(method, "Com.Vector.Empty.get()");
             }
         }
 
@@ -17022,11 +21055,11 @@ namespace Test
 
             {
                 Com.Vector vector = _GetRandomVector(32);
-                object obj = (object)vector.Copy();
+                object obj = vector.Copy();
 
                 Action method = () =>
                 {
-                    bool result = vector.Equals(obj);
+                    _ = vector.Equals(obj);
                 };
 
                 ExecuteTest(method, "Com.Vector.Equals(object)", "dimension at 32");
@@ -17037,7 +21070,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    int result = vector.GetHashCode();
+                    _ = vector.GetHashCode();
                 };
 
                 ExecuteTest(method, "Com.Vector.GetHashCode()", "dimension at 32");
@@ -17048,7 +21081,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    string result = vector.ToString();
+                    _ = vector.ToString();
                 };
 
                 ExecuteTest(method, "Com.Vector.ToString()", "dimension at 32");
@@ -17062,10 +21095,226 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = left.Equals(right);
+                    _ = left.Equals(right);
                 };
 
                 ExecuteTest(method, "Com.Vector.Equals(Com.Vector)", "dimension at 32");
+            }
+
+            // CompareTo
+
+            {
+                Com.Vector vector = _GetRandomVector(32);
+                object obj = vector;
+
+                Action method = () =>
+                {
+                    _ = vector.CompareTo(obj);
+                };
+
+                ExecuteTest(method, "Com.Vector.CompareTo(object)", "dimension at 32");
+            }
+
+            {
+                Com.Vector left = _GetRandomVector(32);
+                Com.Vector right = left;
+
+                Action method = () =>
+                {
+                    _ = left.CompareTo(right);
+                };
+
+                ExecuteTest(method, "Com.Vector.CompareTo(Com.Vector)", "dimension at 32");
+            }
+
+            // Copy
+
+            {
+                Com.Vector vector = _GetRandomVector(32);
+
+                Action method = () =>
+                {
+                    _ = vector.Copy();
+                };
+
+                ExecuteTest(method, "Com.Vector.Copy()", "dimension at 32");
+            }
+
+            // 检索
+
+            {
+                Com.Vector vector = _GetRandomVector(32);
+                double item = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = vector.IndexOf(item);
+                };
+
+                ExecuteTest(method, "Com.Vector.IndexOf(double)", "dimension at 32");
+            }
+
+            {
+                Com.Vector vector = _GetRandomVector(32);
+                double item = Com.Statistics.RandomDouble(-1E18, 1E18);
+                int startIndex = 0;
+
+                Action method = () =>
+                {
+                    _ = vector.IndexOf(item, startIndex);
+                };
+
+                ExecuteTest(method, "Com.Vector.IndexOf(double, int)", "dimension at 32");
+            }
+
+            {
+                Com.Vector vector = _GetRandomVector(32);
+                double item = Com.Statistics.RandomDouble(-1E18, 1E18);
+                int startIndex = 0;
+                int count = 32;
+
+                Action method = () =>
+                {
+                    _ = vector.IndexOf(item, startIndex, count);
+                };
+
+                ExecuteTest(method, "Com.Vector.IndexOf(double, int, int)", "dimension at 32");
+            }
+
+            {
+                Com.Vector vector = _GetRandomVector(32);
+                double item = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = vector.LastIndexOf(item);
+                };
+
+                ExecuteTest(method, "Com.Vector.LastIndexOf(double)", "dimension at 32");
+            }
+
+            {
+                Com.Vector vector = _GetRandomVector(32);
+                double item = Com.Statistics.RandomDouble(-1E18, 1E18);
+                int startIndex = 31;
+
+                Action method = () =>
+                {
+                    _ = vector.LastIndexOf(item, startIndex);
+                };
+
+                ExecuteTest(method, "Com.Vector.LastIndexOf(double, int)", "dimension at 32");
+            }
+
+            {
+                Com.Vector vector = _GetRandomVector(32);
+                double item = Com.Statistics.RandomDouble(-1E18, 1E18);
+                int startIndex = 31;
+                int count = 32;
+
+                Action method = () =>
+                {
+                    _ = vector.LastIndexOf(item, startIndex, count);
+                };
+
+                ExecuteTest(method, "Com.Vector.LastIndexOf(double, int, int)", "dimension at 32");
+            }
+
+            {
+                Com.Vector vector = _GetRandomVector(32);
+                double item = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = vector.Contains(item);
+                };
+
+                ExecuteTest(method, "Com.Vector.Contains(double)", "dimension at 32");
+            }
+
+            // ToArray，ToList，ToMatrix
+
+            {
+                Com.Vector vector = _GetRandomVector(32);
+
+                Action method = () =>
+                {
+                    _ = vector.ToArray();
+                };
+
+                ExecuteTest(method, "Com.Vector.ToArray()", "dimension at 32");
+            }
+
+            {
+                Com.Vector vector = _GetRandomVector(32);
+
+                Action method = () =>
+                {
+                    _ = vector.ToList();
+                };
+
+                ExecuteTest(method, "Com.Vector.ToList()", "dimension at 32");
+            }
+
+            {
+                Com.Vector vector = _GetRandomVector(32);
+
+                Action method = () =>
+                {
+                    _ = vector.ToMatrix();
+                };
+
+                ExecuteTest(method, "Com.Vector.ToMatrix()", "dimension at 32");
+            }
+
+            // 坐标系转换
+
+            {
+                Com.Vector vector = _GetRandomVector(32);
+
+                Action method = () =>
+                {
+                    _ = vector.ToSpherical();
+                };
+
+                ExecuteTest(method, "Com.Vector.ToSpherical()", "dimension at 32");
+            }
+
+            {
+                Com.Vector vector = _GetRandomVector(32);
+
+                Action method = () =>
+                {
+                    _ = vector.ToCartesian();
+                };
+
+                ExecuteTest(method, "Com.Vector.ToCartesian()", "dimension at 32");
+            }
+
+            // 距离与夹角
+
+            {
+                Com.Vector vector = _GetRandomVector(32);
+                Com.Vector vector_d = _GetRandomVector(32);
+
+                Action method = () =>
+                {
+                    _ = vector.DistanceFrom(vector_d);
+                };
+
+                ExecuteTest(method, "Com.Vector.DistanceFrom(Com.Vector)", "dimension at 32");
+            }
+
+            {
+                Com.Vector vector = _GetRandomVector(32);
+                Com.Vector vector_a = _GetRandomVector(32);
+
+                Action method = () =>
+                {
+                    _ = vector.AngleFrom(vector_a);
+                };
+
+                ExecuteTest(method, "Com.Vector.AngleFrom(Com.Vector)", "dimension at 32");
             }
 
             // Offset
@@ -17100,7 +21349,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Vector result = vector.OffsetCopy(d);
+                    _ = vector.OffsetCopy(d);
                 };
 
                 ExecuteTest(method, "Com.Vector.OffsetCopy(double)", "dimension at 32");
@@ -17112,7 +21361,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Vector result = vector.OffsetCopy(vector_d);
+                    _ = vector.OffsetCopy(vector_d);
                 };
 
                 ExecuteTest(method, "Com.Vector.OffsetCopy(Com.Vector)", "dimension at 32");
@@ -17150,7 +21399,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Vector result = vector.ScaleCopy(s);
+                    _ = vector.ScaleCopy(s);
                 };
 
                 ExecuteTest(method, "Com.Vector.ScaleCopy(double)", "dimension at 32");
@@ -17162,18 +21411,74 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Vector result = vector.ScaleCopy(vector_s);
+                    _ = vector.ScaleCopy(vector_s);
                 };
 
                 ExecuteTest(method, "Com.Vector.ScaleCopy(Com.Vector)", "dimension at 32");
+            }
+
+            // Reflect
+
+            {
+                Com.Vector vector = _GetRandomVector(32);
+                int index = Com.Statistics.RandomInteger(32);
+
+                Action method = () =>
+                {
+                    vector.Reflect(index);
+                };
+
+                ExecuteTest(method, "Com.Vector.Reflect(int)", "dimension at 32");
+            }
+
+            {
+                Com.Vector vector = _GetRandomVector(32);
+                int index = Com.Statistics.RandomInteger(32);
+
+                Action method = () =>
+                {
+                    _ = vector.ReflectCopy(index);
+                };
+
+                ExecuteTest(method, "Com.Vector.ReflectCopy(int)", "dimension at 32");
+            }
+
+            // Shear
+
+            {
+                Com.Vector vector = _GetRandomVector(32);
+                int index1 = Com.Statistics.RandomInteger(16);
+                int index2 = Com.Statistics.RandomInteger(16, 32);
+                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
+
+                Action method = () =>
+                {
+                    vector.Shear(index1, index2, angle);
+                };
+
+                ExecuteTest(method, "Com.Vector.Shear(int, int, double)", "dimension at 32");
+            }
+
+            {
+                Com.Vector vector = _GetRandomVector(32);
+                int index1 = Com.Statistics.RandomInteger(16);
+                int index2 = Com.Statistics.RandomInteger(16, 32);
+                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
+
+                Action method = () =>
+                {
+                    _ = vector.ShearCopy(index1, index2, angle);
+                };
+
+                ExecuteTest(method, "Com.Vector.ShearCopy(int, int, double)", "dimension at 32");
             }
 
             // Rotate
 
             {
                 Com.Vector vector = _GetRandomVector(32);
-                int index1 = Com.Statistics.RandomInteger(32);
-                int index2 = Com.Statistics.RandomInteger(32);
+                int index1 = Com.Statistics.RandomInteger(16);
+                int index2 = Com.Statistics.RandomInteger(16, 32);
                 double angle = Com.Statistics.RandomDouble(2 * Math.PI);
 
                 Action method = () =>
@@ -17186,13 +21491,13 @@ namespace Test
 
             {
                 Com.Vector vector = _GetRandomVector(32);
-                int index1 = Com.Statistics.RandomInteger(32);
-                int index2 = Com.Statistics.RandomInteger(32);
+                int index1 = Com.Statistics.RandomInteger(16);
+                int index2 = Com.Statistics.RandomInteger(16, 32);
                 double angle = Com.Statistics.RandomDouble(2 * Math.PI);
 
                 Action method = () =>
                 {
-                    Com.Vector result = vector.RotateCopy(index1, index2, angle);
+                    _ = vector.RotateCopy(index1, index2, angle);
                 };
 
                 ExecuteTest(method, "Com.Vector.RotateCopy(int, int, double)", "dimension at 32");
@@ -17235,7 +21540,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Vector result = vector.AffineTransformCopy(matrixLeft);
+                    _ = vector.AffineTransformCopy(matrixLeft);
                 };
 
                 ExecuteTest(method, "Com.Vector.AffineTransformCopy(Com.Matrix)", "dimension at 8");
@@ -17252,7 +21557,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Vector result = vector.AffineTransformCopy(matrixLeftList);
+                    _ = vector.AffineTransformCopy(matrixLeftList);
                 };
 
                 ExecuteTest(method, "Com.Vector.AffineTransformCopy(System.Collections.Generic.List<Com.Matrix>)", "dimension at 8, total 8 matrices");
@@ -17293,7 +21598,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Vector result = vector.InverseAffineTransformCopy(matrixLeft);
+                    _ = vector.InverseAffineTransformCopy(matrixLeft);
                 };
 
                 ExecuteTest(method, "Com.Vector.InverseAffineTransformCopy(Com.Matrix)", "dimension at 8");
@@ -17310,36 +21615,24 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Vector result = vector.InverseAffineTransformCopy(matrixLeftList);
+                    _ = vector.InverseAffineTransformCopy(matrixLeftList);
                 };
 
                 ExecuteTest(method, "Com.Vector.InverseAffineTransformCopy(System.Collections.Generic.List<Com.Matrix>)", "dimension at 8, total 8 matrices");
             }
 
-            // 距离与角度
+            // AngleFromBase，AngleFromSpace
 
             {
                 Com.Vector vector = _GetRandomVector(32);
-                Com.Vector vector_d = _GetRandomVector(32);
+                int index = Com.Statistics.RandomInteger(32);
 
                 Action method = () =>
                 {
-                    double result = vector.DistanceFrom(vector_d);
+                    _ = vector.AngleFromBase(index);
                 };
 
-                ExecuteTest(method, "Com.Vector.DistanceFrom(Com.Vector)", "dimension at 32");
-            }
-
-            {
-                Com.Vector vector = _GetRandomVector(32);
-                Com.Vector vector_a = _GetRandomVector(32);
-
-                Action method = () =>
-                {
-                    double result = vector.AngleFrom(vector_a);
-                };
-
-                ExecuteTest(method, "Com.Vector.AngleFrom(Com.Vector)", "dimension at 32");
+                ExecuteTest(method, "Com.Vector.AngleFromBase(int)", "dimension at 32");
             }
 
             {
@@ -17348,88 +21641,26 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = vector.AngleOfBasis(index);
+                    _ = vector.AngleFromSpace(index);
                 };
 
-                ExecuteTest(method, "Com.Vector.AngleOfBasis(int)", "dimension at 32");
-            }
-
-            {
-                Com.Vector vector = _GetRandomVector(32);
-                int index = Com.Statistics.RandomInteger(32);
-
-                Action method = () =>
-                {
-                    double result = vector.AngleOfSpace(index);
-                };
-
-                ExecuteTest(method, "Com.Vector.AngleOfSpace(int)", "dimension at 32");
-            }
-
-            // 坐标系转换
-
-            {
-                Com.Vector vector = _GetRandomVector(32);
-
-                Action method = () =>
-                {
-                    Com.Vector result = vector.ToSpherical();
-                };
-
-                ExecuteTest(method, "Com.Vector.ToSpherical()", "dimension at 32");
-            }
-
-            {
-                Com.Vector vector = _GetRandomVector(32);
-
-                Action method = () =>
-                {
-                    Com.Vector result = vector.ToCartesian();
-                };
-
-                ExecuteTest(method, "Com.Vector.ToCartesian()", "dimension at 32");
-            }
-
-            // ToMatrix
-
-            {
-                Com.Vector vector = _GetRandomVector(32);
-
-                Action method = () =>
-                {
-                    Com.Matrix result = vector.ToMatrix();
-                };
-
-                ExecuteTest(method, "Com.Vector.ToMatrix()", "dimension at 32");
-            }
-
-            // ToArray
-
-            {
-                Com.Vector vector = _GetRandomVector(32);
-
-                Action method = () =>
-                {
-                    double[] result = vector.ToArray();
-                };
-
-                ExecuteTest(method, "Com.Vector.ToArray()", "dimension at 32");
+                ExecuteTest(method, "Com.Vector.AngleFromSpace(int)", "dimension at 32");
             }
         }
 
         protected override void StaticMethod()
         {
-            // IsNullOrNonVector
+            // IsNullOrEmpty
 
             {
                 Com.Vector vector = _GetRandomVector(32);
 
                 Action method = () =>
                 {
-                    bool result = Com.Vector.IsNullOrNonVector(vector);
+                    _ = Com.Vector.IsNullOrEmpty(vector);
                 };
 
-                ExecuteTest(method, "Com.Vector.IsNullOrNonVector(Com.Vector)", "dimension at 32");
+                ExecuteTest(method, "Com.Vector.IsNullOrEmpty(Com.Vector)", "dimension at 32");
             }
 
             // Equals
@@ -17440,13 +21671,27 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = Com.Vector.Equals(left, right);
+                    _ = Com.Vector.Equals(left, right);
                 };
 
                 ExecuteTest(method, "Com.Vector.Equals(Com.Vector, Com.Vector)", "dimension at 32");
             }
 
-            // Zero，Basis
+            // Compare
+
+            {
+                Com.Vector left = _GetRandomVector(32);
+                Com.Vector right = left.Copy();
+
+                Action method = () =>
+                {
+                    _ = Com.Vector.Compare(left, right);
+                };
+
+                ExecuteTest(method, "Com.Vector.Compare(Com.Vector, Com.Vector)", "dimension at 32");
+            }
+
+            // Zero，Base
 
             {
                 Com.Vector.Type type = Com.Vector.Type.ColumnVector;
@@ -17454,7 +21699,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Vector result = Com.Vector.Zero(type, dimension);
+                    _ = Com.Vector.Zero(type, dimension);
                 };
 
                 ExecuteTest(method, "Com.Vector.Zero(Com.Vector.Type, int)", "dimension at 32");
@@ -17465,7 +21710,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Vector result = Com.Vector.Zero(dimension);
+                    _ = Com.Vector.Zero(dimension);
                 };
 
                 ExecuteTest(method, "Com.Vector.Zero(int)", "dimension at 32");
@@ -17478,10 +21723,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Vector result = Com.Vector.Basis(type, dimension, index);
+                    _ = Com.Vector.Base(type, dimension, index);
                 };
 
-                ExecuteTest(method, "Com.Vector.Basis(Com.Vector.Type, int, int)", "dimension at 32");
+                ExecuteTest(method, "Com.Vector.Base(Com.Vector.Type, int, int)", "dimension at 32");
             }
 
             {
@@ -17490,10 +21735,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Vector result = Com.Vector.Basis(dimension, index);
+                    _ = Com.Vector.Base(dimension, index);
                 };
 
-                ExecuteTest(method, "Com.Vector.Basis(int, int)", "dimension at 32");
+                ExecuteTest(method, "Com.Vector.Base(int, int)", "dimension at 32");
             }
 
             // Matrix
@@ -17505,7 +21750,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.Vector.OffsetMatrix(type, dimension, d);
+                    _ = Com.Vector.OffsetMatrix(type, dimension, d);
                 };
 
                 ExecuteTest(method, "Com.Vector.OffsetMatrix(Com.Vector.Type, int, double)", "dimension at 32");
@@ -17516,7 +21761,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.Vector.OffsetMatrix(vector);
+                    _ = Com.Vector.OffsetMatrix(vector);
                 };
 
                 ExecuteTest(method, "Com.Vector.OffsetMatrix(Com.Vector)", "dimension at 32");
@@ -17529,7 +21774,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.Vector.ScaleMatrix(type, dimension, s);
+                    _ = Com.Vector.ScaleMatrix(type, dimension, s);
                 };
 
                 ExecuteTest(method, "Com.Vector.ScaleMatrix(Com.Vector.Type, int, double)", "dimension at 32");
@@ -17540,10 +21785,23 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.Vector.ScaleMatrix(vector);
+                    _ = Com.Vector.ScaleMatrix(vector);
                 };
 
                 ExecuteTest(method, "Com.Vector.ScaleMatrix(Com.Vector)", "dimension at 32");
+            }
+
+            {
+                Com.Vector.Type type = Com.Vector.Type.ColumnVector;
+                int dimension = 32;
+                int index = Com.Statistics.RandomInteger(16);
+
+                Action method = () =>
+                {
+                    _ = Com.Vector.ReflectMatrix(type, dimension, index);
+                };
+
+                ExecuteTest(method, "Com.Vector.ReflectMatrix(Com.Vector.Type, int, int)", "dimension at 32");
             }
 
             {
@@ -17555,13 +21813,28 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Matrix result = Com.Vector.RotateMatrix(type, dimension, index1, index2, angle);
+                    _ = Com.Vector.ShearMatrix(type, dimension, index1, index2, angle);
+                };
+
+                ExecuteTest(method, "Com.Vector.ShearMatrix(Com.Vector.Type, int, int, int, double)", "dimension at 32");
+            }
+
+            {
+                Com.Vector.Type type = Com.Vector.Type.ColumnVector;
+                int dimension = 32;
+                int index1 = Com.Statistics.RandomInteger(16);
+                int index2 = Com.Statistics.RandomInteger(16, 32);
+                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
+
+                Action method = () =>
+                {
+                    _ = Com.Vector.RotateMatrix(type, dimension, index1, index2, angle);
                 };
 
                 ExecuteTest(method, "Com.Vector.RotateMatrix(Com.Vector.Type, int, int, int, double)", "dimension at 32");
             }
 
-            // 距离与角度
+            // 距离与夹角
 
             {
                 Com.Vector left = _GetRandomVector(32);
@@ -17569,7 +21842,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = Com.Vector.DistanceBetween(left, right);
+                    _ = Com.Vector.DistanceBetween(left, right);
                 };
 
                 ExecuteTest(method, "Com.Vector.DistanceBetween(Com.Vector, Com.Vector)", "dimension at 32");
@@ -17581,7 +21854,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = Com.Vector.AngleBetween(left, right);
+                    _ = Com.Vector.AngleBetween(left, right);
                 };
 
                 ExecuteTest(method, "Com.Vector.AngleBetween(Com.Vector, Com.Vector)", "dimension at 32");
@@ -17595,7 +21868,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    double result = Com.Vector.DotProduct(left, right);
+                    _ = Com.Vector.DotProduct(left, right);
                 };
 
                 ExecuteTest(method, "Com.Vector.DotProduct(Com.Vector, Com.Vector)", "dimension at 32");
@@ -17607,7 +21880,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Vector result = Com.Vector.CrossProduct(left, right);
+                    _ = Com.Vector.CrossProduct(left, right);
                 };
 
                 ExecuteTest(method, "Com.Vector.CrossProduct(Com.Vector, Com.Vector)", "dimension at 32");
@@ -17620,7 +21893,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Vector result = Com.Vector.Abs(vector);
+                    _ = Com.Vector.Abs(vector);
                 };
 
                 ExecuteTest(method, "Com.Vector.Abs(Com.Vector)", "dimension at 32");
@@ -17631,7 +21904,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Vector result = Com.Vector.Sign(vector);
+                    _ = Com.Vector.Sign(vector);
                 };
 
                 ExecuteTest(method, "Com.Vector.Sign(Com.Vector)", "dimension at 32");
@@ -17642,7 +21915,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Vector result = Com.Vector.Ceiling(vector);
+                    _ = Com.Vector.Ceiling(vector);
                 };
 
                 ExecuteTest(method, "Com.Vector.Ceiling(Com.Vector)", "dimension at 32");
@@ -17653,7 +21926,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Vector result = Com.Vector.Floor(vector);
+                    _ = Com.Vector.Floor(vector);
                 };
 
                 ExecuteTest(method, "Com.Vector.Floor(Com.Vector)", "dimension at 32");
@@ -17664,7 +21937,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Vector result = Com.Vector.Round(vector);
+                    _ = Com.Vector.Round(vector);
                 };
 
                 ExecuteTest(method, "Com.Vector.Round(Com.Vector)", "dimension at 32");
@@ -17675,7 +21948,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Vector result = Com.Vector.Truncate(vector);
+                    _ = Com.Vector.Truncate(vector);
                 };
 
                 ExecuteTest(method, "Com.Vector.Truncate(Com.Vector)", "dimension at 32");
@@ -17687,7 +21960,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Vector result = Com.Vector.Max(left, right);
+                    _ = Com.Vector.Max(left, right);
                 };
 
                 ExecuteTest(method, "Com.Vector.Max(Com.Vector, Com.Vector)", "dimension at 32");
@@ -17699,7 +21972,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Vector result = Com.Vector.Min(left, right);
+                    _ = Com.Vector.Min(left, right);
                 };
 
                 ExecuteTest(method, "Com.Vector.Min(Com.Vector, Com.Vector)", "dimension at 32");
@@ -17716,7 +21989,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = (left == right);
+                    _ = (left == right);
                 };
 
                 ExecuteTest(method, "Com.Vector.operator ==(Com.Vector, Com.Vector)", "dimension at 32");
@@ -17728,7 +22001,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = (left != right);
+                    _ = (left != right);
                 };
 
                 ExecuteTest(method, "Com.Vector.operator !=(Com.Vector, Com.Vector)", "dimension at 32");
@@ -17740,7 +22013,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = (left < right);
+                    _ = (left < right);
                 };
 
                 ExecuteTest(method, "Com.Vector.operator <(Com.Vector, Com.Vector)", "dimension at 32");
@@ -17752,7 +22025,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = (left > right);
+                    _ = (left > right);
                 };
 
                 ExecuteTest(method, "Com.Vector.operator >(Com.Vector, Com.Vector)", "dimension at 32");
@@ -17764,7 +22037,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = (left <= right);
+                    _ = (left <= right);
                 };
 
                 ExecuteTest(method, "Com.Vector.operator <=(Com.Vector, Com.Vector)", "dimension at 32");
@@ -17776,7 +22049,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    bool result = (left >= right);
+                    _ = (left >= right);
                 };
 
                 ExecuteTest(method, "Com.Vector.operator >=(Com.Vector, Com.Vector)", "dimension at 32");
@@ -17789,7 +22062,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Vector result = +vector;
+                    _ = +vector;
                 };
 
                 ExecuteTest(method, "Com.Vector.operator +(Com.Vector)", "dimension at 32");
@@ -17800,7 +22073,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Vector result = -vector;
+                    _ = -vector;
                 };
 
                 ExecuteTest(method, "Com.Vector.operator -(Com.Vector)", "dimension at 32");
@@ -17812,7 +22085,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Vector result = pt + n;
+                    _ = pt + n;
                 };
 
                 ExecuteTest(method, "Com.Vector.operator +(Com.Vector, double)", "dimension at 32");
@@ -17824,7 +22097,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Vector result = n + pt;
+                    _ = n + pt;
                 };
 
                 ExecuteTest(method, "Com.Vector.operator +(double, Com.Vector)", "dimension at 32");
@@ -17836,7 +22109,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Vector result = left + right;
+                    _ = left + right;
                 };
 
                 ExecuteTest(method, "Com.Vector.operator +(Com.Vector, Com.Vector)", "dimension at 32");
@@ -17848,7 +22121,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Vector result = pt - n;
+                    _ = pt - n;
                 };
 
                 ExecuteTest(method, "Com.Vector.operator -(Com.Vector, double)", "dimension at 32");
@@ -17860,7 +22133,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Vector result = n - pt;
+                    _ = n - pt;
                 };
 
                 ExecuteTest(method, "Com.Vector.operator -(double, Com.Vector)", "dimension at 32");
@@ -17872,7 +22145,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Vector result = left - right;
+                    _ = left - right;
                 };
 
                 ExecuteTest(method, "Com.Vector.operator -(Com.Vector, Com.Vector)", "dimension at 32");
@@ -17884,7 +22157,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Vector result = pt * n;
+                    _ = pt * n;
                 };
 
                 ExecuteTest(method, "Com.Vector.operator *(Com.Vector, double)", "dimension at 32");
@@ -17896,7 +22169,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Vector result = n * pt;
+                    _ = n * pt;
                 };
 
                 ExecuteTest(method, "Com.Vector.operator *(double, Com.Vector)", "dimension at 32");
@@ -17908,7 +22181,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Vector result = left * right;
+                    _ = left * right;
                 };
 
                 ExecuteTest(method, "Com.Vector.operator *(Com.Vector, Com.Vector)", "dimension at 32");
@@ -17920,7 +22193,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Vector result = pt / n;
+                    _ = pt / n;
                 };
 
                 ExecuteTest(method, "Com.Vector.operator /(Com.Vector, double)", "dimension at 32");
@@ -17932,7 +22205,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Vector result = n / pt;
+                    _ = n / pt;
                 };
 
                 ExecuteTest(method, "Com.Vector.operator /(double, Com.Vector)", "dimension at 32");
@@ -17944,7 +22217,7 @@ namespace Test
 
                 Action method = () =>
                 {
-                    Com.Vector result = left / right;
+                    _ = left / right;
                 };
 
                 ExecuteTest(method, "Com.Vector.operator /(Com.Vector, Com.Vector)", "dimension at 32");
