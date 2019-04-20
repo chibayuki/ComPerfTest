@@ -99,7 +99,7 @@ namespace Test
             Console.Write(new string(' ', _FullWidth));
             Console.SetCursorPosition(2, 3);
             Console.ForegroundColor = ConsoleColor.DarkCyan;
-            Console.Write((int)(progress * 100) + "% completed");
+            Console.Write((Math.Floor(progress * 1000) / 10) + "% completed");
             Console.ForegroundColor = ConsoleColor.Black;
             Console.SetCursorPosition(0, 5);
             Console.WindowTop = 0;
@@ -151,7 +151,7 @@ namespace Test
     {
         private const int _MSOfPerMember =
 #if DEBUG
-            10
+            1
 #else
             500
 #endif
