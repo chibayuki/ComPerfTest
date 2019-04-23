@@ -22,7 +22,7 @@ namespace Test
         static void Main(string[] args)
         {
             TestResult.Clear();
-            TestResult.Log("[Com.Properties.AssemblyVersion], master");
+            TestResult.Log("[Com.Properties.AssemblyVersion], 19.4.17.2100");
 
             TestProgress.Reset();
             TestProgress.Report(0);
@@ -54,11 +54,6 @@ namespace Test
                 new VectorTest()
             };
 
-            TestResult.Clear();
-            TestResult.Log("[Com.Properties.AssemblyVersion], 19.4.17.2100");
-
-            TestProgress.Reset();
-            TestProgress.Report(0);
             for (int i = 0; i < TestClass.Length; i++)
             {
                 TestClass[i].Run();
