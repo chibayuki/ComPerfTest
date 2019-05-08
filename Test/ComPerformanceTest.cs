@@ -3127,7 +3127,7 @@ namespace Test
                     _ = Com.ColorX.FromRGB(red, green, blue);
                 };
 
-                ExecuteTest(method, "Com.ColorX.FromRGB( double, double, double)");
+                ExecuteTest(method, "Com.ColorX.FromRGB(double, double, double)");
             }
 
             {
