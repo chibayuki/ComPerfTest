@@ -22,7 +22,7 @@ namespace Test
         static void Main(string[] args)
         {
             TestResult.Clear();
-            TestResult.Log("[Com.Properties.AssemblyVersion], 19.5.2.1900");
+            TestResult.Log("[Com.Properties.AssemblyVersion], 19.5.11.1720");
 
             TestProgress.Reset();
             TestProgress.Report(0);
