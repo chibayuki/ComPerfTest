@@ -1,8 +1,8 @@
 ﻿/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-Copyright © 2018 chibayuki@foxmail.com
+Copyright © 2019 chibayuki@foxmail.com
 
-Com性能测试
-Version 19.4.13.0000
+Com性能测试 (ComPerformanceTest)
+Version 19.5.25.1400
 
 This file is part of "Com性能测试" (ComPerformanceTest)
 
@@ -149,13 +149,7 @@ namespace Test
 
     class ClassPerformanceTestBase // 类性能测试类的基类
     {
-        private const int _MSOfPerMember =
-#if DEBUG
-            1
-#else
-            500
-#endif
-            ; // 被测试类每个成员的最短执行时长的毫秒数
+        private const int _MSOfPerMember = 500; // 被测试类每个成员的最短执行时长的毫秒数
 
         //
 

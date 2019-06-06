@@ -1,8 +1,8 @@
 ﻿/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-Copyright © 2018 chibayuki@foxmail.com
+Copyright © 2019 chibayuki@foxmail.com
 
-Com性能测试
-Version 19.4.13.0000
+Com性能测试 (ComPerformanceTest)
+Version 19.5.25.1400
 
 This file is part of "Com性能测试" (ComPerformanceTest)
 
