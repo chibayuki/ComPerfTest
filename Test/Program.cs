@@ -2,7 +2,7 @@
 Copyright © 2019 chibayuki@foxmail.com
 
 Com性能测试 (ComPerformanceTest)
-Version 19.5.25.1400
+Version 19.6.20.0000
 
 This file is part of "Com性能测试" (ComPerformanceTest)
 
@@ -22,7 +22,7 @@ namespace Test
         static void Main(string[] args)
         {
             TestResult.Clear();
-            TestResult.Log("[Com.Properties.AssemblyVersion], 19.5.11.1720");
+            TestResult.Log("[Com.Properties.AssemblyVersion], master");
 
             TestProgress.Reset();
             TestProgress.Report(0);

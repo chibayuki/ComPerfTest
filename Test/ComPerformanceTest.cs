@@ -2,7 +2,7 @@
 Copyright © 2019 chibayuki@foxmail.com
 
 Com性能测试 (ComPerformanceTest)
-Version 19.5.25.1400
+Version 19.6.20.0000
 
 This file is part of "Com性能测试" (ComPerformanceTest)
 
@@ -2742,6 +2742,19 @@ namespace Test
 
                 ExecuteTest(method, "Com.ColorX.RGBHexCode.get()");
             }
+
+            // Name
+
+            {
+                Com.ColorX colorX = Com.ColorManipulation.GetRandomColorX();
+
+                Action method = () =>
+                {
+                    _ = colorX.Name;
+                };
+
+                ExecuteTest(method, "Com.ColorX.Name.get()");
+            }
         }
 
         protected override void StaticProperty()
@@ -3411,6 +3424,19 @@ namespace Test
                 };
 
                 ExecuteTest(method, "Com.ColorX.FromHexCode(string)");
+            }
+
+            // FromName
+
+            {
+                string name = Com.ColorManipulation.GetRandomColorX().Name;
+
+                Action method = () =>
+                {
+                    _ = Com.ColorX.FromName(name);
+                };
+
+                ExecuteTest(method, "Com.ColorX.FromName(string)");
             }
 
             // RandomColor
