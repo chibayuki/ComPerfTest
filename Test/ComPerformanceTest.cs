@@ -72,7 +72,7 @@ namespace Test
 
     static class TestProgress // 测试进度
     {
-        private const int _TotalMemberCount = 1703; // 成员总数量
+        private const int _TotalMemberCount = 1720; // 成员总数量
         private static int _CompletedMemberCount = 0; // 已测试成员数量
 
         private static int _FullWidth => Math.Max(10, Math.Min(Console.WindowWidth * 3 / 4, 100)); // 进度条宽度
@@ -149,7 +149,11 @@ namespace Test
 
     class ClassPerformanceTestBase // 类性能测试类的基类
     {
+#if !DEBUG
         private const int _MSOfPerMember = 500; // 被测试类每个成员的最短执行时长的毫秒数
+#else
+        private const int _MSOfPerMember = 1; // 被测试类每个成员的最短执行时长的毫秒数
+#endif
 
         //
 
@@ -2578,6 +2582,77 @@ namespace Test
                 ExecuteTest(method, "Com.ColorX.BlueYellow.set(double)");
             }
 
+            // YUV
+
+            {
+                Com.ColorX colorX = Com.ColorManipulation.GetRandomColorX();
+
+                Action method = () =>
+                {
+                    _ = colorX.Luminance;
+                };
+
+                ExecuteTest(method, "Com.ColorX.Luminance.get()");
+            }
+
+            {
+                Com.ColorX colorX = Com.ColorManipulation.GetRandomColorX();
+                double value = Com.Statistics.RandomDouble(1);
+
+                Action method = () =>
+                {
+                    colorX.Luminance = value;
+                };
+
+                ExecuteTest(method, "Com.ColorX.Luminance.set(double)");
+            }
+
+            {
+                Com.ColorX colorX = Com.ColorManipulation.GetRandomColorX();
+
+                Action method = () =>
+                {
+                    _ = colorX.ChrominanceBlue;
+                };
+
+                ExecuteTest(method, "Com.ColorX.ChrominanceBlue.get()");
+            }
+
+            {
+                Com.ColorX colorX = Com.ColorManipulation.GetRandomColorX();
+                double value = Com.Statistics.RandomDouble(-0.5, 0.5);
+
+                Action method = () =>
+                {
+                    colorX.ChrominanceBlue = value;
+                };
+
+                ExecuteTest(method, "Com.ColorX.ChrominanceBlue.set(double)");
+            }
+
+            {
+                Com.ColorX colorX = Com.ColorManipulation.GetRandomColorX();
+
+                Action method = () =>
+                {
+                    _ = colorX.ChrominanceRed;
+                };
+
+                ExecuteTest(method, "Com.ColorX.ChrominanceRed.get()");
+            }
+
+            {
+                Com.ColorX colorX = Com.ColorManipulation.GetRandomColorX();
+                double value = Com.Statistics.RandomDouble(-0.5, 0.5);
+
+                Action method = () =>
+                {
+                    colorX.ChrominanceRed = value;
+                };
+
+                ExecuteTest(method, "Com.ColorX.ChrominanceRed.set(double)");
+            }
+
             // 向量
 
             {
@@ -2693,6 +2768,29 @@ namespace Test
                 };
 
                 ExecuteTest(method, "Com.ColorX.LAB.set(Com.PointD3D)");
+            }
+
+            {
+                Com.ColorX colorX = Com.ColorManipulation.GetRandomColorX();
+
+                Action method = () =>
+                {
+                    _ = colorX.YUV;
+                };
+
+                ExecuteTest(method, "Com.ColorX.YUV.get()");
+            }
+
+            {
+                Com.ColorX colorX = Com.ColorManipulation.GetRandomColorX();
+                Com.PointD3D value = Com.ColorManipulation.GetRandomColorX().YUV;
+
+                Action method = () =>
+                {
+                    colorX.YUV = value;
+                };
+
+                ExecuteTest(method, "Com.ColorX.YUV.set(Com.PointD3D)");
             }
 
             // 互补色，灰度
@@ -3065,6 +3163,44 @@ namespace Test
 
                 ExecuteTest(method, "Com.ColorX.AtBlueYellow(double)");
             }
+
+            // AtYUV
+
+            {
+                Com.ColorX colorX = Com.ColorManipulation.GetRandomColorX();
+                double value = Com.Statistics.RandomDouble(1);
+
+                Action method = () =>
+                {
+                    _ = colorX.AtLuminance(value);
+                };
+
+                ExecuteTest(method, "Com.ColorX.AtLuminance(double)");
+            }
+
+            {
+                Com.ColorX colorX = Com.ColorManipulation.GetRandomColorX();
+                double value = Com.Statistics.RandomDouble(-0.5, 0.5);
+
+                Action method = () =>
+                {
+                    _ = colorX.AtChrominanceBlue(value);
+                };
+
+                ExecuteTest(method, "Com.ColorX.AtChrominanceBlue(double)");
+            }
+
+            {
+                Com.ColorX colorX = Com.ColorManipulation.GetRandomColorX();
+                double value = Com.Statistics.RandomDouble(-0.5, 0.5);
+
+                Action method = () =>
+                {
+                    _ = colorX.AtChrominanceRed(value);
+                };
+
+                ExecuteTest(method, "Com.ColorX.AtChrominanceRed(double)");
+            }
         }
 
         protected override void StaticMethod()
@@ -3411,6 +3547,64 @@ namespace Test
                 };
 
                 ExecuteTest(method, "Com.ColorX.FromLAB(Com.PointD3D)");
+            }
+
+            // FromYUV
+
+            {
+                double luminance = Com.Statistics.RandomDouble(1);
+                double chrominanceBlue = Com.Statistics.RandomDouble(-0.5, 0.5);
+                double chrominanceRed = Com.Statistics.RandomDouble(-0.5, 0.5);
+                double opacity = Com.Statistics.RandomDouble(100);
+
+                Action method = () =>
+                {
+                    _ = Com.ColorX.FromYUV(luminance, chrominanceBlue, chrominanceRed, opacity);
+                };
+
+                ExecuteTest(method, "Com.ColorX.FromYUV(double, double, double, double)");
+            }
+
+            {
+                double luminance = Com.Statistics.RandomDouble(1);
+                double chrominanceBlue = Com.Statistics.RandomDouble(-0.5, 0.5);
+                double chrominanceRed = Com.Statistics.RandomDouble(-0.5, 0.5);
+
+                Action method = () =>
+                {
+                    _ = Com.ColorX.FromYUV(luminance, chrominanceBlue, chrominanceRed);
+                };
+
+                ExecuteTest(method, "Com.ColorX.FromYUV(double, double, double)");
+            }
+
+            {
+                double luminance = Com.Statistics.RandomDouble(1);
+                double chrominanceBlue = Com.Statistics.RandomDouble(-0.5, 0.5);
+                double chrominanceRed = Com.Statistics.RandomDouble(-0.5, 0.5);
+                Com.PointD3D yuv = new Com.PointD3D(luminance, chrominanceBlue, chrominanceRed);
+                double opacity = Com.Statistics.RandomDouble(100);
+
+                Action method = () =>
+                {
+                    _ = Com.ColorX.FromYUV(yuv, opacity);
+                };
+
+                ExecuteTest(method, "Com.ColorX.FromYUV(Com.PointD3D, double)");
+            }
+
+            {
+                double luminance = Com.Statistics.RandomDouble(1);
+                double chrominanceBlue = Com.Statistics.RandomDouble(-0.5, 0.5);
+                double chrominanceRed = Com.Statistics.RandomDouble(-0.5, 0.5);
+                Com.PointD3D yuv = new Com.PointD3D(luminance, chrominanceBlue, chrominanceRed);
+
+                Action method = () =>
+                {
+                    _ = Com.ColorX.FromYUV(yuv);
+                };
+
+                ExecuteTest(method, "Com.ColorX.FromYUV(Com.PointD3D)");
             }
 
             // FromHexCode
