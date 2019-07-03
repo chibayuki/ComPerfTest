@@ -72,7 +72,7 @@ namespace Test
 
     static class TestProgress // 测试进度
     {
-        private const int _TotalMemberCount = 1720; // 成员总数量
+        private const int _TotalMemberCount = 1723; // 成员总数量
         private static int _CompletedMemberCount = 0; // 已测试成员数量
 
         private static int _FullWidth => Math.Max(10, Math.Min(Console.WindowWidth * 3 / 4, 100)); // 进度条宽度
@@ -3898,17 +3898,17 @@ namespace Test
                 ExecuteTest(method, "Com.Complex.Argument.get()");
             }
 
-            // 共轭与倒数
+            // 相反数、倒数、共轭
 
             {
                 Com.Complex comp = _GetRandomComplex();
 
                 Action method = () =>
                 {
-                    _ = comp.Conjugate;
+                    _ = comp.Opposite;
                 };
 
-                ExecuteTest(method, "Com.Complex.Conjugate.get()");
+                ExecuteTest(method, "Com.Complex.Opposite.get()");
             }
 
             {
@@ -3920,6 +3920,17 @@ namespace Test
                 };
 
                 ExecuteTest(method, "Com.Complex.Reciprocal.get()");
+            }
+
+            {
+                Com.Complex comp = _GetRandomComplex();
+
+                Action method = () =>
+                {
+                    _ = comp.Conjugate;
+                };
+
+                ExecuteTest(method, "Com.Complex.Conjugate.get()");
             }
         }
 
@@ -18340,6 +18351,30 @@ namespace Test
                 };
 
                 ExecuteTest(method, "Com.Real.Magnitude.set(long)");
+            }
+
+            // 相反数、倒数
+
+            {
+                Com.Real real = _GetRandomReal();
+
+                Action method = () =>
+                {
+                    _ = real.Opposite;
+                };
+
+                ExecuteTest(method, "Com.Real.Opposite.get()");
+            }
+
+            {
+                Com.Real real = _GetRandomReal();
+
+                Action method = () =>
+                {
+                    _ = real.Reciprocal;
+                };
+
+                ExecuteTest(method, "Com.Real.Reciprocal.get()");
             }
         }
 
