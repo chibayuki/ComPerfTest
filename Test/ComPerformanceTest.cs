@@ -72,7 +72,7 @@ namespace Test
 
     static class TestProgress // 测试进度
     {
-        private const int _TotalMemberCount = 1723; // 成员总数量
+        private const int _TotalMemberCount = 1724; // 成员总数量
         private static int _CompletedMemberCount = 0; // 已测试成员数量
 
         private static int _FullWidth => Math.Max(10, Math.Min(Console.WindowWidth * 3 / 4, 100)); // 进度条宽度
@@ -2154,6 +2154,17 @@ namespace Test
                 };
 
                 ExecuteTest(method, "Com.ColorX.IsTransparent.get()");
+            }
+
+            {
+                Com.ColorX colorX = Com.ColorManipulation.GetRandomColorX();
+
+                Action method = () =>
+                {
+                    _ = colorX.IsTrueColor;
+                };
+
+                ExecuteTest(method, "Com.ColorX.IsTrueColor.get()");
             }
 
             // Opacity
