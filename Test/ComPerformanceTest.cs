@@ -72,7 +72,7 @@ namespace Test
 
     static class TestProgress // 测试进度
     {
-        private const int _TotalMemberCount = 1724; // 成员总数量
+        private const int _TotalMemberCount = 1729; // 成员总数量
         private static int _CompletedMemberCount = 0; // 已测试成员数量
 
         private static int _FullWidth => Math.Max(10, Math.Min(Console.WindowWidth * 3 / 4, 100)); // 进度条宽度
@@ -1785,7 +1785,29 @@ namespace Test
                 ExecuteTest(method, "Com.ColorManipulation.GetRandomColor()");
             }
 
-            // 互补色，灰度
+            // 相反色，互补色，灰度
+
+            {
+                Com.ColorX color = Com.ColorManipulation.GetRandomColorX();
+
+                Action method = () =>
+                {
+                    _ = Com.ColorManipulation.GetInvertColor(color);
+                };
+
+                ExecuteTest(method, "Com.ColorManipulation.GetInvertColor(Com.ColorX)");
+            }
+
+            {
+                Color color = Com.ColorManipulation.GetRandomColor();
+
+                Action method = () =>
+                {
+                    _ = Com.ColorManipulation.GetInvertColor(color);
+                };
+
+                ExecuteTest(method, "Com.ColorManipulation.GetInvertColor(System.Drawing.Color)");
+            }
 
             {
                 Com.ColorX color = Com.ColorManipulation.GetRandomColorX();
@@ -2804,7 +2826,29 @@ namespace Test
                 ExecuteTest(method, "Com.ColorX.YUV.set(Com.PointD3D)");
             }
 
-            // 互补色，灰度
+            // 相反色，互补色，灰度
+
+            {
+                Com.ColorX colorX = Com.ColorManipulation.GetRandomColorX();
+
+                Action method = () =>
+                {
+                    _ = colorX.Invert;
+                };
+
+                ExecuteTest(method, "Com.ColorX.ComplementaryColor.get()");
+            }
+
+            {
+                Com.ColorX colorX = Com.ColorManipulation.GetRandomColorX();
+
+                Action method = () =>
+                {
+                    _ = colorX.Complementary;
+                };
+
+                ExecuteTest(method, "Com.ColorX.ComplementaryColor.get()");
+            }
 
             {
                 Com.ColorX colorX = Com.ColorManipulation.GetRandomColorX();
@@ -2815,6 +2859,17 @@ namespace Test
                 };
 
                 ExecuteTest(method, "Com.ColorX.ComplementaryColor.get()");
+            }
+
+            {
+                Com.ColorX colorX = Com.ColorManipulation.GetRandomColorX();
+
+                Action method = () =>
+                {
+                    _ = colorX.Grayscale;
+                };
+
+                ExecuteTest(method, "Com.ColorX.GrayscaleColor.get()");
             }
 
             {
@@ -19386,7 +19441,7 @@ namespace Test
 
                 for (int i = 0; i < array.Length; i++)
                 {
-                    array[i] = Com.Statistics.RandomInteger();
+                    array[i] = ((long)Com.Statistics.RandomInteger() << 32) + Com.Statistics.RandomInteger();
                 }
 
                 return array;
@@ -19405,7 +19460,7 @@ namespace Test
 
                 for (int i = 0; i < array.Length; i++)
                 {
-                    array[i] = unchecked((ulong)Com.Statistics.RandomInteger());
+                    array[i] = ((ulong)Com.Statistics.RandomInteger() << 32) + (ulong)Com.Statistics.RandomInteger();
                 }
 
                 return array;
@@ -19424,7 +19479,7 @@ namespace Test
 
                 for (int i = 0; i < array.Length; i++)
                 {
-                    array[i] = Com.Statistics.RandomInteger();
+                    array[i] = (decimal)(Com.Statistics.RandomDouble() * Com.Statistics.RandomInteger());
                 }
 
                 return array;
@@ -19443,7 +19498,7 @@ namespace Test
 
                 for (int i = 0; i < array.Length; i++)
                 {
-                    array[i] = Com.Statistics.RandomInteger();
+                    array[i] = (float)(Com.Statistics.RandomDouble() * Com.Statistics.RandomInteger());
                 }
 
                 return array;
@@ -19462,7 +19517,7 @@ namespace Test
 
                 for (int i = 0; i < array.Length; i++)
                 {
-                    array[i] = Com.Statistics.RandomInteger();
+                    array[i] = Com.Statistics.RandomDouble() * Com.Statistics.RandomInteger();
                 }
 
                 return array;
