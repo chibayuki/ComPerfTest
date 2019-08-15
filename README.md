@@ -1,4 +1,4 @@
-# Com性能测试 / ComPerformanceTest
+# Com性能测试 / Com Performance Test
 用于测试Com的性能的程序 / An app for testing the performance of Com.
 
 ### 许可 / License
