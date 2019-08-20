@@ -72,7 +72,7 @@ namespace Test
 
     static class TestProgress // 测试进度
     {
-        private const int _TotalMemberCount = 1729; // 成员总数量
+        private const int _TotalMemberCount = 1728; // 成员总数量
         private static int _CompletedMemberCount = 0; // 已测试成员数量
 
         private static int _FullWidth => Math.Max(10, Math.Min(Console.WindowWidth * 3 / 4, 100)); // 进度条宽度
@@ -19441,7 +19441,7 @@ namespace Test
 
                 for (int i = 0; i < array.Length; i++)
                 {
-                    array[i] = ((long)Com.Statistics.RandomInteger() << 32) + Com.Statistics.RandomInteger();
+                    array[i] = Com.Statistics.RandomInteger();
                 }
 
                 return array;
@@ -19460,7 +19460,7 @@ namespace Test
 
                 for (int i = 0; i < array.Length; i++)
                 {
-                    array[i] = ((ulong)Com.Statistics.RandomInteger() << 32) + (ulong)Com.Statistics.RandomInteger();
+                    array[i] = unchecked((ulong)Com.Statistics.RandomInteger());
                 }
 
                 return array;
@@ -19923,7 +19923,9 @@ namespace Test
                 ExecuteTest(method, "Com.Statistics.Max(params double[])", "array size at 1024");
             }
 
-            ExecuteTest(null, "Com.Statistics.Max(params IComparable[])");
+            ExecuteTest(null, "Com.Statistics.Max<T>(params T[]) where T : System.IComparable");
+
+            ExecuteTest(null, "Com.Statistics.Max(params System.IComparable[])");
 
             {
                 sbyte[] values = _GetRandomSbyteArray(1024);
@@ -20046,7 +20048,9 @@ namespace Test
                 ExecuteTest(method, "Com.Statistics.Min(params double[])", "array size at 1024");
             }
 
-            ExecuteTest(null, "Com.Statistics.Min(params IComparable[])");
+            ExecuteTest(null, "Com.Statistics.Min<T>(params T[]) where T : System.IComparable");
+
+            ExecuteTest(null, "Com.Statistics.Min(params System.IComparable[])");
 
             {
                 sbyte[] values = _GetRandomSbyteArray(1024);
@@ -20169,7 +20173,9 @@ namespace Test
                 ExecuteTest(method, "Com.Statistics.MinMax(params double[])", "array size at 1024");
             }
 
-            ExecuteTest(null, "Com.Statistics.MinMax(params IComparable[])");
+            ExecuteTest(null, "Com.Statistics.MinMax<T>(params T[]) where T : System.IComparable");
+
+            ExecuteTest(null, "Com.Statistics.MinMax(params System.IComparable[])");
 
             {
                 sbyte[] values = _GetRandomSbyteArray(1024);
@@ -20291,8 +20297,6 @@ namespace Test
 
                 ExecuteTest(method, "Com.Statistics.Range(params double[])", "array size at 1024");
             }
-
-            ExecuteTest(null, "Com.Statistics.Range(params IComparable[])");
 
             {
                 sbyte[] values = _GetRandomSbyteArray(1024);
@@ -20420,8 +20424,6 @@ namespace Test
                 ExecuteTest(method, "Com.Statistics.Sum(params double[])", "array size at 1024");
             }
 
-            ExecuteTest(null, "Com.Statistics.Sum(params IComparable[])");
-
             {
                 sbyte[] values = _GetRandomSbyteArray(1024);
 
@@ -20543,8 +20545,6 @@ namespace Test
                 ExecuteTest(method, "Com.Statistics.Average(params double[])", "array size at 1024");
             }
 
-            ExecuteTest(null, "Com.Statistics.Average(params IComparable[])");
-
             {
                 sbyte[] values = _GetRandomSbyteArray(1024);
 
@@ -20665,8 +20665,6 @@ namespace Test
 
                 ExecuteTest(method, "Com.Statistics.MinMaxAverage(params double[])", "array size at 1024");
             }
-
-            ExecuteTest(null, "Com.Statistics.MinMaxAverage(params IComparable[])");
 
             // 方差与标准差
 
