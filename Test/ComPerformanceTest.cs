@@ -19403,7 +19403,7 @@ namespace Test
 
                 for (int i = 0; i < array.Length; i++)
                 {
-                    array[i] = Com.Statistics.RandomInteger();
+                    array[i] = unchecked((short)Com.Statistics.RandomInteger());
                 }
 
                 return array;
