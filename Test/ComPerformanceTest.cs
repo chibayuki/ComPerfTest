@@ -72,7 +72,7 @@ namespace Test
 
     static class TestProgress // 测试进度
     {
-        private const int _TotalMemberCount = 1728; // 成员总数量
+        private const int _TotalMemberCount = 1732; // 成员总数量
         private static int _CompletedMemberCount = 0; // 已测试成员数量
 
         private static int _FullWidth => Math.Max(10, Math.Min(Console.WindowWidth * 3 / 4, 100)); // 进度条宽度
@@ -6187,10 +6187,54 @@ namespace Test
 
                 Action method = () =>
                 {
+                    _ = Com.Geometry.AngleMapping(angle, true, true);
+                };
+
+                ExecuteTest(method, "Com.Geometry.AngleMapping(double, bool, bool)");
+            }
+
+            {
+                double angle = Com.Statistics.RandomDouble(-1E9, 1E9);
+
+                Action method = () =>
+                {
+                    _ = Com.Geometry.AngleMapping(angle, true);
+                };
+
+                ExecuteTest(method, "Com.Geometry.AngleMapping(double, bool)");
+            }
+
+            {
+                double angle = Com.Statistics.RandomDouble(-1E9, 1E9);
+
+                Action method = () =>
+                {
                     _ = Com.Geometry.AngleMapping(angle);
                 };
 
                 ExecuteTest(method, "Com.Geometry.AngleMapping(double)");
+            }
+
+            {
+                double angle = Com.Statistics.RandomDouble(-1E9, 1E9);
+
+                Action method = () =>
+                {
+                    _ = Com.Geometry.RadianToDegree(angle);
+                };
+
+                ExecuteTest(method, "Com.Geometry.RadianToDegree(double)");
+            }
+
+            {
+                double angle = Com.Statistics.RandomDouble(-1E9, 1E9);
+
+                Action method = () =>
+                {
+                    _ = Com.Geometry.DegreeToRadian(angle);
+                };
+
+                ExecuteTest(method, "Com.Geometry.DegreeToRadian(double)");
             }
 
             // 控件
