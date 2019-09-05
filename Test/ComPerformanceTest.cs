@@ -72,7 +72,7 @@ namespace Test
 
     static class TestProgress // 测试进度
     {
-        private const int _TotalMemberCount = 1732; // 成员总数量
+        private const int _TotalMemberCount = 1737; // 成员总数量
         private static int _CompletedMemberCount = 0; // 已测试成员数量
 
         private static int _FullWidth => Math.Max(10, Math.Min(Console.WindowWidth * 3 / 4, 100)); // 进度条宽度
@@ -9085,6 +9085,17 @@ namespace Test
             // From
 
             {
+                Com.Vector vector = _GetRandomPointD().ToColumnVector();
+
+                Action method = () =>
+                {
+                    _ = Com.PointD.FromVector(vector);
+                };
+
+                ExecuteTest(method, "Com.PointD.FromVector(Com.Vector)");
+            }
+
+            {
                 Point pt = new Point(Com.Statistics.RandomInteger() - int.MaxValue / 2, Com.Statistics.RandomInteger() - int.MaxValue / 2);
 
                 Action method = () =>
@@ -11787,6 +11798,19 @@ namespace Test
                 ExecuteTest(method, "Com.PointD3D.Compare(Com.PointD3D, Com.PointD3D)");
             }
 
+            // From
+
+            {
+                Com.Vector vector = _GetRandomPointD3D().ToColumnVector();
+
+                Action method = () =>
+                {
+                    _ = Com.PointD3D.FromVector(vector);
+                };
+
+                ExecuteTest(method, "Com.PointD3D.FromVector(Com.Vector)");
+            }
+
             // Matrix
 
             {
@@ -13715,6 +13739,19 @@ namespace Test
                 ExecuteTest(method, "Com.PointD4D.Compare(Com.PointD4D, Com.PointD4D)");
             }
 
+            // From
+
+            {
+                Com.Vector vector = _GetRandomPointD4D().ToColumnVector();
+
+                Action method = () =>
+                {
+                    _ = Com.PointD4D.FromVector(vector);
+                };
+
+                ExecuteTest(method, "Com.PointD4D.FromVector(Com.Vector)");
+            }
+
             // Matrix
 
             {
@@ -15607,6 +15644,19 @@ namespace Test
                 };
 
                 ExecuteTest(method, "Com.PointD5D.Compare(Com.PointD5D, Com.PointD5D)");
+            }
+
+            // From
+
+            {
+                Com.Vector vector = _GetRandomPointD5D().ToColumnVector();
+
+                Action method = () =>
+                {
+                    _ = Com.PointD5D.FromVector(vector);
+                };
+
+                ExecuteTest(method, "Com.PointD5D.FromVector(Com.Vector)");
             }
 
             // Matrix
@@ -17593,6 +17643,19 @@ namespace Test
                 };
 
                 ExecuteTest(method, "Com.PointD6D.Compare(Com.PointD6D, Com.PointD6D)");
+            }
+
+            // From
+
+            {
+                Com.Vector vector = _GetRandomPointD6D().ToColumnVector();
+
+                Action method = () =>
+                {
+                    _ = Com.PointD6D.FromVector(vector);
+                };
+
+                ExecuteTest(method, "Com.PointD6D.FromVector(Com.Vector)");
             }
 
             // Matrix
