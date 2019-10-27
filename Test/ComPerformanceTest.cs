@@ -2,7 +2,7 @@
 Copyright © 2019 chibayuki@foxmail.com
 
 Com性能测试 (ComPerformanceTest)
-Version 19.6.20.0000
+Version 19.10.27.0000
 
 This file is part of "Com性能测试" (ComPerformanceTest)
 
@@ -7543,7 +7543,7 @@ namespace Test
                 Color color = Com.ColorManipulation.GetRandomColorX().AtAlpha(128).ToColor();
                 float edgeWidth = 1.0F;
                 List<Com.Matrix> affineMatrixList = new List<Com.Matrix>(4) { Com.PointD3D.IdentityMatrix(), Com.PointD3D.IdentityMatrix(), Com.PointD3D.IdentityMatrix(), Com.PointD3D.IdentityMatrix() };
-                double trueLenDist = 512;
+                double focalLength = 512;
                 Com.PointD3D illuminationDirection = new Com.PointD3D(1, 1, 1);
                 bool illuminationDirectionIsAfterAffineTransform = false;
                 double exposure = 0;
@@ -7551,10 +7551,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    _ = Com.Painting3D.PaintCuboid(bmp, center, size, color, edgeWidth, affineMatrixList, trueLenDist, illuminationDirection, illuminationDirectionIsAfterAffineTransform, exposure, antiAlias);
+                    _ = Com.Painting3D.PaintCuboid(bmp, center, size, color, edgeWidth, affineMatrixList, focalLength, illuminationDirection, illuminationDirectionIsAfterAffineTransform, exposure, antiAlias);
                 };
 
-                ExecuteTest(method, "Com.Painting3D.PaintCuboid(System.Drawing.Bitmap, Com.PointD3D, Com.PointD3D, System.Drawing.Color, float, System.Collections.Generic.List<Com.Matrix>, double, Com.PointD3D, bool, double, bool)", "bmp at 1024x1024 pixels, cuboid size at 512x512x512, edgeWidth at 1.0F, total 4 matrices, trueLenDist at 1024, enable antiAlias");
+                ExecuteTest(method, "Com.Painting3D.PaintCuboid(System.Drawing.Bitmap, Com.PointD3D, Com.PointD3D, System.Drawing.Color, float, System.Collections.Generic.List<Com.Matrix>, double, Com.PointD3D, bool, double, bool)", "bmp at 1024x1024 pixels, cuboid size at 512x512x512, edgeWidth at 1.0F, total 4 matrices, focalLength at 1024, enable antiAlias");
             }
 
             {
@@ -7564,7 +7564,7 @@ namespace Test
                 Color color = Com.ColorManipulation.GetRandomColorX().AtAlpha(128).ToColor();
                 float edgeWidth = 1.0F;
                 Com.Matrix affineMatrix = Com.PointD3D.IdentityMatrix();
-                double trueLenDist = 512;
+                double focalLength = 512;
                 Com.PointD3D illuminationDirection = new Com.PointD3D(1, 1, 1);
                 bool illuminationDirectionIsAfterAffineTransform = false;
                 double exposure = 0;
@@ -7572,10 +7572,10 @@ namespace Test
 
                 Action method = () =>
                 {
-                    _ = Com.Painting3D.PaintCuboid(bmp, center, size, color, edgeWidth, affineMatrix, trueLenDist, illuminationDirection, illuminationDirectionIsAfterAffineTransform, exposure, antiAlias);
+                    _ = Com.Painting3D.PaintCuboid(bmp, center, size, color, edgeWidth, affineMatrix, focalLength, illuminationDirection, illuminationDirectionIsAfterAffineTransform, exposure, antiAlias);
                 };
 
-                ExecuteTest(method, "Com.Painting3D.PaintCuboid(System.Drawing.Bitmap, Com.PointD3D, Com.PointD3D, System.Drawing.Color, float, Com.Matrix, double, Com.PointD3D, bool, double, bool)", "bmp at 1024x1024 pixels, cuboid size at 512x512x512, edgeWidth at 1.0F, trueLenDist at 1024, enable antiAlias");
+                ExecuteTest(method, "Com.Painting3D.PaintCuboid(System.Drawing.Bitmap, Com.PointD3D, Com.PointD3D, System.Drawing.Color, float, Com.Matrix, double, Com.PointD3D, bool, double, bool)", "bmp at 1024x1024 pixels, cuboid size at 512x512x512, edgeWidth at 1.0F, focalLength at 1024, enable antiAlias");
             }
 
             {
@@ -7585,15 +7585,15 @@ namespace Test
                 Color color = Com.ColorManipulation.GetRandomColorX().AtAlpha(128).ToColor();
                 float edgeWidth = 1.0F;
                 List<Com.Matrix> affineMatrixList = new List<Com.Matrix>(4) { Com.PointD3D.IdentityMatrix(), Com.PointD3D.IdentityMatrix(), Com.PointD3D.IdentityMatrix(), Com.PointD3D.IdentityMatrix() };
-                double trueLenDist = 512;
+                double focalLength = 512;
                 bool antiAlias = true;
 
                 Action method = () =>
                 {
-                    _ = Com.Painting3D.PaintCuboid(bmp, center, size, color, edgeWidth, affineMatrixList, trueLenDist, antiAlias);
+                    _ = Com.Painting3D.PaintCuboid(bmp, center, size, color, edgeWidth, affineMatrixList, focalLength, antiAlias);
                 };
 
-                ExecuteTest(method, "Com.Painting3D.PaintCuboid(System.Drawing.Bitmap, Com.PointD3D, Com.PointD3D, System.Drawing.Color, float, System.Collections.Generic.List<Com.Matrix>, double, bool)", "bmp at 1024x1024 pixels, cuboid size at 512x512x512, edgeWidth at 1.0F, total 4 matrices, trueLenDist at 1024, enable antiAlias");
+                ExecuteTest(method, "Com.Painting3D.PaintCuboid(System.Drawing.Bitmap, Com.PointD3D, Com.PointD3D, System.Drawing.Color, float, System.Collections.Generic.List<Com.Matrix>, double, bool)", "bmp at 1024x1024 pixels, cuboid size at 512x512x512, edgeWidth at 1.0F, total 4 matrices, focalLength at 1024, enable antiAlias");
             }
 
             {
@@ -7603,15 +7603,15 @@ namespace Test
                 Color color = Com.ColorManipulation.GetRandomColorX().AtAlpha(128).ToColor();
                 float edgeWidth = 1.0F;
                 Com.Matrix affineMatrix = Com.PointD3D.IdentityMatrix();
-                double trueLenDist = 512;
+                double focalLength = 512;
                 bool antiAlias = true;
 
                 Action method = () =>
                 {
-                    _ = Com.Painting3D.PaintCuboid(bmp, center, size, color, edgeWidth, affineMatrix, trueLenDist, antiAlias);
+                    _ = Com.Painting3D.PaintCuboid(bmp, center, size, color, edgeWidth, affineMatrix, focalLength, antiAlias);
                 };
 
-                ExecuteTest(method, "Com.Painting3D.PaintCuboid(System.Drawing.Bitmap, Com.PointD3D, Com.PointD3D, System.Drawing.Color, float, Com.Matrix, double, bool)", "bmp at 1024x1024 pixels, cuboid size at 512x512x512, edgeWidth at 1.0F, trueLenDist at 1024, enable antiAlias");
+                ExecuteTest(method, "Com.Painting3D.PaintCuboid(System.Drawing.Bitmap, Com.PointD3D, Com.PointD3D, System.Drawing.Color, float, Com.Matrix, double, bool)", "bmp at 1024x1024 pixels, cuboid size at 512x512x512, edgeWidth at 1.0F, focalLength at 1024, enable antiAlias");
             }
         }
 
@@ -11707,11 +11707,12 @@ namespace Test
             {
                 Com.PointD3D pointD3D = _GetRandomPointD3D();
                 Com.PointD3D prjCenter = _GetRandomPointD3D();
-                double trueLenDist = (pointD3D.Z - prjCenter.Z) * Com.Statistics.RandomDouble();
+                double focalLength
+                    = (pointD3D.Z - prjCenter.Z) * Com.Statistics.RandomDouble();
 
                 Action method = () =>
                 {
-                    _ = pointD3D.ProjectToXY(prjCenter, trueLenDist);
+                    _ = pointD3D.ProjectToXY(prjCenter, focalLength);
                 };
 
                 ExecuteTest(method, "Com.PointD3D.ProjectToXY(Com.PointD3D, double)");
@@ -11720,11 +11721,11 @@ namespace Test
             {
                 Com.PointD3D pointD3D = _GetRandomPointD3D();
                 Com.PointD3D prjCenter = _GetRandomPointD3D();
-                double trueLenDist = (pointD3D.X - prjCenter.X) * Com.Statistics.RandomDouble();
+                double focalLength = (pointD3D.X - prjCenter.X) * Com.Statistics.RandomDouble();
 
                 Action method = () =>
                 {
-                    _ = pointD3D.ProjectToYZ(prjCenter, trueLenDist);
+                    _ = pointD3D.ProjectToYZ(prjCenter, focalLength);
                 };
 
                 ExecuteTest(method, "Com.PointD3D.ProjectToYZ(Com.PointD3D, double)");
@@ -11733,11 +11734,11 @@ namespace Test
             {
                 Com.PointD3D pointD3D = _GetRandomPointD3D();
                 Com.PointD3D prjCenter = _GetRandomPointD3D();
-                double trueLenDist = (pointD3D.Y - prjCenter.Y) * Com.Statistics.RandomDouble();
+                double focalLength = (pointD3D.Y - prjCenter.Y) * Com.Statistics.RandomDouble();
 
                 Action method = () =>
                 {
-                    _ = pointD3D.ProjectToZX(prjCenter, trueLenDist);
+                    _ = pointD3D.ProjectToZX(prjCenter, focalLength);
                 };
 
                 ExecuteTest(method, "Com.PointD3D.ProjectToZX(Com.PointD3D, double)");
@@ -13635,11 +13636,11 @@ namespace Test
             {
                 Com.PointD4D pointD4D = _GetRandomPointD4D();
                 Com.PointD4D prjCenter = _GetRandomPointD4D();
-                double trueLenDist = (pointD4D.U - prjCenter.U) * Com.Statistics.RandomDouble();
+                double focalLength = (pointD4D.U - prjCenter.U) * Com.Statistics.RandomDouble();
 
                 Action method = () =>
                 {
-                    _ = pointD4D.ProjectToXYZ(prjCenter, trueLenDist);
+                    _ = pointD4D.ProjectToXYZ(prjCenter, focalLength);
                 };
 
                 ExecuteTest(method, "Com.PointD4D.ProjectToXYZ(Com.PointD4D, double)");
@@ -13648,11 +13649,11 @@ namespace Test
             {
                 Com.PointD4D pointD4D = _GetRandomPointD4D();
                 Com.PointD4D prjCenter = _GetRandomPointD4D();
-                double trueLenDist = (pointD4D.X - prjCenter.X) * Com.Statistics.RandomDouble();
+                double focalLength = (pointD4D.X - prjCenter.X) * Com.Statistics.RandomDouble();
 
                 Action method = () =>
                 {
-                    _ = pointD4D.ProjectToYZU(prjCenter, trueLenDist);
+                    _ = pointD4D.ProjectToYZU(prjCenter, focalLength);
                 };
 
                 ExecuteTest(method, "Com.PointD4D.ProjectToYZU(Com.PointD4D, double)");
@@ -13661,11 +13662,11 @@ namespace Test
             {
                 Com.PointD4D pointD4D = _GetRandomPointD4D();
                 Com.PointD4D prjCenter = _GetRandomPointD4D();
-                double trueLenDist = (pointD4D.Y - prjCenter.Y) * Com.Statistics.RandomDouble();
+                double focalLength = (pointD4D.Y - prjCenter.Y) * Com.Statistics.RandomDouble();
 
                 Action method = () =>
                 {
-                    _ = pointD4D.ProjectToZUX(prjCenter, trueLenDist);
+                    _ = pointD4D.ProjectToZUX(prjCenter, focalLength);
                 };
 
                 ExecuteTest(method, "Com.PointD4D.ProjectToZUX(Com.PointD4D, double)");
@@ -13674,11 +13675,11 @@ namespace Test
             {
                 Com.PointD4D pointD4D = _GetRandomPointD4D();
                 Com.PointD4D prjCenter = _GetRandomPointD4D();
-                double trueLenDist = (pointD4D.Z - prjCenter.Z) * Com.Statistics.RandomDouble();
+                double focalLength = (pointD4D.Z - prjCenter.Z) * Com.Statistics.RandomDouble();
 
                 Action method = () =>
                 {
-                    _ = pointD4D.ProjectToUXY(prjCenter, trueLenDist);
+                    _ = pointD4D.ProjectToUXY(prjCenter, focalLength);
                 };
 
                 ExecuteTest(method, "Com.PointD4D.ProjectToUXY(Com.PointD4D, double)");
@@ -15529,11 +15530,11 @@ namespace Test
             {
                 Com.PointD5D pointD5D = _GetRandomPointD5D();
                 Com.PointD5D prjCenter = _GetRandomPointD5D();
-                double trueLenDist = (pointD5D.V - prjCenter.V) * Com.Statistics.RandomDouble();
+                double focalLength = (pointD5D.V - prjCenter.V) * Com.Statistics.RandomDouble();
 
                 Action method = () =>
                 {
-                    _ = pointD5D.ProjectToXYZU(prjCenter, trueLenDist);
+                    _ = pointD5D.ProjectToXYZU(prjCenter, focalLength);
                 };
 
                 ExecuteTest(method, "Com.PointD5D.ProjectToXYZU(Com.PointD5D, double)");
@@ -15542,11 +15543,11 @@ namespace Test
             {
                 Com.PointD5D pointD5D = _GetRandomPointD5D();
                 Com.PointD5D prjCenter = _GetRandomPointD5D();
-                double trueLenDist = (pointD5D.X - prjCenter.X) * Com.Statistics.RandomDouble();
+                double focalLength = (pointD5D.X - prjCenter.X) * Com.Statistics.RandomDouble();
 
                 Action method = () =>
                 {
-                    _ = pointD5D.ProjectToYZUV(prjCenter, trueLenDist);
+                    _ = pointD5D.ProjectToYZUV(prjCenter, focalLength);
                 };
 
                 ExecuteTest(method, "Com.PointD5D.ProjectToYZUV(Com.PointD5D, double)");
@@ -15555,11 +15556,11 @@ namespace Test
             {
                 Com.PointD5D pointD5D = _GetRandomPointD5D();
                 Com.PointD5D prjCenter = _GetRandomPointD5D();
-                double trueLenDist = (pointD5D.Y - prjCenter.Y) * Com.Statistics.RandomDouble();
+                double focalLength = (pointD5D.Y - prjCenter.Y) * Com.Statistics.RandomDouble();
 
                 Action method = () =>
                 {
-                    _ = pointD5D.ProjectToZUVX(prjCenter, trueLenDist);
+                    _ = pointD5D.ProjectToZUVX(prjCenter, focalLength);
                 };
 
                 ExecuteTest(method, "Com.PointD5D.ProjectToZUVX(Com.PointD5D, double)");
@@ -15568,11 +15569,11 @@ namespace Test
             {
                 Com.PointD5D pointD5D = _GetRandomPointD5D();
                 Com.PointD5D prjCenter = _GetRandomPointD5D();
-                double trueLenDist = (pointD5D.Z - prjCenter.Z) * Com.Statistics.RandomDouble();
+                double focalLength = (pointD5D.Z - prjCenter.Z) * Com.Statistics.RandomDouble();
 
                 Action method = () =>
                 {
-                    _ = pointD5D.ProjectToUVXY(prjCenter, trueLenDist);
+                    _ = pointD5D.ProjectToUVXY(prjCenter, focalLength);
                 };
 
                 ExecuteTest(method, "Com.PointD5D.ProjectToUVXY(Com.PointD5D, double)");
@@ -15581,11 +15582,11 @@ namespace Test
             {
                 Com.PointD5D pointD5D = _GetRandomPointD5D();
                 Com.PointD5D prjCenter = _GetRandomPointD5D();
-                double trueLenDist = (pointD5D.U - prjCenter.U) * Com.Statistics.RandomDouble();
+                double focalLength = (pointD5D.U - prjCenter.U) * Com.Statistics.RandomDouble();
 
                 Action method = () =>
                 {
-                    _ = pointD5D.ProjectToVXYZ(prjCenter, trueLenDist);
+                    _ = pointD5D.ProjectToVXYZ(prjCenter, focalLength);
                 };
 
                 ExecuteTest(method, "Com.PointD5D.ProjectToVXYZ(Com.PointD5D, double)");
@@ -17515,11 +17516,11 @@ namespace Test
             {
                 Com.PointD6D pointD6D = _GetRandomPointD6D();
                 Com.PointD6D prjCenter = _GetRandomPointD6D();
-                double trueLenDist = (pointD6D.W - prjCenter.W) * Com.Statistics.RandomDouble();
+                double focalLength = (pointD6D.W - prjCenter.W) * Com.Statistics.RandomDouble();
 
                 Action method = () =>
                 {
-                    _ = pointD6D.ProjectToXYZUV(prjCenter, trueLenDist);
+                    _ = pointD6D.ProjectToXYZUV(prjCenter, focalLength);
                 };
 
                 ExecuteTest(method, "Com.PointD6D.ProjectToXYZUV(Com.PointD6D, double)");
@@ -17528,11 +17529,11 @@ namespace Test
             {
                 Com.PointD6D pointD6D = _GetRandomPointD6D();
                 Com.PointD6D prjCenter = _GetRandomPointD6D();
-                double trueLenDist = (pointD6D.X - prjCenter.X) * Com.Statistics.RandomDouble();
+                double focalLength = (pointD6D.X - prjCenter.X) * Com.Statistics.RandomDouble();
 
                 Action method = () =>
                 {
-                    _ = pointD6D.ProjectToYZUVW(prjCenter, trueLenDist);
+                    _ = pointD6D.ProjectToYZUVW(prjCenter, focalLength);
                 };
 
                 ExecuteTest(method, "Com.PointD6D.ProjectToYZUVW(Com.PointD6D, double)");
@@ -17541,11 +17542,11 @@ namespace Test
             {
                 Com.PointD6D pointD6D = _GetRandomPointD6D();
                 Com.PointD6D prjCenter = _GetRandomPointD6D();
-                double trueLenDist = (pointD6D.Y - prjCenter.Y) * Com.Statistics.RandomDouble();
+                double focalLength = (pointD6D.Y - prjCenter.Y) * Com.Statistics.RandomDouble();
 
                 Action method = () =>
                 {
-                    _ = pointD6D.ProjectToZUVWX(prjCenter, trueLenDist);
+                    _ = pointD6D.ProjectToZUVWX(prjCenter, focalLength);
                 };
 
                 ExecuteTest(method, "Com.PointD6D.ProjectToZUVWX(Com.PointD6D, double)");
@@ -17554,11 +17555,11 @@ namespace Test
             {
                 Com.PointD6D pointD6D = _GetRandomPointD6D();
                 Com.PointD6D prjCenter = _GetRandomPointD6D();
-                double trueLenDist = (pointD6D.Z - prjCenter.Z) * Com.Statistics.RandomDouble();
+                double focalLength = (pointD6D.Z - prjCenter.Z) * Com.Statistics.RandomDouble();
 
                 Action method = () =>
                 {
-                    _ = pointD6D.ProjectToUVWXY(prjCenter, trueLenDist);
+                    _ = pointD6D.ProjectToUVWXY(prjCenter, focalLength);
                 };
 
                 ExecuteTest(method, "Com.PointD6D.ProjectToUVWXY(Com.PointD6D, double)");
@@ -17567,11 +17568,11 @@ namespace Test
             {
                 Com.PointD6D pointD6D = _GetRandomPointD6D();
                 Com.PointD6D prjCenter = _GetRandomPointD6D();
-                double trueLenDist = (pointD6D.U - prjCenter.U) * Com.Statistics.RandomDouble();
+                double focalLength = (pointD6D.U - prjCenter.U) * Com.Statistics.RandomDouble();
 
                 Action method = () =>
                 {
-                    _ = pointD6D.ProjectToVWXYZ(prjCenter, trueLenDist);
+                    _ = pointD6D.ProjectToVWXYZ(prjCenter, focalLength);
                 };
 
                 ExecuteTest(method, "Com.PointD6D.ProjectToVWXYZ(Com.PointD6D, double)");
@@ -17580,11 +17581,11 @@ namespace Test
             {
                 Com.PointD6D pointD6D = _GetRandomPointD6D();
                 Com.PointD6D prjCenter = _GetRandomPointD6D();
-                double trueLenDist = (pointD6D.V - prjCenter.V) * Com.Statistics.RandomDouble();
+                double focalLength = (pointD6D.V - prjCenter.V) * Com.Statistics.RandomDouble();
 
                 Action method = () =>
                 {
-                    _ = pointD6D.ProjectToWXYZU(prjCenter, trueLenDist);
+                    _ = pointD6D.ProjectToWXYZU(prjCenter, focalLength);
                 };
 
                 ExecuteTest(method, "Com.PointD6D.ProjectToWXYZU(Com.PointD6D, double)");
