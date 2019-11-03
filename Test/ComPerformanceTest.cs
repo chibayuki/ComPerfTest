@@ -2,7 +2,7 @@
 Copyright © 2019 chibayuki@foxmail.com
 
 Com性能测试 (ComPerformanceTest)
-Version 19.11.2.0000
+Version 19.11.3.0000
 
 This file is part of "Com性能测试" (ComPerformanceTest)
 
@@ -303,7 +303,7 @@ namespace Test
 
             if (method == null)
             {
-                result = string.Concat("[", memberName.Replace(',', ';'), "], Untested", (comment.Length > 0 ? ", " + comment.Replace(',', ';') : string.Empty));
+                result = string.Concat("[", memberName.Replace(',', ';'), "],N/A,N/A,N/A,N/A", (comment.Length > 0 ? ',' + comment.Replace(',', ';') : string.Empty));
             }
             else
             {
@@ -379,7 +379,7 @@ namespace Test
 
                 double msPerCycle = totalMS / cycle;
 
-                result = string.Concat("[", memberName.Replace(',', ';'), "], ", _GetScientificNotationString(msPerCycle / 1000, 4, true, true, "s").Replace('μ', 'u'), ", ", _GetScientificNotationString(1000 / msPerCycle, 4, true, true, "Hz").Replace('μ', 'u'), (comment.Length > 0 ? ", " + comment.Replace(',', ';') : string.Empty));
+                result = string.Concat("[", memberName.Replace(',', ';'), "],", _GetScientificNotationString(msPerCycle / 1000, 4, true, true, "s").Replace('μ', 'u'), ',', _GetScientificNotationString(1000 / msPerCycle, 4, true, true, "Hz").Replace('μ', 'u'), ',', (msPerCycle * 1000000).ToString("G"), ',', (1000 / msPerCycle).ToString("G"), (comment.Length > 0 ? ',' + comment.Replace(',', ';') : string.Empty));
             }
 
             TestResult.Log(result);
