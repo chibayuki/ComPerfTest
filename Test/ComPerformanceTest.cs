@@ -2,7 +2,7 @@
 Copyright © 2019 chibayuki@foxmail.com
 
 Com性能测试 (ComPerformanceTest)
-Version 19.11.3.0000
+Version 19.11.4.0000
 
 This file is part of "Com性能测试" (ComPerformanceTest)
 
@@ -29,7 +29,19 @@ namespace Test
     {
         private static List<string> _ResultList = new List<string>(2048);
 
+#if ComVer1910
+        private const string _ComVersionString = "19.10.14.2100";
+#elif ComVer1905
+        private const string _ComVersionString = "19.5.11.1720";
+#elif ComVer1809
+        private const string _ComVersionString = "18.9.28.2200";
+#else
+        private const string _ComVersionString = "<unknown>";
+#endif
+
         //
+
+        public static string ComVersionString => _ComVersionString; // Com 版本字符串
 
         public static void Log(string result) // 记录测试结果
         {
@@ -48,7 +60,7 @@ namespace Test
                 }
 
                 DateTime dt = DateTime.Now;
-                string fileName = string.Concat("ComPerfTestLog_", (dt.Year % 100).ToString("D2"), dt.Month.ToString("D2"), dt.Day.ToString("D2"), dt.Hour.ToString("D2"), dt.Minute.ToString("D2"), dt.Second.ToString("D2"), dt.Millisecond.ToString("D3"), ".csv");
+                string fileName = string.Concat("ComPerfTestLog,version=", _ComVersionString, ",generateTime=", (dt.Year % 100).ToString("D2"), '.', dt.Month.ToString("D2"), '.', dt.Day.ToString("D2"), '.', dt.Hour.ToString("D2"), '.', dt.Minute.ToString("D2"), '.', dt.Second.ToString("D2"), '.', dt.Millisecond.ToString("D3"), ".csv");
 
                 filePath = Path.Combine(fileDir, fileName);
 
@@ -82,6 +94,8 @@ namespace Test
         private static int _FullWidth => Math.Max(10, Math.Min(Console.WindowWidth * 3 / 4, 100)); // 进度条宽度
 
         //
+
+        public static int TotalMemberCount => _TotalMemberCount; // 成员总数量
 
         public static void Report(int delta) // 报告测试进度
         {
@@ -153,21 +167,11 @@ namespace Test
 
     class ClassPerfTestBase // 类性能测试类的基类
     {
-        protected const string NeedComVer1910 = "Unsupported member, need Com 19.10.14.2100 or later";
-        protected const string NeedComVer1905 = "Unsupported member, need Com 19.5.11.1720 or later";
-        protected const string NeedComVer1809 = "Unsupported member, need Com 18.9.28.2200 or later";
-
-        //
-
 #if !DEBUG
         private const int _MSOfPerMember = 500; // 被测试类每个成员的最短执行时长的毫秒数
 #else
         private const int _MSOfPerMember = 1; // 被测试类每个成员的最短执行时长的毫秒数
 #endif
-
-        //
-
-        protected static readonly Action WillNotTest = null;
 
         //
 
@@ -287,23 +291,49 @@ namespace Test
         }
 #endif
 
-        protected static void ExecuteTest(Action method, string memberName, string comment) // 执行测试
-        {
-            string result = string.Empty;
+        //
 
-            if (memberName == null)
+        protected static readonly Action WillNotTest = null; // 不执行测试
+
+        protected enum UnsupportedReason // 不支持原因
+        {
+            NeedComVer1910,
+            NeedComVer1905,
+            NeedComVer1809
+        }
+
+        protected void ExecuteTest(Action method, string namespaceName, string className, string methodName, string comment) // 执行测试
+        {
+            string resultForLog = string.Empty;
+            string resultForDisplay = string.Empty;
+
+            if (string.IsNullOrWhiteSpace(namespaceName))
             {
-                memberName = string.Empty;
+                namespaceName = "<unnamed>";
             }
+
+            if (string.IsNullOrWhiteSpace(className))
+            {
+                className = "<unnamed>";
+            }
+
+            if (string.IsNullOrWhiteSpace(methodName))
+            {
+                methodName = "<unnamed>";
+            }
+
+            string memberName = string.Concat(namespaceName.Replace(',', ';'), ',', className.Replace(',', ';'), ',', methodName.Replace(',', ';'));
+            string memberNameOriginal = string.Concat(namespaceName, '.', className, '.', methodName);
 
             if (comment == null)
             {
                 comment = string.Empty;
             }
 
-            if (method == null)
+            if (method == null || method == WillNotTest)
             {
-                result = string.Concat("[", memberName.Replace(',', ';'), "],N/A,N/A,N/A,N/A", (comment.Length > 0 ? ',' + comment.Replace(',', ';') : string.Empty));
+                resultForLog = string.Concat(memberName, ",N/A,N/A,N/A,N/A", (comment.Length > 0 ? ',' + comment.Replace(',', ';') : string.Empty));
+                resultForDisplay = string.Concat('[', memberNameOriginal, "], N/A, N/A");
             }
             else
             {
@@ -379,10 +409,16 @@ namespace Test
 
                 double msPerCycle = totalMS / cycle;
 
-                result = string.Concat("[", memberName.Replace(',', ';'), "],", _GetScientificNotationString(msPerCycle / 1000, 4, true, true, "s").Replace('μ', 'u'), ',', _GetScientificNotationString(1000 / msPerCycle, 4, true, true, "Hz").Replace('μ', 'u'), ',', (msPerCycle * 1000000).ToString("G"), ',', (1000 / msPerCycle).ToString("G"), (comment.Length > 0 ? ',' + comment.Replace(',', ';') : string.Empty));
+                string period = _GetScientificNotationString(msPerCycle / 1000, 4, true, true, "s").Replace('μ', 'u');
+                string periodOriginal = (msPerCycle * 1000000).ToString("G");
+                string frequency = _GetScientificNotationString(1000 / msPerCycle, 4, true, true, "Hz").Replace('μ', 'u');
+                string frequencyOriginal = (1000 / msPerCycle).ToString("G");
+
+                resultForLog = string.Concat(memberName, ',', period, ',', frequency, ',', periodOriginal, ',', frequencyOriginal, (comment.Length > 0 ? ',' + comment.Replace(',', ';') : string.Empty));
+                resultForDisplay = string.Concat('[', memberNameOriginal, "], ", period, ", ", frequency);
             }
 
-            TestResult.Log(result);
+            TestResult.Log(resultForLog);
 
             TestProgress.Report(1);
 
@@ -391,12 +427,39 @@ namespace Test
             Console.ForegroundColor = ConsoleColor.DarkMagenta;
             Console.Write("Latest result: ");
             Console.ForegroundColor = ConsoleColor.DarkYellow;
-            Console.Write(result);
+            Console.Write(resultForDisplay);
         }
 
-        protected static void ExecuteTest(Action method, string memberName) // 执行测试
+        protected void ExecuteTest(Action method, string namespaceName, string className, string methodName) // 执行测试
         {
-            ExecuteTest(method, memberName, string.Empty);
+            ExecuteTest(method, namespaceName, className, methodName, string.Empty);
+        }
+
+        protected void ExecuteTest(string namespaceName, string className, string methodName) // 执行测试
+        {
+            ExecuteTest(WillNotTest, namespaceName, className, methodName, "<untested member>");
+        }
+
+        protected void ExecuteTest(string namespaceName, string className, string methodName, UnsupportedReason unsupportedReason) // 执行测试
+        {
+            switch (unsupportedReason)
+            {
+                case UnsupportedReason.NeedComVer1910:
+                    ExecuteTest(WillNotTest, namespaceName, className, methodName, "<unsupported member: need Com 19.10.14.2100 or later>");
+                    break;
+
+                case UnsupportedReason.NeedComVer1905:
+                    ExecuteTest(WillNotTest, namespaceName, className, methodName, "<unsupported member: need Com 19.5.11.1720 or later>");
+                    break;
+
+                case UnsupportedReason.NeedComVer1809:
+                    ExecuteTest(WillNotTest, namespaceName, className, methodName, "<unsupported member: need Com 18.9.28.2200 or later>");
+                    break;
+
+                default:
+                    ExecuteTest(WillNotTest, namespaceName, className, methodName, "<unsupported member>");
+                    break;
+            }
         }
 
         //
@@ -428,6 +491,36 @@ namespace Test
 
     sealed class AnimationTest : ClassPerfTestBase
     {
+        private const string _NamespaceName = "Com";
+        private const string _ClassName = "Animation";
+
+        private void ExecuteTest(Action method, string methodName, string comment)
+        {
+            base.ExecuteTest(method, _NamespaceName, _ClassName, methodName, comment);
+        }
+
+        private void ExecuteTest(Action method, string methodName)
+        {
+            base.ExecuteTest(method, _NamespaceName, _ClassName, methodName);
+        }
+
+        private void ExecuteTest(string methodName, UnsupportedReason unsupportedReason)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, methodName, unsupportedReason);
+        }
+
+        private void ExecuteTest(string methodName)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, methodName);
+        }
+
+        private void ExecuteTest(UnsupportedReason unsupportedReason)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, string.Empty, unsupportedReason);
+        }
+
+        //
+
         protected override void Constructor()
         {
 
@@ -450,13 +543,13 @@ namespace Test
 
         protected override void StaticMethod()
         {
-            ExecuteTest(WillNotTest, "Com.Animation.Show(Com.Animation.Frame, int, int, int, System.Collections.Generic.List<int>)");
+            ExecuteTest("Show(Com.Animation.Frame, int, int, int, System.Collections.Generic.List<int>)");
 
-            ExecuteTest(WillNotTest, "Com.Animation.Show(Com.Animation.Frame, int, int, int)");
+            ExecuteTest("Show(Com.Animation.Frame, int, int, int)");
 
-            ExecuteTest(WillNotTest, "Com.Animation.Show(Com.Animation.Frame, int, int, System.Collections.Generic.List<int>)");
+            ExecuteTest("Show(Com.Animation.Frame, int, int, System.Collections.Generic.List<int>)");
 
-            ExecuteTest(WillNotTest, "Com.Animation.Show(Com.Animation.Frame, int, int)");
+            ExecuteTest("Show(Com.Animation.Frame, int, int)");
         }
 
         protected override void Operator()
@@ -467,6 +560,36 @@ namespace Test
 
     sealed class BitOperationTest : ClassPerfTestBase
     {
+        private const string _NamespaceName = "Com";
+        private const string _ClassName = "BitOperation";
+
+        private void ExecuteTest(Action method, string methodName, string comment)
+        {
+            base.ExecuteTest(method, _NamespaceName, _ClassName, methodName, comment);
+        }
+
+        private void ExecuteTest(Action method, string methodName)
+        {
+            base.ExecuteTest(method, _NamespaceName, _ClassName, methodName);
+        }
+
+        private void ExecuteTest(string methodName, UnsupportedReason unsupportedReason)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, methodName, unsupportedReason);
+        }
+
+        private void ExecuteTest(string methodName)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, methodName);
+        }
+
+        private void ExecuteTest(UnsupportedReason unsupportedReason)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, string.Empty, unsupportedReason);
+        }
+
+        //
+
         protected override void Constructor()
         {
 
@@ -499,7 +622,7 @@ namespace Test
                     _ = Com.BitOperation.GetBinary8WithSingleBit1(bit);
                 };
 
-                ExecuteTest(method, "Com.BitOperation.GetBinary8WithSingleBit1(int)");
+                ExecuteTest(method, "GetBinary8WithSingleBit1(int)");
             }
 
             {
@@ -510,7 +633,7 @@ namespace Test
                     _ = Com.BitOperation.GetBinary8WithSingleBit0(bit);
                 };
 
-                ExecuteTest(method, "Com.BitOperation.GetBinary8WithSingleBit0(int)");
+                ExecuteTest(method, "GetBinary8WithSingleBit0(int)");
             }
 
             {
@@ -522,7 +645,7 @@ namespace Test
                     Com.BitOperation.AddBitToBinary(ref bin, bit);
                 };
 
-                ExecuteTest(method, "Com.BitOperation.AddBitToBinary(ref byte, int)");
+                ExecuteTest(method, "AddBitToBinary(ref byte, int)");
             }
 
             {
@@ -534,7 +657,7 @@ namespace Test
                     Com.BitOperation.RemoveBitFromBinary(ref bin, bit);
                 };
 
-                ExecuteTest(method, "Com.BitOperation.RemoveBitFromBinary(ref byte, int)");
+                ExecuteTest(method, "RemoveBitFromBinary(ref byte, int)");
             }
 
             {
@@ -546,7 +669,7 @@ namespace Test
                     Com.BitOperation.InverseBitOfBinary(ref bin, bit);
                 };
 
-                ExecuteTest(method, "Com.BitOperation.InverseBitOfBinary(ref byte, int)");
+                ExecuteTest(method, "InverseBitOfBinary(ref byte, int)");
             }
 
             {
@@ -558,7 +681,7 @@ namespace Test
                     _ = Com.BitOperation.BinaryHasBit(bin, bit);
                 };
 
-                ExecuteTest(method, "Com.BitOperation.BinaryHasBit(byte, int)");
+                ExecuteTest(method, "BinaryHasBit(byte, int)");
             }
 
             {
@@ -569,7 +692,7 @@ namespace Test
                     _ = Com.BitOperation.GetBit1CountOfBinary(bin);
                 };
 
-                ExecuteTest(method, "Com.BitOperation.GetBit1CountOfBinary(byte)");
+                ExecuteTest(method, "GetBit1CountOfBinary(byte)");
             }
 
             {
@@ -580,7 +703,7 @@ namespace Test
                     _ = Com.BitOperation.GetBit0CountOfBinary(bin);
                 };
 
-                ExecuteTest(method, "Com.BitOperation.GetBit0CountOfBinary(byte)");
+                ExecuteTest(method, "GetBit0CountOfBinary(byte)");
             }
 
             {
@@ -591,7 +714,7 @@ namespace Test
                     _ = Com.BitOperation.GetBit1IndexOfBinary(bin);
                 };
 
-                ExecuteTest(method, "Com.BitOperation.GetBit1IndexOfBinary(byte)");
+                ExecuteTest(method, "GetBit1IndexOfBinary(byte)");
             }
 
             {
@@ -602,7 +725,7 @@ namespace Test
                     _ = Com.BitOperation.GetBit0IndexOfBinary(bin);
                 };
 
-                ExecuteTest(method, "Com.BitOperation.GetBit0IndexOfBinary(byte)");
+                ExecuteTest(method, "GetBit0IndexOfBinary(byte)");
             }
 
             // 16 位
@@ -615,7 +738,7 @@ namespace Test
                     _ = Com.BitOperation.GetBinary16WithSingleBit1(bit);
                 };
 
-                ExecuteTest(method, "Com.BitOperation.GetBinary16WithSingleBit1(int)");
+                ExecuteTest(method, "GetBinary16WithSingleBit1(int)");
             }
 
             {
@@ -626,7 +749,7 @@ namespace Test
                     _ = Com.BitOperation.GetBinary16WithSingleBit0(bit);
                 };
 
-                ExecuteTest(method, "Com.BitOperation.GetBinary16WithSingleBit0(int)");
+                ExecuteTest(method, "GetBinary16WithSingleBit0(int)");
             }
 
             {
@@ -638,7 +761,7 @@ namespace Test
                     Com.BitOperation.AddBitToBinary(ref bin, bit);
                 };
 
-                ExecuteTest(method, "Com.BitOperation.AddBitToBinary(ref ushort, int)");
+                ExecuteTest(method, "AddBitToBinary(ref ushort, int)");
             }
 
             {
@@ -650,7 +773,7 @@ namespace Test
                     Com.BitOperation.RemoveBitFromBinary(ref bin, bit);
                 };
 
-                ExecuteTest(method, "Com.BitOperation.RemoveBitFromBinary(ref ushort, int)");
+                ExecuteTest(method, "RemoveBitFromBinary(ref ushort, int)");
             }
 
             {
@@ -662,7 +785,7 @@ namespace Test
                     Com.BitOperation.InverseBitOfBinary(ref bin, bit);
                 };
 
-                ExecuteTest(method, "Com.BitOperation.InverseBitOfBinary(ref ushort, int)");
+                ExecuteTest(method, "InverseBitOfBinary(ref ushort, int)");
             }
 
             {
@@ -674,7 +797,7 @@ namespace Test
                     _ = Com.BitOperation.BinaryHasBit(bin, bit);
                 };
 
-                ExecuteTest(method, "Com.BitOperation.BinaryHasBit(ushort, int)");
+                ExecuteTest(method, "BinaryHasBit(ushort, int)");
             }
 
             {
@@ -685,7 +808,7 @@ namespace Test
                     _ = Com.BitOperation.GetBit1CountOfBinary(bin);
                 };
 
-                ExecuteTest(method, "Com.BitOperation.GetBit1CountOfBinary(ushort)");
+                ExecuteTest(method, "GetBit1CountOfBinary(ushort)");
             }
 
             {
@@ -696,7 +819,7 @@ namespace Test
                     _ = Com.BitOperation.GetBit0CountOfBinary(bin);
                 };
 
-                ExecuteTest(method, "Com.BitOperation.GetBit0CountOfBinary(ushort)");
+                ExecuteTest(method, "GetBit0CountOfBinary(ushort)");
             }
 
             {
@@ -707,7 +830,7 @@ namespace Test
                     _ = Com.BitOperation.GetBit1IndexOfBinary(bin);
                 };
 
-                ExecuteTest(method, "Com.BitOperation.GetBit1IndexOfBinary(ushort)");
+                ExecuteTest(method, "GetBit1IndexOfBinary(ushort)");
             }
 
             {
@@ -718,7 +841,7 @@ namespace Test
                     _ = Com.BitOperation.GetBit0IndexOfBinary(bin);
                 };
 
-                ExecuteTest(method, "Com.BitOperation.GetBit0IndexOfBinary(ushort)");
+                ExecuteTest(method, "GetBit0IndexOfBinary(ushort)");
             }
 
             // 32 位
@@ -731,7 +854,7 @@ namespace Test
                     _ = Com.BitOperation.GetBinary32WithSingleBit1(bit);
                 };
 
-                ExecuteTest(method, "Com.BitOperation.GetBinary32WithSingleBit1(int)");
+                ExecuteTest(method, "GetBinary32WithSingleBit1(int)");
             }
 
             {
@@ -742,7 +865,7 @@ namespace Test
                     _ = Com.BitOperation.GetBinary32WithSingleBit0(bit);
                 };
 
-                ExecuteTest(method, "Com.BitOperation.GetBinary32WithSingleBit0(int)");
+                ExecuteTest(method, "GetBinary32WithSingleBit0(int)");
             }
 
             {
@@ -754,7 +877,7 @@ namespace Test
                     Com.BitOperation.AddBitToBinary(ref bin, bit);
                 };
 
-                ExecuteTest(method, "Com.BitOperation.AddBitToBinary(ref uint, int)");
+                ExecuteTest(method, "AddBitToBinary(ref uint, int)");
             }
 
             {
@@ -766,7 +889,7 @@ namespace Test
                     Com.BitOperation.RemoveBitFromBinary(ref bin, bit);
                 };
 
-                ExecuteTest(method, "Com.BitOperation.RemoveBitFromBinary(ref uint, int)");
+                ExecuteTest(method, "RemoveBitFromBinary(ref uint, int)");
             }
 
             {
@@ -778,7 +901,7 @@ namespace Test
                     Com.BitOperation.InverseBitOfBinary(ref bin, bit);
                 };
 
-                ExecuteTest(method, "Com.BitOperation.InverseBitOfBinary(ref uint, int)");
+                ExecuteTest(method, "InverseBitOfBinary(ref uint, int)");
             }
 
             {
@@ -790,7 +913,7 @@ namespace Test
                     _ = Com.BitOperation.BinaryHasBit(bin, bit);
                 };
 
-                ExecuteTest(method, "Com.BitOperation.BinaryHasBit(uint, int)");
+                ExecuteTest(method, "BinaryHasBit(uint, int)");
             }
 
             {
@@ -801,7 +924,7 @@ namespace Test
                     _ = Com.BitOperation.GetBit1CountOfBinary(bin);
                 };
 
-                ExecuteTest(method, "Com.BitOperation.GetBit1CountOfBinary(uint)");
+                ExecuteTest(method, "GetBit1CountOfBinary(uint)");
             }
 
             {
@@ -812,7 +935,7 @@ namespace Test
                     _ = Com.BitOperation.GetBit0CountOfBinary(bin);
                 };
 
-                ExecuteTest(method, "Com.BitOperation.GetBit0CountOfBinary(uint)");
+                ExecuteTest(method, "GetBit0CountOfBinary(uint)");
             }
 
             {
@@ -823,7 +946,7 @@ namespace Test
                     _ = Com.BitOperation.GetBit1IndexOfBinary(bin);
                 };
 
-                ExecuteTest(method, "Com.BitOperation.GetBit1IndexOfBinary(uint)");
+                ExecuteTest(method, "GetBit1IndexOfBinary(uint)");
             }
 
             {
@@ -834,7 +957,7 @@ namespace Test
                     _ = Com.BitOperation.GetBit0IndexOfBinary(bin);
                 };
 
-                ExecuteTest(method, "Com.BitOperation.GetBit0IndexOfBinary(uint)");
+                ExecuteTest(method, "GetBit0IndexOfBinary(uint)");
             }
 
             // 64 位
@@ -847,7 +970,7 @@ namespace Test
                     _ = Com.BitOperation.GetBinary64WithSingleBit1(bit);
                 };
 
-                ExecuteTest(method, "Com.BitOperation.GetBinary64WithSingleBit1(int)");
+                ExecuteTest(method, "GetBinary64WithSingleBit1(int)");
             }
 
             {
@@ -858,7 +981,7 @@ namespace Test
                     _ = Com.BitOperation.GetBinary64WithSingleBit0(bit);
                 };
 
-                ExecuteTest(method, "Com.BitOperation.GetBinary64WithSingleBit0(int)");
+                ExecuteTest(method, "GetBinary64WithSingleBit0(int)");
             }
 
             {
@@ -870,7 +993,7 @@ namespace Test
                     Com.BitOperation.AddBitToBinary(ref bin, bit);
                 };
 
-                ExecuteTest(method, "Com.BitOperation.AddBitToBinary(ref ulong, int)");
+                ExecuteTest(method, "AddBitToBinary(ref ulong, int)");
             }
 
             {
@@ -882,7 +1005,7 @@ namespace Test
                     Com.BitOperation.RemoveBitFromBinary(ref bin, bit);
                 };
 
-                ExecuteTest(method, "Com.BitOperation.RemoveBitFromBinary(ref ulong, int)");
+                ExecuteTest(method, "RemoveBitFromBinary(ref ulong, int)");
             }
 
             {
@@ -894,7 +1017,7 @@ namespace Test
                     Com.BitOperation.InverseBitOfBinary(ref bin, bit);
                 };
 
-                ExecuteTest(method, "Com.BitOperation.InverseBitOfBinary(ref ulong, int)");
+                ExecuteTest(method, "InverseBitOfBinary(ref ulong, int)");
             }
 
             {
@@ -906,7 +1029,7 @@ namespace Test
                     _ = Com.BitOperation.BinaryHasBit(bin, bit);
                 };
 
-                ExecuteTest(method, "Com.BitOperation.BinaryHasBit(ulong, int)");
+                ExecuteTest(method, "BinaryHasBit(ulong, int)");
             }
 
             {
@@ -917,7 +1040,7 @@ namespace Test
                     _ = Com.BitOperation.GetBit1CountOfBinary(bin);
                 };
 
-                ExecuteTest(method, "Com.BitOperation.GetBit1CountOfBinary(ulong)");
+                ExecuteTest(method, "GetBit1CountOfBinary(ulong)");
             }
 
             {
@@ -928,7 +1051,7 @@ namespace Test
                     _ = Com.BitOperation.GetBit0CountOfBinary(bin);
                 };
 
-                ExecuteTest(method, "Com.BitOperation.GetBit0CountOfBinary(ulong)");
+                ExecuteTest(method, "GetBit0CountOfBinary(ulong)");
             }
 
             {
@@ -939,7 +1062,7 @@ namespace Test
                     _ = Com.BitOperation.GetBit1IndexOfBinary(bin);
                 };
 
-                ExecuteTest(method, "Com.BitOperation.GetBit1IndexOfBinary(ulong)");
+                ExecuteTest(method, "GetBit1IndexOfBinary(ulong)");
             }
 
             {
@@ -950,7 +1073,7 @@ namespace Test
                     _ = Com.BitOperation.GetBit0IndexOfBinary(bin);
                 };
 
-                ExecuteTest(method, "Com.BitOperation.GetBit0IndexOfBinary(ulong)");
+                ExecuteTest(method, "GetBit0IndexOfBinary(ulong)");
             }
         }
 
@@ -962,6 +1085,36 @@ namespace Test
 
     sealed class BitSetTest : ClassPerfTestBase
     {
+        private const string _NamespaceName = "Com";
+        private const string _ClassName = "BitSet";
+
+        private void ExecuteTest(Action method, string methodName, string comment)
+        {
+            base.ExecuteTest(method, _NamespaceName, _ClassName, methodName, comment);
+        }
+
+        private void ExecuteTest(Action method, string methodName)
+        {
+            base.ExecuteTest(method, _NamespaceName, _ClassName, methodName);
+        }
+
+        private void ExecuteTest(string methodName, UnsupportedReason unsupportedReason)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, methodName, unsupportedReason);
+        }
+
+        private void ExecuteTest(string methodName)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, methodName);
+        }
+
+        private void ExecuteTest(UnsupportedReason unsupportedReason)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, string.Empty, unsupportedReason);
+        }
+
+        //
+
         private static Com.BitSet _GetRandomBitSet(int size)
         {
             if (size > 0)
@@ -996,7 +1149,7 @@ namespace Test
                     _ = new Com.BitSet(length);
                 };
 
-                ExecuteTest(method, "Com.BitSet.BitSet(int)", "size at 1024 bits");
+                ExecuteTest(method, "BitSet(int)", "size at 1024 bits");
             }
 
             {
@@ -1008,7 +1161,7 @@ namespace Test
                     _ = new Com.BitSet(length, bitValue);
                 };
 
-                ExecuteTest(method, "Com.BitSet.BitSet(int, bool)", "size at 1024 bits");
+                ExecuteTest(method, "BitSet(int, bool)", "size at 1024 bits");
             }
 
             {
@@ -1027,7 +1180,7 @@ namespace Test
                     _ = new Com.BitSet(values);
                 };
 
-                ExecuteTest(method, "Com.BitSet.BitSet(bool[])", "size at 1024 bits");
+                ExecuteTest(method, "BitSet(bool[])", "size at 1024 bits");
             }
 
 #if ComVer1905
@@ -1044,10 +1197,10 @@ namespace Test
                     _ = new Com.BitSet(values);
                 };
 
-                ExecuteTest(method, "Com.BitSet.BitSet(byte[])", "size at 1024 bits");
+                ExecuteTest(method, "BitSet(byte[])", "size at 1024 bits");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -1064,10 +1217,10 @@ namespace Test
                     _ = new Com.BitSet(values);
                 };
 
-                ExecuteTest(method, "Com.BitSet.BitSet(ushort[])", "size at 1024 bits");
+                ExecuteTest(method, "BitSet(ushort[])", "size at 1024 bits");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -1084,10 +1237,10 @@ namespace Test
                     _ = new Com.BitSet(values);
                 };
 
-                ExecuteTest(method, "Com.BitSet.BitSet(uint[])", "size at 1024 bits");
+                ExecuteTest(method, "BitSet(uint[])", "size at 1024 bits");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -1104,10 +1257,10 @@ namespace Test
                     _ = new Com.BitSet(values);
                 };
 
-                ExecuteTest(method, "Com.BitSet.BitSet(ulong[])", "size at 1024 bits");
+                ExecuteTest(method, "BitSet(ulong[])", "size at 1024 bits");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
         }
 
@@ -1124,7 +1277,7 @@ namespace Test
                     _ = bitSet[index];
                 };
 
-                ExecuteTest(method, "Com.BitSet.this[int].get()", "size at 1024 bits");
+                ExecuteTest(method, "this[int].get()", "size at 1024 bits");
             }
 
             {
@@ -1137,7 +1290,7 @@ namespace Test
                     bitSet[index] = value;
                 };
 
-                ExecuteTest(method, "Com.BitSet.this[int].set(bool)", "size at 1024 bits");
+                ExecuteTest(method, "this[int].set(bool)", "size at 1024 bits");
             }
 
             // Is
@@ -1150,7 +1303,7 @@ namespace Test
                     _ = bitSet.IsEmpty;
                 };
 
-                ExecuteTest(method, "Com.BitSet.IsEmpty.get()", "size at 1024 bits");
+                ExecuteTest(method, "IsEmpty.get()", "size at 1024 bits");
             }
 
 #if ComVer1905
@@ -1162,10 +1315,10 @@ namespace Test
                     _ = bitSet.IsReadOnly;
                 };
 
-                ExecuteTest(method, "Com.BitSet.IsReadOnly.get()", "size at 1024 bits");
+                ExecuteTest(method, "IsReadOnly.get()", "size at 1024 bits");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -1177,10 +1330,10 @@ namespace Test
                     _ = bitSet.IsFixedSize;
                 };
 
-                ExecuteTest(method, "Com.BitSet.IsFixedSize.get()", "size at 1024 bits");
+                ExecuteTest(method, "IsFixedSize.get()", "size at 1024 bits");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // Size
@@ -1193,7 +1346,7 @@ namespace Test
                     _ = bitSet.Size;
                 };
 
-                ExecuteTest(method, "Com.BitSet.Size.get()", "size at 1024 bits");
+                ExecuteTest(method, "Size.get()", "size at 1024 bits");
             }
 
             {
@@ -1205,7 +1358,7 @@ namespace Test
                     bitSet.Size += value;
                 };
 
-                ExecuteTest(method, "Com.BitSet.Size.set(int)", "size at 1024 bits, increase by 8 bits");
+                ExecuteTest(method, "Size.set(int)", "size at 1024 bits, increase by 8 bits");
             }
 
             {
@@ -1216,7 +1369,7 @@ namespace Test
                     _ = bitSet.Count;
                 };
 
-                ExecuteTest(method, "Com.BitSet.Count.get()", "size at 1024 bits");
+                ExecuteTest(method, "Count.get()", "size at 1024 bits");
             }
 
             // Capacity
@@ -1229,7 +1382,7 @@ namespace Test
                     _ = bitSet.Capacity;
                 };
 
-                ExecuteTest(method, "Com.BitSet.Capacity.get()", "size at 1024 bits");
+                ExecuteTest(method, "Capacity.get()", "size at 1024 bits");
             }
         }
 
@@ -1243,7 +1396,7 @@ namespace Test
                     _ = Com.BitSet.Empty;
                 };
 
-                ExecuteTest(method, "Com.BitSet.Empty.get()");
+                ExecuteTest(method, "Empty.get()");
             }
         }
 
@@ -1260,7 +1413,7 @@ namespace Test
                     _ = bitSet.Equals(obj);
                 };
 
-                ExecuteTest(method, "Com.BitSet.Equals(object)", "size at 1024 bits");
+                ExecuteTest(method, "Equals(object)", "size at 1024 bits");
             }
 
             {
@@ -1271,7 +1424,7 @@ namespace Test
                     _ = bitSet.GetHashCode();
                 };
 
-                ExecuteTest(method, "Com.BitSet.GetHashCode()", "size at 1024 bits");
+                ExecuteTest(method, "GetHashCode()", "size at 1024 bits");
             }
 
             {
@@ -1282,7 +1435,7 @@ namespace Test
                     _ = bitSet.ToString();
                 };
 
-                ExecuteTest(method, "Com.BitSet.ToString()", "size at 1024 bits");
+                ExecuteTest(method, "ToString()", "size at 1024 bits");
             }
 
             // Equals
@@ -1296,7 +1449,7 @@ namespace Test
                     _ = left.Equals(right);
                 };
 
-                ExecuteTest(method, "Com.BitSet.Equals(Com.BitSet)", "size at 1024 bits");
+                ExecuteTest(method, "Equals(Com.BitSet)", "size at 1024 bits");
             }
 
             // CompareTo
@@ -1311,10 +1464,10 @@ namespace Test
                     _ = left.CompareTo(right);
                 };
 
-                ExecuteTest(method, "Com.BitSet.CompareTo(object)", "size at 1024 bits");
+                ExecuteTest(method, "CompareTo(object)", "size at 1024 bits");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -1327,10 +1480,10 @@ namespace Test
                     _ = left.CompareTo(right);
                 };
 
-                ExecuteTest(method, "Com.BitSet.CompareTo(Com.BitSet)", "size at 1024 bits");
+                ExecuteTest(method, "CompareTo(Com.BitSet)", "size at 1024 bits");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // Copy
@@ -1343,7 +1496,7 @@ namespace Test
                     _ = bitSet.Copy();
                 };
 
-                ExecuteTest(method, "Com.BitSet.Copy()", "size at 1024 bits");
+                ExecuteTest(method, "Copy()", "size at 1024 bits");
             }
 
             // 检索
@@ -1360,10 +1513,10 @@ namespace Test
                     _ = bitSet.IndexOf(item2);
                 };
 
-                ExecuteTest(method, "Com.BitSet.IndexOf(bool)", "size at 1024 bits, search for both true and false bit");
+                ExecuteTest(method, "IndexOf(bool)", "size at 1024 bits, search for both true and false bit");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -1379,10 +1532,10 @@ namespace Test
                     _ = bitSet.IndexOf(item2, startIndex);
                 };
 
-                ExecuteTest(method, "Com.BitSet.IndexOf(bool, int)", "size at 1024 bits, search for both true and false bit");
+                ExecuteTest(method, "IndexOf(bool, int)", "size at 1024 bits, search for both true and false bit");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -1399,10 +1552,10 @@ namespace Test
                     _ = bitSet.IndexOf(item2, startIndex, count);
                 };
 
-                ExecuteTest(method, "Com.BitSet.IndexOf(bool, int, int)", "size at 1024 bits, search for both true and false bit");
+                ExecuteTest(method, "IndexOf(bool, int, int)", "size at 1024 bits, search for both true and false bit");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -1417,10 +1570,10 @@ namespace Test
                     _ = bitSet.LastIndexOf(item2);
                 };
 
-                ExecuteTest(method, "Com.BitSet.LastIndexOf(bool)", "size at 1024 bits, search for both true and false bit");
+                ExecuteTest(method, "LastIndexOf(bool)", "size at 1024 bits, search for both true and false bit");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -1436,10 +1589,10 @@ namespace Test
                     _ = bitSet.LastIndexOf(item2, startIndex);
                 };
 
-                ExecuteTest(method, "Com.BitSet.LastIndexOf(bool, int)", "size at 1024 bits, search for both true and false bit");
+                ExecuteTest(method, "LastIndexOf(bool, int)", "size at 1024 bits, search for both true and false bit");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -1456,10 +1609,10 @@ namespace Test
                     _ = bitSet.LastIndexOf(item2, startIndex, count);
                 };
 
-                ExecuteTest(method, "Com.BitSet.LastIndexOf(bool, int, int)", "size at 1024 bits, search for both true and false bit");
+                ExecuteTest(method, "LastIndexOf(bool, int, int)", "size at 1024 bits, search for both true and false bit");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -1474,10 +1627,10 @@ namespace Test
                     _ = bitSet.Contains(item2);
                 };
 
-                ExecuteTest(method, "Com.BitSet.Contains(bool)", "size at 1024 bits, search for both true and false bit");
+                ExecuteTest(method, "Contains(bool)", "size at 1024 bits, search for both true and false bit");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // ToArray，ToList
@@ -1491,7 +1644,7 @@ namespace Test
                     _ = bitSet.ToArray();
                 };
 
-                ExecuteTest(method, "Com.BitSet.ToArray()", "size at 1024 bits");
+                ExecuteTest(method, "ToArray()", "size at 1024 bits");
             }
 #else
             {
@@ -1502,7 +1655,7 @@ namespace Test
                     _ = bitSet.ToBoolArray();
                 };
 
-                ExecuteTest(method, "Com.BitSet.ToBoolArray()", "size at 1024 bits");
+                ExecuteTest(method, "ToBoolArray()", "size at 1024 bits");
             }
 #endif
 
@@ -1515,10 +1668,10 @@ namespace Test
                     _ = bitSet.ToList();
                 };
 
-                ExecuteTest(method, "Com.BitSet.ToList()", "size at 1024 bits");
+                ExecuteTest(method, "ToList()", "size at 1024 bits");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // Trim
@@ -1533,7 +1686,7 @@ namespace Test
                     bitSet.Trim();
                 };
 
-                ExecuteTest(method, "Com.BitSet.Trim()", "new at 1280 bits and set Size to 1024 bits before every Trim");
+                ExecuteTest(method, "Trim()", "new at 1280 bits and set Size to 1024 bits before every Trim");
             }
 
             // Get，Set
@@ -1547,7 +1700,7 @@ namespace Test
                     _ = bitSet.Get(index);
                 };
 
-                ExecuteTest(method, "Com.BitSet.Get(int)", "size at 1024 bits");
+                ExecuteTest(method, "Get(int)", "size at 1024 bits");
             }
 
             {
@@ -1560,7 +1713,7 @@ namespace Test
                     bitSet.Set(index, bitValue);
                 };
 
-                ExecuteTest(method, "Com.BitSet.Set(int, bool)", "size at 1024 bits");
+                ExecuteTest(method, "Set(int, bool)", "size at 1024 bits");
             }
 
             {
@@ -1572,7 +1725,7 @@ namespace Test
                     bitSet.SetAll(bitValue);
                 };
 
-                ExecuteTest(method, "Com.BitSet.SetAll(bool)", "size at 1024 bits");
+                ExecuteTest(method, "SetAll(bool)", "size at 1024 bits");
             }
 
             {
@@ -1584,7 +1737,7 @@ namespace Test
                     bitSet.TrueForBit(index);
                 };
 
-                ExecuteTest(method, "Com.BitSet.TrueForBit(int)", "size at 1024 bits");
+                ExecuteTest(method, "TrueForBit(int)", "size at 1024 bits");
             }
 
             {
@@ -1596,7 +1749,7 @@ namespace Test
                     bitSet.FalseForBit(index);
                 };
 
-                ExecuteTest(method, "Com.BitSet.FalseForBit(int)", "size at 1024 bits");
+                ExecuteTest(method, "FalseForBit(int)", "size at 1024 bits");
             }
 
             {
@@ -1608,7 +1761,7 @@ namespace Test
                     bitSet.InverseBit(index);
                 };
 
-                ExecuteTest(method, "Com.BitSet.InverseBit(int)", "size at 1024 bits");
+                ExecuteTest(method, "InverseBit(int)", "size at 1024 bits");
             }
 
             {
@@ -1619,7 +1772,7 @@ namespace Test
                     bitSet.TrueForAll();
                 };
 
-                ExecuteTest(method, "Com.BitSet.TrueForAll()", "size at 1024 bits");
+                ExecuteTest(method, "TrueForAll()", "size at 1024 bits");
             }
 
             {
@@ -1630,7 +1783,7 @@ namespace Test
                     bitSet.FalseForAll();
                 };
 
-                ExecuteTest(method, "Com.BitSet.FalseForAll()", "size at 1024 bits");
+                ExecuteTest(method, "FalseForAll()", "size at 1024 bits");
             }
 
             {
@@ -1641,7 +1794,7 @@ namespace Test
                     bitSet.InverseAll();
                 };
 
-                ExecuteTest(method, "Com.BitSet.InverseAll()", "size at 1024 bits");
+                ExecuteTest(method, "InverseAll()", "size at 1024 bits");
             }
 
             // BitCount，BitIndex
@@ -1654,7 +1807,7 @@ namespace Test
                     _ = bitSet.TrueBitCount();
                 };
 
-                ExecuteTest(method, "Com.BitSet.TrueBitCount()", "size at 1024 bits");
+                ExecuteTest(method, "TrueBitCount()", "size at 1024 bits");
             }
 
             {
@@ -1665,7 +1818,7 @@ namespace Test
                     _ = bitSet.FalseBitCount();
                 };
 
-                ExecuteTest(method, "Com.BitSet.FalseBitCount()", "size at 1024 bits");
+                ExecuteTest(method, "FalseBitCount()", "size at 1024 bits");
             }
 
             {
@@ -1676,7 +1829,7 @@ namespace Test
                     _ = bitSet.TrueBitIndex();
                 };
 
-                ExecuteTest(method, "Com.BitSet.TrueBitIndex()", "size at 1024 bits");
+                ExecuteTest(method, "TrueBitIndex()", "size at 1024 bits");
             }
 
             {
@@ -1687,7 +1840,7 @@ namespace Test
                     _ = bitSet.FalseBitIndex();
                 };
 
-                ExecuteTest(method, "Com.BitSet.FalseBitIndex()", "size at 1024 bits");
+                ExecuteTest(method, "FalseBitIndex()", "size at 1024 bits");
             }
 
             // 位运算
@@ -1701,7 +1854,7 @@ namespace Test
                     _ = left.And(right);
                 };
 
-                ExecuteTest(method, "Com.BitSet.And(Com.BitSet)", "size at 1024 bits");
+                ExecuteTest(method, "And(Com.BitSet)", "size at 1024 bits");
             }
 
             {
@@ -1713,7 +1866,7 @@ namespace Test
                     _ = left.Or(right);
                 };
 
-                ExecuteTest(method, "Com.BitSet.Or(Com.BitSet)", "size at 1024 bits");
+                ExecuteTest(method, "Or(Com.BitSet)", "size at 1024 bits");
             }
 
             {
@@ -1725,7 +1878,7 @@ namespace Test
                     _ = left.Xor(right);
                 };
 
-                ExecuteTest(method, "Com.BitSet.Xor(Com.BitSet)", "size at 1024 bits");
+                ExecuteTest(method, "Xor(Com.BitSet)", "size at 1024 bits");
             }
 
             {
@@ -1736,7 +1889,7 @@ namespace Test
                     _ = bitSet.Not();
                 };
 
-                ExecuteTest(method, "Com.BitSet.Not()", "size at 1024 bits");
+                ExecuteTest(method, "Not()", "size at 1024 bits");
             }
 
             // 字符串
@@ -1750,7 +1903,7 @@ namespace Test
                     _ = bitSet.ToBinaryString();
                 };
 
-                ExecuteTest(method, "Com.BitSet.ToBinaryString()", "size at 1024 bits");
+                ExecuteTest(method, "ToBinaryString()", "size at 1024 bits");
             }
 #else
             {
@@ -1761,7 +1914,7 @@ namespace Test
                     _ = bitSet.ToBitString();
                 };
 
-                ExecuteTest(method, "Com.BitSet.ToBitString()", "size at 1024 bits");
+                ExecuteTest(method, "ToBitString()", "size at 1024 bits");
             }
 #endif
         }
@@ -1778,7 +1931,7 @@ namespace Test
                     _ = Com.BitSet.IsNullOrEmpty(bitSet);
                 };
 
-                ExecuteTest(method, "Com.BitSet.IsNullOrEmpty(Com.BitSet)", "size at 1024 bits");
+                ExecuteTest(method, "IsNullOrEmpty(Com.BitSet)", "size at 1024 bits");
             }
 
             // Equals
@@ -1792,7 +1945,7 @@ namespace Test
                     _ = Com.BitSet.Equals(left, right);
                 };
 
-                ExecuteTest(method, "Com.BitSet.Equals(Com.BitSet, Com.BitSet)", "size at 1024 bits");
+                ExecuteTest(method, "Equals(Com.BitSet, Com.BitSet)", "size at 1024 bits");
             }
 
             // Compare
@@ -1807,10 +1960,10 @@ namespace Test
                     _ = Com.BitSet.Compare(left, right);
                 };
 
-                ExecuteTest(method, "Com.BitSet.Compare(Com.BitSet, Com.BitSet)", "size at 1024 bits");
+                ExecuteTest(method, "Compare(Com.BitSet, Com.BitSet)", "size at 1024 bits");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
         }
 
@@ -1827,7 +1980,7 @@ namespace Test
                     _ = (left == right);
                 };
 
-                ExecuteTest(method, "Com.BitSet.operator ==(Com.BitSet, Com.BitSet)", "size at 1024 bits");
+                ExecuteTest(method, "operator ==(Com.BitSet, Com.BitSet)", "size at 1024 bits");
             }
 
             {
@@ -1839,7 +1992,7 @@ namespace Test
                     _ = (left != right);
                 };
 
-                ExecuteTest(method, "Com.BitSet.operator !=(Com.BitSet, Com.BitSet)", "size at 1024 bits");
+                ExecuteTest(method, "operator !=(Com.BitSet, Com.BitSet)", "size at 1024 bits");
             }
 
 #if ComVer1905
@@ -1852,10 +2005,10 @@ namespace Test
                     _ = (left < right);
                 };
 
-                ExecuteTest(method, "Com.BitSet.operator <(Com.BitSet, Com.BitSet)", "size at 1024 bits");
+                ExecuteTest(method, "operator <(Com.BitSet, Com.BitSet)", "size at 1024 bits");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -1868,10 +2021,10 @@ namespace Test
                     _ = (left > right);
                 };
 
-                ExecuteTest(method, "Com.BitSet.operator >(Com.BitSet, Com.BitSet)", "size at 1024 bits");
+                ExecuteTest(method, "operator >(Com.BitSet, Com.BitSet)", "size at 1024 bits");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -1884,10 +2037,10 @@ namespace Test
                     _ = (left <= right);
                 };
 
-                ExecuteTest(method, "Com.BitSet.operator <=(Com.BitSet, Com.BitSet)", "size at 1024 bits");
+                ExecuteTest(method, "operator <=(Com.BitSet, Com.BitSet)", "size at 1024 bits");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -1900,10 +2053,10 @@ namespace Test
                     _ = (left >= right);
                 };
 
-                ExecuteTest(method, "Com.BitSet.operator >=(Com.BitSet, Com.BitSet)", "size at 1024 bits");
+                ExecuteTest(method, "operator >=(Com.BitSet, Com.BitSet)", "size at 1024 bits");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // 运算
@@ -1918,10 +2071,10 @@ namespace Test
                     _ = left & right;
                 };
 
-                ExecuteTest(method, "Com.BitSet.operator &(Com.BitSet, Com.BitSet)", "size at 1024 bits");
+                ExecuteTest(method, "operator &(Com.BitSet, Com.BitSet)", "size at 1024 bits");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -1934,10 +2087,10 @@ namespace Test
                     _ = left | right;
                 };
 
-                ExecuteTest(method, "Com.BitSet.operator |(Com.BitSet, Com.BitSet)", "size at 1024 bits");
+                ExecuteTest(method, "operator |(Com.BitSet, Com.BitSet)", "size at 1024 bits");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -1950,10 +2103,10 @@ namespace Test
                     _ = left ^ right;
                 };
 
-                ExecuteTest(method, "Com.BitSet.operator ^(Com.BitSet, Com.BitSet)", "size at 1024 bits");
+                ExecuteTest(method, "operator ^(Com.BitSet, Com.BitSet)", "size at 1024 bits");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -1965,16 +2118,46 @@ namespace Test
                     _ = ~right;
                 };
 
-                ExecuteTest(method, "Com.BitSet.operator ~(Com.BitSet)", "size at 1024 bits");
+                ExecuteTest(method, "operator ~(Com.BitSet)", "size at 1024 bits");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
         }
     }
 
     sealed class ColorManipulationTest : ClassPerfTestBase
     {
+        private const string _NamespaceName = "Com";
+        private const string _ClassName = "ColorManipulation";
+
+        private void ExecuteTest(Action method, string methodName, string comment)
+        {
+            base.ExecuteTest(method, _NamespaceName, _ClassName, methodName, comment);
+        }
+
+        private void ExecuteTest(Action method, string methodName)
+        {
+            base.ExecuteTest(method, _NamespaceName, _ClassName, methodName);
+        }
+
+        private void ExecuteTest(string methodName, UnsupportedReason unsupportedReason)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, methodName, unsupportedReason);
+        }
+
+        private void ExecuteTest(string methodName)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, methodName);
+        }
+
+        private void ExecuteTest(UnsupportedReason unsupportedReason)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, string.Empty, unsupportedReason);
+        }
+
+        //
+
         protected override void Constructor()
         {
 
@@ -2007,7 +2190,7 @@ namespace Test
                     _ = Com.ColorManipulation.GetColorName(color);
                 };
 
-                ExecuteTest(method, "Com.ColorManipulation.GetColorName(Com.ColorX)");
+                ExecuteTest(method, "GetColorName(Com.ColorX)");
             }
 
             {
@@ -2018,7 +2201,7 @@ namespace Test
                     _ = Com.ColorManipulation.GetColorName(color);
                 };
 
-                ExecuteTest(method, "Com.ColorManipulation.GetColorName(System.Drawing.Color)");
+                ExecuteTest(method, "GetColorName(System.Drawing.Color)");
             }
 
             // 随机色
@@ -2029,7 +2212,7 @@ namespace Test
                     _ = Com.ColorManipulation.GetRandomColorX();
                 };
 
-                ExecuteTest(method, "Com.ColorManipulation.GetRandomColorX()");
+                ExecuteTest(method, "GetRandomColorX()");
             }
 
             {
@@ -2038,7 +2221,7 @@ namespace Test
                     _ = Com.ColorManipulation.GetRandomColor();
                 };
 
-                ExecuteTest(method, "Com.ColorManipulation.GetRandomColor()");
+                ExecuteTest(method, "GetRandomColor()");
             }
 
             // 相反色，互补色，灰度
@@ -2052,10 +2235,10 @@ namespace Test
                     _ = Com.ColorManipulation.GetInvertColor(color);
                 };
 
-                ExecuteTest(method, "Com.ColorManipulation.GetInvertColor(Com.ColorX)");
+                ExecuteTest(method, "GetInvertColor(Com.ColorX)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
 
 #if ComVer1910
@@ -2067,10 +2250,10 @@ namespace Test
                     _ = Com.ColorManipulation.GetInvertColor(color);
                 };
 
-                ExecuteTest(method, "Com.ColorManipulation.GetInvertColor(System.Drawing.Color)");
+                ExecuteTest(method, "GetInvertColor(System.Drawing.Color)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
 
             {
@@ -2081,7 +2264,7 @@ namespace Test
                     _ = Com.ColorManipulation.GetComplementaryColor(color);
                 };
 
-                ExecuteTest(method, "Com.ColorManipulation.GetComplementaryColor(Com.ColorX)");
+                ExecuteTest(method, "GetComplementaryColor(Com.ColorX)");
             }
 
             {
@@ -2092,7 +2275,7 @@ namespace Test
                     _ = Com.ColorManipulation.GetComplementaryColor(color);
                 };
 
-                ExecuteTest(method, "Com.ColorManipulation.GetComplementaryColor(System.Drawing.Color)");
+                ExecuteTest(method, "GetComplementaryColor(System.Drawing.Color)");
             }
 
             {
@@ -2103,7 +2286,7 @@ namespace Test
                     _ = Com.ColorManipulation.GetGrayscaleColor(color);
                 };
 
-                ExecuteTest(method, "Com.ColorManipulation.GetGrayscaleColor(Com.ColorX)");
+                ExecuteTest(method, "GetGrayscaleColor(Com.ColorX)");
             }
 
             {
@@ -2114,7 +2297,7 @@ namespace Test
                     _ = Com.ColorManipulation.GetGrayscaleColor(color);
                 };
 
-                ExecuteTest(method, "Com.ColorManipulation.GetGrayscaleColor(System.Drawing.Color)");
+                ExecuteTest(method, "GetGrayscaleColor(System.Drawing.Color)");
             }
 
             // Blend
@@ -2129,7 +2312,7 @@ namespace Test
                     _ = Com.ColorManipulation.BlendByRGB(color1, color2, proportion);
                 };
 
-                ExecuteTest(method, "Com.ColorManipulation.BlendByRGB(Com.ColorX, Com.ColorX, double)");
+                ExecuteTest(method, "BlendByRGB(Com.ColorX, Com.ColorX, double)");
             }
 
             {
@@ -2142,7 +2325,7 @@ namespace Test
                     _ = Com.ColorManipulation.BlendByRGB(color1, color2, proportion);
                 };
 
-                ExecuteTest(method, "Com.ColorManipulation.BlendByRGB(System.Drawing.Color, System.Drawing.Color, double)");
+                ExecuteTest(method, "BlendByRGB(System.Drawing.Color, System.Drawing.Color, double)");
             }
 
             {
@@ -2155,7 +2338,7 @@ namespace Test
                     _ = Com.ColorManipulation.BlendByHSV(color1, color2, proportion);
                 };
 
-                ExecuteTest(method, "Com.ColorManipulation.BlendByHSV(Com.ColorX, Com.ColorX, double)");
+                ExecuteTest(method, "BlendByHSV(Com.ColorX, Com.ColorX, double)");
             }
 
             {
@@ -2168,7 +2351,7 @@ namespace Test
                     _ = Com.ColorManipulation.BlendByHSV(color1, color2, proportion);
                 };
 
-                ExecuteTest(method, "Com.ColorManipulation.BlendByHSV(System.Drawing.Color, System.Drawing.Color, double)");
+                ExecuteTest(method, "BlendByHSV(System.Drawing.Color, System.Drawing.Color, double)");
             }
 
             {
@@ -2181,7 +2364,7 @@ namespace Test
                     _ = Com.ColorManipulation.BlendByHSL(color1, color2, proportion);
                 };
 
-                ExecuteTest(method, "Com.ColorManipulation.BlendByHSL(Com.ColorX, Com.ColorX, double)");
+                ExecuteTest(method, "BlendByHSL(Com.ColorX, Com.ColorX, double)");
             }
 
             {
@@ -2194,7 +2377,7 @@ namespace Test
                     _ = Com.ColorManipulation.BlendByHSL(color1, color2, proportion);
                 };
 
-                ExecuteTest(method, "Com.ColorManipulation.BlendByHSL(System.Drawing.Color, System.Drawing.Color, double)");
+                ExecuteTest(method, "BlendByHSL(System.Drawing.Color, System.Drawing.Color, double)");
             }
 
             {
@@ -2207,7 +2390,7 @@ namespace Test
                     _ = Com.ColorManipulation.BlendByCMYK(color1, color2, proportion);
                 };
 
-                ExecuteTest(method, "Com.ColorManipulation.BlendByCMYK(Com.ColorX, Com.ColorX, double)");
+                ExecuteTest(method, "BlendByCMYK(Com.ColorX, Com.ColorX, double)");
             }
 
             {
@@ -2220,7 +2403,7 @@ namespace Test
                     _ = Com.ColorManipulation.BlendByCMYK(color1, color2, proportion);
                 };
 
-                ExecuteTest(method, "Com.ColorManipulation.BlendByCMYK(System.Drawing.Color, System.Drawing.Color, double)");
+                ExecuteTest(method, "BlendByCMYK(System.Drawing.Color, System.Drawing.Color, double)");
             }
 
             {
@@ -2233,7 +2416,7 @@ namespace Test
                     _ = Com.ColorManipulation.BlendByLAB(color1, color2, proportion);
                 };
 
-                ExecuteTest(method, "Com.ColorManipulation.BlendByLAB(Com.ColorX, Com.ColorX, double)");
+                ExecuteTest(method, "BlendByLAB(Com.ColorX, Com.ColorX, double)");
             }
 
             {
@@ -2246,7 +2429,7 @@ namespace Test
                     _ = Com.ColorManipulation.BlendByLAB(color1, color2, proportion);
                 };
 
-                ExecuteTest(method, "Com.ColorManipulation.BlendByLAB(System.Drawing.Color, System.Drawing.Color, double)");
+                ExecuteTest(method, "BlendByLAB(System.Drawing.Color, System.Drawing.Color, double)");
             }
 
             // Shift
@@ -2260,7 +2443,7 @@ namespace Test
                     _ = Com.ColorManipulation.ShiftLightnessByHSV(color, level);
                 };
 
-                ExecuteTest(method, "Com.ColorManipulation.ShiftLightnessByHSV(Com.ColorX, double)");
+                ExecuteTest(method, "ShiftLightnessByHSV(Com.ColorX, double)");
             }
 
             {
@@ -2272,7 +2455,7 @@ namespace Test
                     _ = Com.ColorManipulation.ShiftLightnessByHSV(color, level);
                 };
 
-                ExecuteTest(method, "Com.ColorManipulation.ShiftLightnessByHSV(System.Drawing.Color, double)");
+                ExecuteTest(method, "ShiftLightnessByHSV(System.Drawing.Color, double)");
             }
 
             {
@@ -2284,7 +2467,7 @@ namespace Test
                     _ = Com.ColorManipulation.ShiftLightnessByHSL(color, level);
                 };
 
-                ExecuteTest(method, "Com.ColorManipulation.ShiftLightnessByHSL(Com.ColorX, double)");
+                ExecuteTest(method, "ShiftLightnessByHSL(Com.ColorX, double)");
             }
 
             {
@@ -2296,7 +2479,7 @@ namespace Test
                     _ = Com.ColorManipulation.ShiftLightnessByHSL(color, level);
                 };
 
-                ExecuteTest(method, "Com.ColorManipulation.ShiftLightnessByHSL(System.Drawing.Color, double)");
+                ExecuteTest(method, "ShiftLightnessByHSL(System.Drawing.Color, double)");
             }
 
             {
@@ -2308,7 +2491,7 @@ namespace Test
                     _ = Com.ColorManipulation.ShiftLightnessByLAB(color, level);
                 };
 
-                ExecuteTest(method, "Com.ColorManipulation.ShiftLightnessByLAB(Com.ColorX, double)");
+                ExecuteTest(method, "ShiftLightnessByLAB(Com.ColorX, double)");
             }
 
             {
@@ -2320,7 +2503,7 @@ namespace Test
                     _ = Com.ColorManipulation.ShiftLightnessByLAB(color, level);
                 };
 
-                ExecuteTest(method, "Com.ColorManipulation.ShiftLightnessByLAB(System.Drawing.Color, double)");
+                ExecuteTest(method, "ShiftLightnessByLAB(System.Drawing.Color, double)");
             }
 
             {
@@ -2332,7 +2515,7 @@ namespace Test
                     _ = Com.ColorManipulation.ShiftSaturationByHSV(color, level);
                 };
 
-                ExecuteTest(method, "Com.ColorManipulation.ShiftSaturationByHSV(Com.ColorX, double)");
+                ExecuteTest(method, "ShiftSaturationByHSV(Com.ColorX, double)");
             }
 
             {
@@ -2344,7 +2527,7 @@ namespace Test
                     _ = Com.ColorManipulation.ShiftSaturationByHSV(color, level);
                 };
 
-                ExecuteTest(method, "Com.ColorManipulation.ShiftSaturationByHSV(System.Drawing.Color, double)");
+                ExecuteTest(method, "ShiftSaturationByHSV(System.Drawing.Color, double)");
             }
 
             {
@@ -2356,7 +2539,7 @@ namespace Test
                     _ = Com.ColorManipulation.ShiftSaturationByHSL(color, level);
                 };
 
-                ExecuteTest(method, "Com.ColorManipulation.ShiftSaturationByHSL(Com.ColorX, double)");
+                ExecuteTest(method, "ShiftSaturationByHSL(Com.ColorX, double)");
             }
 
             {
@@ -2368,7 +2551,7 @@ namespace Test
                     _ = Com.ColorManipulation.ShiftSaturationByHSL(color, level);
                 };
 
-                ExecuteTest(method, "Com.ColorManipulation.ShiftSaturationByHSL(System.Drawing.Color, double)");
+                ExecuteTest(method, "ShiftSaturationByHSL(System.Drawing.Color, double)");
             }
         }
 
@@ -2380,6 +2563,36 @@ namespace Test
 
     sealed class ColorXTest : ClassPerfTestBase
     {
+        private const string _NamespaceName = "Com";
+        private const string _ClassName = "ColorX";
+
+        private void ExecuteTest(Action method, string methodName, string comment)
+        {
+            base.ExecuteTest(method, _NamespaceName, _ClassName, methodName, comment);
+        }
+
+        private void ExecuteTest(Action method, string methodName)
+        {
+            base.ExecuteTest(method, _NamespaceName, _ClassName, methodName);
+        }
+
+        private void ExecuteTest(string methodName, UnsupportedReason unsupportedReason)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, methodName, unsupportedReason);
+        }
+
+        private void ExecuteTest(string methodName)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, methodName);
+        }
+
+        private void ExecuteTest(UnsupportedReason unsupportedReason)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, string.Empty, unsupportedReason);
+        }
+
+        //
+
         protected override void Constructor()
         {
             {
@@ -2390,7 +2603,7 @@ namespace Test
                     _ = new Com.ColorX(color);
                 };
 
-                ExecuteTest(method, "Com.ColorX.ColorX(System.Drawing.Color)");
+                ExecuteTest(method, "ColorX(System.Drawing.Color)");
             }
 
             {
@@ -2401,7 +2614,7 @@ namespace Test
                     _ = new Com.ColorX(argb);
                 };
 
-                ExecuteTest(method, "Com.ColorX.ColorX(int)");
+                ExecuteTest(method, "ColorX(int)");
             }
 
 #if ComVer1905
@@ -2413,10 +2626,10 @@ namespace Test
                     _ = new Com.ColorX(hexCode);
                 };
 
-                ExecuteTest(method, "Com.ColorX.ColorX(string)");
+                ExecuteTest(method, "ColorX(string)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
         }
 
@@ -2432,7 +2645,7 @@ namespace Test
                     _ = colorX.IsEmpty;
                 };
 
-                ExecuteTest(method, "Com.ColorX.IsEmpty.get()");
+                ExecuteTest(method, "IsEmpty.get()");
             }
 
             {
@@ -2443,7 +2656,7 @@ namespace Test
                     _ = colorX.IsTransparent;
                 };
 
-                ExecuteTest(method, "Com.ColorX.IsTransparent.get()");
+                ExecuteTest(method, "IsTransparent.get()");
             }
 
             {
@@ -2455,9 +2668,9 @@ namespace Test
                     _ = colorX.IsTrueColor;
                 };
 
-                ExecuteTest(method, "Com.ColorX.IsTrueColor.get()");
+                ExecuteTest(method, "IsTrueColor.get()");
 #else
-                ExecuteTest(WillNotTest, NeedComVer1910);
+                ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
             }
 
@@ -2471,7 +2684,7 @@ namespace Test
                     _ = colorX.Opacity;
                 };
 
-                ExecuteTest(method, "Com.ColorX.Opacity.get()");
+                ExecuteTest(method, "Opacity.get()");
             }
 
             {
@@ -2483,7 +2696,7 @@ namespace Test
                     colorX.Opacity = value;
                 };
 
-                ExecuteTest(method, "Com.ColorX.Opacity.set(double)");
+                ExecuteTest(method, "Opacity.set(double)");
             }
 
             // RGB
@@ -2496,7 +2709,7 @@ namespace Test
                     _ = colorX.Alpha;
                 };
 
-                ExecuteTest(method, "Com.ColorX.Alpha.get()");
+                ExecuteTest(method, "Alpha.get()");
             }
 
             {
@@ -2508,7 +2721,7 @@ namespace Test
                     colorX.Alpha = value;
                 };
 
-                ExecuteTest(method, "Com.ColorX.Alpha.set(double)");
+                ExecuteTest(method, "Alpha.set(double)");
             }
 
             {
@@ -2519,7 +2732,7 @@ namespace Test
                     _ = colorX.Red;
                 };
 
-                ExecuteTest(method, "Com.ColorX.Red.get()");
+                ExecuteTest(method, "Red.get()");
             }
 
             {
@@ -2531,7 +2744,7 @@ namespace Test
                     colorX.Red = value;
                 };
 
-                ExecuteTest(method, "Com.ColorX.Red.set(double)");
+                ExecuteTest(method, "Red.set(double)");
             }
 
             {
@@ -2542,7 +2755,7 @@ namespace Test
                     _ = colorX.Green;
                 };
 
-                ExecuteTest(method, "Com.ColorX.Green.get()");
+                ExecuteTest(method, "Green.get()");
             }
 
             {
@@ -2554,7 +2767,7 @@ namespace Test
                     colorX.Green = value;
                 };
 
-                ExecuteTest(method, "Com.ColorX.Green.set(double)");
+                ExecuteTest(method, "Green.set(double)");
             }
 
             {
@@ -2565,7 +2778,7 @@ namespace Test
                     _ = colorX.Blue;
                 };
 
-                ExecuteTest(method, "Com.ColorX.Blue.get()");
+                ExecuteTest(method, "Blue.get()");
             }
 
             {
@@ -2577,7 +2790,7 @@ namespace Test
                     colorX.Blue = value;
                 };
 
-                ExecuteTest(method, "Com.ColorX.Blue.set(double)");
+                ExecuteTest(method, "Blue.set(double)");
             }
 
             // HSV
@@ -2590,7 +2803,7 @@ namespace Test
                     _ = colorX.Hue_HSV;
                 };
 
-                ExecuteTest(method, "Com.ColorX.Hue_HSV.get()");
+                ExecuteTest(method, "Hue_HSV.get()");
             }
 
             {
@@ -2602,7 +2815,7 @@ namespace Test
                     colorX.Hue_HSV = value;
                 };
 
-                ExecuteTest(method, "Com.ColorX.Hue_HSV.set(double)");
+                ExecuteTest(method, "Hue_HSV.set(double)");
             }
 
             {
@@ -2613,7 +2826,7 @@ namespace Test
                     _ = colorX.Saturation_HSV;
                 };
 
-                ExecuteTest(method, "Com.ColorX.Saturation_HSV.get()");
+                ExecuteTest(method, "Saturation_HSV.get()");
             }
 
             {
@@ -2625,7 +2838,7 @@ namespace Test
                     colorX.Saturation_HSV = value;
                 };
 
-                ExecuteTest(method, "Com.ColorX.Saturation_HSV.set(double)");
+                ExecuteTest(method, "Saturation_HSV.set(double)");
             }
 
             {
@@ -2636,7 +2849,7 @@ namespace Test
                     _ = colorX.Brightness;
                 };
 
-                ExecuteTest(method, "Com.ColorX.Brightness.get()");
+                ExecuteTest(method, "Brightness.get()");
             }
 
             {
@@ -2648,7 +2861,7 @@ namespace Test
                     colorX.Brightness = value;
                 };
 
-                ExecuteTest(method, "Com.ColorX.Brightness.set(double)");
+                ExecuteTest(method, "Brightness.set(double)");
             }
 
             // HSL
@@ -2661,7 +2874,7 @@ namespace Test
                     _ = colorX.Hue_HSL;
                 };
 
-                ExecuteTest(method, "Com.ColorX.Hue_HSL.get()");
+                ExecuteTest(method, "Hue_HSL.get()");
             }
 
             {
@@ -2673,7 +2886,7 @@ namespace Test
                     colorX.Hue_HSL = value;
                 };
 
-                ExecuteTest(method, "Com.ColorX.Hue_HSL.set(double)");
+                ExecuteTest(method, "Hue_HSL.set(double)");
             }
 
             {
@@ -2684,7 +2897,7 @@ namespace Test
                     _ = colorX.Saturation_HSL;
                 };
 
-                ExecuteTest(method, "Com.ColorX.Saturation_HSL.get()");
+                ExecuteTest(method, "Saturation_HSL.get()");
             }
 
             {
@@ -2696,7 +2909,7 @@ namespace Test
                     colorX.Saturation_HSL = value;
                 };
 
-                ExecuteTest(method, "Com.ColorX.Saturation_HSL.set(double)");
+                ExecuteTest(method, "Saturation_HSL.set(double)");
             }
 
             {
@@ -2707,7 +2920,7 @@ namespace Test
                     _ = colorX.Lightness_HSL;
                 };
 
-                ExecuteTest(method, "Com.ColorX.Lightness_HSL.get()");
+                ExecuteTest(method, "Lightness_HSL.get()");
             }
 
             {
@@ -2719,7 +2932,7 @@ namespace Test
                     colorX.Lightness_HSL = value;
                 };
 
-                ExecuteTest(method, "Com.ColorX.Lightness_HSL.set(double)");
+                ExecuteTest(method, "Lightness_HSL.set(double)");
             }
 
             // CMYK
@@ -2732,7 +2945,7 @@ namespace Test
                     _ = colorX.Cyan;
                 };
 
-                ExecuteTest(method, "Com.ColorX.Cyan.get()");
+                ExecuteTest(method, "Cyan.get()");
             }
 
             {
@@ -2744,7 +2957,7 @@ namespace Test
                     colorX.Cyan = value;
                 };
 
-                ExecuteTest(method, "Com.ColorX.Cyan.set(double)");
+                ExecuteTest(method, "Cyan.set(double)");
             }
 
             {
@@ -2755,7 +2968,7 @@ namespace Test
                     _ = colorX.Magenta;
                 };
 
-                ExecuteTest(method, "Com.ColorX.Magenta.get()");
+                ExecuteTest(method, "Magenta.get()");
             }
 
             {
@@ -2767,7 +2980,7 @@ namespace Test
                     colorX.Magenta = value;
                 };
 
-                ExecuteTest(method, "Com.ColorX.Magenta.set(double)");
+                ExecuteTest(method, "Magenta.set(double)");
             }
 
             {
@@ -2778,7 +2991,7 @@ namespace Test
                     _ = colorX.Yellow;
                 };
 
-                ExecuteTest(method, "Com.ColorX.Yellow.get()");
+                ExecuteTest(method, "Yellow.get()");
             }
 
             {
@@ -2790,7 +3003,7 @@ namespace Test
                     colorX.Yellow = value;
                 };
 
-                ExecuteTest(method, "Com.ColorX.Yellow.set(double)");
+                ExecuteTest(method, "Yellow.set(double)");
             }
 
             {
@@ -2801,7 +3014,7 @@ namespace Test
                     _ = colorX.Black;
                 };
 
-                ExecuteTest(method, "Com.ColorX.Black.get()");
+                ExecuteTest(method, "Black.get()");
             }
 
             {
@@ -2813,7 +3026,7 @@ namespace Test
                     colorX.Black = value;
                 };
 
-                ExecuteTest(method, "Com.ColorX.Black.set(double)");
+                ExecuteTest(method, "Black.set(double)");
             }
 
             // LAB
@@ -2826,7 +3039,7 @@ namespace Test
                     _ = colorX.Lightness_LAB;
                 };
 
-                ExecuteTest(method, "Com.ColorX.Lightness_LAB.get()");
+                ExecuteTest(method, "Lightness_LAB.get()");
             }
 
             {
@@ -2838,7 +3051,7 @@ namespace Test
                     colorX.Lightness_LAB = value;
                 };
 
-                ExecuteTest(method, "Com.ColorX.Lightness_LAB.set(double)");
+                ExecuteTest(method, "Lightness_LAB.set(double)");
             }
 
             {
@@ -2849,7 +3062,7 @@ namespace Test
                     _ = colorX.GreenRed;
                 };
 
-                ExecuteTest(method, "Com.ColorX.GreenRed.get()");
+                ExecuteTest(method, "GreenRed.get()");
             }
 
             {
@@ -2861,7 +3074,7 @@ namespace Test
                     colorX.GreenRed = value;
                 };
 
-                ExecuteTest(method, "Com.ColorX.GreenRed.set(double)");
+                ExecuteTest(method, "GreenRed.set(double)");
             }
 
             {
@@ -2872,7 +3085,7 @@ namespace Test
                     _ = colorX.BlueYellow;
                 };
 
-                ExecuteTest(method, "Com.ColorX.BlueYellow.get()");
+                ExecuteTest(method, "BlueYellow.get()");
             }
 
             {
@@ -2884,7 +3097,7 @@ namespace Test
                     colorX.BlueYellow = value;
                 };
 
-                ExecuteTest(method, "Com.ColorX.BlueYellow.set(double)");
+                ExecuteTest(method, "BlueYellow.set(double)");
             }
 
             // YUV
@@ -2898,10 +3111,10 @@ namespace Test
                     _ = colorX.Luminance;
                 };
 
-                ExecuteTest(method, "Com.ColorX.Luminance.get()");
+                ExecuteTest(method, "Luminance.get()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
 
 #if ComVer1910
@@ -2914,10 +3127,10 @@ namespace Test
                     colorX.Luminance = value;
                 };
 
-                ExecuteTest(method, "Com.ColorX.Luminance.set(double)");
+                ExecuteTest(method, "Luminance.set(double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
 
 #if ComVer1910
@@ -2929,10 +3142,10 @@ namespace Test
                     _ = colorX.ChrominanceBlue;
                 };
 
-                ExecuteTest(method, "Com.ColorX.ChrominanceBlue.get()");
+                ExecuteTest(method, "ChrominanceBlue.get()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
 
 #if ComVer1910
@@ -2945,10 +3158,10 @@ namespace Test
                     colorX.ChrominanceBlue = value;
                 };
 
-                ExecuteTest(method, "Com.ColorX.ChrominanceBlue.set(double)");
+                ExecuteTest(method, "ChrominanceBlue.set(double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
 
 #if ComVer1910
@@ -2960,10 +3173,10 @@ namespace Test
                     _ = colorX.ChrominanceRed;
                 };
 
-                ExecuteTest(method, "Com.ColorX.ChrominanceRed.get()");
+                ExecuteTest(method, "ChrominanceRed.get()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
 
 #if ComVer1910
@@ -2976,10 +3189,10 @@ namespace Test
                     colorX.ChrominanceRed = value;
                 };
 
-                ExecuteTest(method, "Com.ColorX.ChrominanceRed.set(double)");
+                ExecuteTest(method, "ChrominanceRed.set(double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
 
             // 向量
@@ -2992,7 +3205,7 @@ namespace Test
                     _ = colorX.RGB;
                 };
 
-                ExecuteTest(method, "Com.ColorX.RGB.get()");
+                ExecuteTest(method, "RGB.get()");
             }
 
             {
@@ -3004,7 +3217,7 @@ namespace Test
                     colorX.RGB = value;
                 };
 
-                ExecuteTest(method, "Com.ColorX.RGB.set(Com.PointD3D)");
+                ExecuteTest(method, "RGB.set(Com.PointD3D)");
             }
 
             {
@@ -3015,7 +3228,7 @@ namespace Test
                     _ = colorX.HSV;
                 };
 
-                ExecuteTest(method, "Com.ColorX.HSV.get()");
+                ExecuteTest(method, "HSV.get()");
             }
 
             {
@@ -3027,7 +3240,7 @@ namespace Test
                     colorX.HSV = value;
                 };
 
-                ExecuteTest(method, "Com.ColorX.HSV.set(Com.PointD3D)");
+                ExecuteTest(method, "HSV.set(Com.PointD3D)");
             }
 
             {
@@ -3038,7 +3251,7 @@ namespace Test
                     _ = colorX.HSL;
                 };
 
-                ExecuteTest(method, "Com.ColorX.HSL.get()");
+                ExecuteTest(method, "HSL.get()");
             }
 
             {
@@ -3050,7 +3263,7 @@ namespace Test
                     colorX.HSL = value;
                 };
 
-                ExecuteTest(method, "Com.ColorX.HSL.set(Com.PointD3D)");
+                ExecuteTest(method, "HSL.set(Com.PointD3D)");
             }
 
             {
@@ -3061,7 +3274,7 @@ namespace Test
                     _ = colorX.CMYK;
                 };
 
-                ExecuteTest(method, "Com.ColorX.CMYK.get()");
+                ExecuteTest(method, "CMYK.get()");
             }
 
             {
@@ -3073,7 +3286,7 @@ namespace Test
                     colorX.CMYK = value;
                 };
 
-                ExecuteTest(method, "Com.ColorX.CMYK.set(Com.PointD4D)");
+                ExecuteTest(method, "CMYK.set(Com.PointD4D)");
             }
 
             {
@@ -3084,7 +3297,7 @@ namespace Test
                     _ = colorX.LAB;
                 };
 
-                ExecuteTest(method, "Com.ColorX.LAB.get()");
+                ExecuteTest(method, "LAB.get()");
             }
 
             {
@@ -3096,7 +3309,7 @@ namespace Test
                     colorX.LAB = value;
                 };
 
-                ExecuteTest(method, "Com.ColorX.LAB.set(Com.PointD3D)");
+                ExecuteTest(method, "LAB.set(Com.PointD3D)");
             }
 
 #if ComVer1910
@@ -3108,10 +3321,10 @@ namespace Test
                     _ = colorX.YUV;
                 };
 
-                ExecuteTest(method, "Com.ColorX.YUV.get()");
+                ExecuteTest(method, "YUV.get()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
 
 #if ComVer1910
@@ -3124,10 +3337,10 @@ namespace Test
                     colorX.YUV = value;
                 };
 
-                ExecuteTest(method, "Com.ColorX.YUV.set(Com.PointD3D)");
+                ExecuteTest(method, "YUV.set(Com.PointD3D)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
 
             // 相反色，互补色，灰度
@@ -3141,7 +3354,7 @@ namespace Test
                     _ = colorX.Invert;
                 };
 
-                ExecuteTest(method, "Com.ColorX.Invert.get()");
+                ExecuteTest(method, "Invert.get()");
             }
 #else
             {
@@ -3152,7 +3365,7 @@ namespace Test
                     _ = colorX.ComplementaryColor;
                 };
 
-                ExecuteTest(method, "Com.ColorX.ComplementaryColor.get()");
+                ExecuteTest(method, "ComplementaryColor.get()");
             }
 #endif
 
@@ -3165,10 +3378,10 @@ namespace Test
                     _ = colorX.Complementary;
                 };
 
-                ExecuteTest(method, "Com.ColorX.Complementary.get()");
+                ExecuteTest(method, "Complementary.get()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
 
 #if ComVer1910
@@ -3180,10 +3393,10 @@ namespace Test
                     _ = colorX.ComplementaryColor;
                 };
 
-                ExecuteTest(method, "Com.ColorX.ComplementaryColor.get()");
+                ExecuteTest(method, "ComplementaryColor.get()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
 
 #if ComVer1910
@@ -3195,10 +3408,10 @@ namespace Test
                     _ = colorX.Grayscale;
                 };
 
-                ExecuteTest(method, "Com.ColorX.Grayscale.get()");
+                ExecuteTest(method, "Grayscale.get()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
 
             {
@@ -3209,7 +3422,7 @@ namespace Test
                     _ = colorX.GrayscaleColor;
                 };
 
-                ExecuteTest(method, "Com.ColorX.GrayscaleColor.get()");
+                ExecuteTest(method, "GrayscaleColor.get()");
             }
 
             // HexCode
@@ -3222,7 +3435,7 @@ namespace Test
                     _ = colorX.ARGBHexCode;
                 };
 
-                ExecuteTest(method, "Com.ColorX.ARGBHexCode.get()");
+                ExecuteTest(method, "ARGBHexCode.get()");
             }
 
             {
@@ -3233,7 +3446,7 @@ namespace Test
                     _ = colorX.RGBHexCode;
                 };
 
-                ExecuteTest(method, "Com.ColorX.RGBHexCode.get()");
+                ExecuteTest(method, "RGBHexCode.get()");
             }
 
             // Name
@@ -3247,10 +3460,10 @@ namespace Test
                     _ = colorX.Name;
                 };
 
-                ExecuteTest(method, "Com.ColorX.Name.get()");
+                ExecuteTest(method, "Name.get()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
         }
 
@@ -3272,7 +3485,7 @@ namespace Test
                     _ = colorX.Equals(obj);
                 };
 
-                ExecuteTest(method, "Com.ColorX.Equals(object)");
+                ExecuteTest(method, "Equals(object)");
             }
 
             {
@@ -3283,7 +3496,7 @@ namespace Test
                     _ = colorX.GetHashCode();
                 };
 
-                ExecuteTest(method, "Com.ColorX.GetHashCode()");
+                ExecuteTest(method, "GetHashCode()");
             }
 
             {
@@ -3294,7 +3507,7 @@ namespace Test
                     _ = colorX.ToString();
                 };
 
-                ExecuteTest(method, "Com.ColorX.ToString()");
+                ExecuteTest(method, "ToString()");
             }
 
             // Equals
@@ -3308,7 +3521,7 @@ namespace Test
                     _ = left.Equals(right);
                 };
 
-                ExecuteTest(method, "Com.ColorX.Equals(Com.ColorX)");
+                ExecuteTest(method, "Equals(Com.ColorX)");
             }
 
             // To
@@ -3321,7 +3534,7 @@ namespace Test
                     _ = colorX.ToColor();
                 };
 
-                ExecuteTest(method, "Com.ColorX.ToColor()");
+                ExecuteTest(method, "ToColor()");
             }
 
             {
@@ -3332,7 +3545,7 @@ namespace Test
                     _ = colorX.ToARGB();
                 };
 
-                ExecuteTest(method, "Com.ColorX.ToARGB()");
+                ExecuteTest(method, "ToARGB()");
             }
 
             // AtOpacity
@@ -3346,7 +3559,7 @@ namespace Test
                     _ = colorX.AtOpacity(value);
                 };
 
-                ExecuteTest(method, "Com.ColorX.AtOpacity(double)");
+                ExecuteTest(method, "AtOpacity(double)");
             }
 
             // AtRGB
@@ -3360,7 +3573,7 @@ namespace Test
                     _ = colorX.AtAlpha(value);
                 };
 
-                ExecuteTest(method, "Com.ColorX.AtAlpha(double)");
+                ExecuteTest(method, "AtAlpha(double)");
             }
 
             {
@@ -3372,7 +3585,7 @@ namespace Test
                     _ = colorX.AtRed(value);
                 };
 
-                ExecuteTest(method, "Com.ColorX.AtRed(double)");
+                ExecuteTest(method, "AtRed(double)");
             }
 
             {
@@ -3384,7 +3597,7 @@ namespace Test
                     _ = colorX.AtGreen(value);
                 };
 
-                ExecuteTest(method, "Com.ColorX.AtGreen(double)");
+                ExecuteTest(method, "AtGreen(double)");
             }
 
             {
@@ -3396,7 +3609,7 @@ namespace Test
                     _ = colorX.AtBlue(value);
                 };
 
-                ExecuteTest(method, "Com.ColorX.AtBlue(double)");
+                ExecuteTest(method, "AtBlue(double)");
             }
 
             // AtHSV
@@ -3410,7 +3623,7 @@ namespace Test
                     _ = colorX.AtHue_HSV(value);
                 };
 
-                ExecuteTest(method, "Com.ColorX.AtHue_HSV(double)");
+                ExecuteTest(method, "AtHue_HSV(double)");
             }
 
             {
@@ -3422,7 +3635,7 @@ namespace Test
                     _ = colorX.AtSaturation_HSV(value);
                 };
 
-                ExecuteTest(method, "Com.ColorX.AtSaturation_HSV(double)");
+                ExecuteTest(method, "AtSaturation_HSV(double)");
             }
 
             {
@@ -3434,7 +3647,7 @@ namespace Test
                     _ = colorX.AtBrightness(value);
                 };
 
-                ExecuteTest(method, "Com.ColorX.AtBrightness(double)");
+                ExecuteTest(method, "AtBrightness(double)");
             }
 
             // AtHSL
@@ -3448,7 +3661,7 @@ namespace Test
                     _ = colorX.AtHue_HSL(value);
                 };
 
-                ExecuteTest(method, "Com.ColorX.AtHue_HSL(double)");
+                ExecuteTest(method, "AtHue_HSL(double)");
             }
 
             {
@@ -3460,7 +3673,7 @@ namespace Test
                     _ = colorX.AtSaturation_HSL(value);
                 };
 
-                ExecuteTest(method, "Com.ColorX.AtSaturation_HSL(double)");
+                ExecuteTest(method, "AtSaturation_HSL(double)");
             }
 
             {
@@ -3472,7 +3685,7 @@ namespace Test
                     _ = colorX.AtLightness_HSL(value);
                 };
 
-                ExecuteTest(method, "Com.ColorX.AtLightness_HSL(double)");
+                ExecuteTest(method, "AtLightness_HSL(double)");
             }
 
             // AtCMYK
@@ -3486,7 +3699,7 @@ namespace Test
                     _ = colorX.AtCyan(value);
                 };
 
-                ExecuteTest(method, "Com.ColorX.AtCyan(double)");
+                ExecuteTest(method, "AtCyan(double)");
             }
 
             {
@@ -3498,7 +3711,7 @@ namespace Test
                     _ = colorX.AtMagenta(value);
                 };
 
-                ExecuteTest(method, "Com.ColorX.AtMagenta(double)");
+                ExecuteTest(method, "AtMagenta(double)");
             }
 
             {
@@ -3510,7 +3723,7 @@ namespace Test
                     _ = colorX.AtYellow(value);
                 };
 
-                ExecuteTest(method, "Com.ColorX.AtYellow(double)");
+                ExecuteTest(method, "AtYellow(double)");
             }
 
             {
@@ -3522,7 +3735,7 @@ namespace Test
                     _ = colorX.AtBlack(value);
                 };
 
-                ExecuteTest(method, "Com.ColorX.AtBlack(double)");
+                ExecuteTest(method, "AtBlack(double)");
             }
 
             // AtLAB
@@ -3536,7 +3749,7 @@ namespace Test
                     _ = colorX.AtLightness_LAB(value);
                 };
 
-                ExecuteTest(method, "Com.ColorX.AtLightness_LAB(double)");
+                ExecuteTest(method, "AtLightness_LAB(double)");
             }
 
             {
@@ -3548,7 +3761,7 @@ namespace Test
                     _ = colorX.AtGreenRed(value);
                 };
 
-                ExecuteTest(method, "Com.ColorX.AtGreenRed(double)");
+                ExecuteTest(method, "AtGreenRed(double)");
             }
 
             {
@@ -3560,7 +3773,7 @@ namespace Test
                     _ = colorX.AtBlueYellow(value);
                 };
 
-                ExecuteTest(method, "Com.ColorX.AtBlueYellow(double)");
+                ExecuteTest(method, "AtBlueYellow(double)");
             }
 
             // AtYUV
@@ -3575,10 +3788,10 @@ namespace Test
                     _ = colorX.AtLuminance(value);
                 };
 
-                ExecuteTest(method, "Com.ColorX.AtLuminance(double)");
+                ExecuteTest(method, "AtLuminance(double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
 
 #if ComVer1910
@@ -3591,10 +3804,10 @@ namespace Test
                     _ = colorX.AtChrominanceBlue(value);
                 };
 
-                ExecuteTest(method, "Com.ColorX.AtChrominanceBlue(double)");
+                ExecuteTest(method, "AtChrominanceBlue(double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
 
 #if ComVer1910
@@ -3607,10 +3820,10 @@ namespace Test
                     _ = colorX.AtChrominanceRed(value);
                 };
 
-                ExecuteTest(method, "Com.ColorX.AtChrominanceRed(double)");
+                ExecuteTest(method, "AtChrominanceRed(double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
         }
 
@@ -3627,7 +3840,7 @@ namespace Test
                     _ = Com.ColorX.Equals(left, right);
                 };
 
-                ExecuteTest(method, "Com.ColorX.Equals(Com.ColorX, Com.ColorX)");
+                ExecuteTest(method, "Equals(Com.ColorX, Com.ColorX)");
             }
 
             // FromColor
@@ -3641,7 +3854,7 @@ namespace Test
                     _ = Com.ColorX.FromColor(alpha, color);
                 };
 
-                ExecuteTest(method, "Com.ColorX.FromColor(int, System.Drawing.Color)");
+                ExecuteTest(method, "FromColor(int, System.Drawing.Color)");
             }
 
             {
@@ -3652,7 +3865,7 @@ namespace Test
                     _ = Com.ColorX.FromColor(color);
                 };
 
-                ExecuteTest(method, "Com.ColorX.FromColor(System.Drawing.Color)");
+                ExecuteTest(method, "FromColor(System.Drawing.Color)");
             }
 
             // FromRGB
@@ -3668,7 +3881,7 @@ namespace Test
                     _ = Com.ColorX.FromRGB(alpha, red, green, blue);
                 };
 
-                ExecuteTest(method, "Com.ColorX.FromRGB(double, double, double, double)");
+                ExecuteTest(method, "FromRGB(double, double, double, double)");
             }
 
             {
@@ -3681,7 +3894,7 @@ namespace Test
                     _ = Com.ColorX.FromRGB(red, green, blue);
                 };
 
-                ExecuteTest(method, "Com.ColorX.FromRGB(double, double, double)");
+                ExecuteTest(method, "FromRGB(double, double, double)");
             }
 
             {
@@ -3696,7 +3909,7 @@ namespace Test
                     _ = Com.ColorX.FromRGB(alpha, rgb);
                 };
 
-                ExecuteTest(method, "Com.ColorX.FromRGB(double, Com.PointD3D)");
+                ExecuteTest(method, "FromRGB(double, Com.PointD3D)");
             }
 
             {
@@ -3710,7 +3923,7 @@ namespace Test
                     _ = Com.ColorX.FromRGB(rgb);
                 };
 
-                ExecuteTest(method, "Com.ColorX.FromRGB(Com.PointD3D)");
+                ExecuteTest(method, "FromRGB(Com.PointD3D)");
             }
 
             {
@@ -3721,7 +3934,7 @@ namespace Test
                     _ = Com.ColorX.FromRGB(argb);
                 };
 
-                ExecuteTest(method, "Com.ColorX.FromRGB(int)");
+                ExecuteTest(method, "FromRGB(int)");
             }
 
             // FromHSV
@@ -3737,7 +3950,7 @@ namespace Test
                     _ = Com.ColorX.FromHSV(hue, saturation, brightness, opacity);
                 };
 
-                ExecuteTest(method, "Com.ColorX.FromHSV(double, double, double, double)");
+                ExecuteTest(method, "FromHSV(double, double, double, double)");
             }
 
             {
@@ -3750,7 +3963,7 @@ namespace Test
                     _ = Com.ColorX.FromHSV(hue, saturation, brightness);
                 };
 
-                ExecuteTest(method, "Com.ColorX.FromHSV(double, double, double)");
+                ExecuteTest(method, "FromHSV(double, double, double)");
             }
 
             {
@@ -3765,7 +3978,7 @@ namespace Test
                     _ = Com.ColorX.FromHSV(hsv, opacity);
                 };
 
-                ExecuteTest(method, "Com.ColorX.FromHSV(Com.PointD3D, double)");
+                ExecuteTest(method, "FromHSV(Com.PointD3D, double)");
             }
 
             {
@@ -3779,7 +3992,7 @@ namespace Test
                     _ = Com.ColorX.FromHSV(hsv);
                 };
 
-                ExecuteTest(method, "Com.ColorX.FromHSV(Com.PointD3D)");
+                ExecuteTest(method, "FromHSV(Com.PointD3D)");
             }
 
             // FromHSL
@@ -3795,7 +4008,7 @@ namespace Test
                     _ = Com.ColorX.FromHSL(hue, saturation, lightness, opacity);
                 };
 
-                ExecuteTest(method, "Com.ColorX.FromHSL(double, double, double, double)");
+                ExecuteTest(method, "FromHSL(double, double, double, double)");
             }
 
             {
@@ -3808,7 +4021,7 @@ namespace Test
                     _ = Com.ColorX.FromHSL(hue, saturation, lightness);
                 };
 
-                ExecuteTest(method, "Com.ColorX.FromHSL(double, double, double)");
+                ExecuteTest(method, "FromHSL(double, double, double)");
             }
 
             {
@@ -3823,7 +4036,7 @@ namespace Test
                     _ = Com.ColorX.FromHSL(hsl, opacity);
                 };
 
-                ExecuteTest(method, "Com.ColorX.FromHSL(Com.PointD3D, double)");
+                ExecuteTest(method, "FromHSL(Com.PointD3D, double)");
             }
 
             {
@@ -3837,7 +4050,7 @@ namespace Test
                     _ = Com.ColorX.FromHSL(hsl);
                 };
 
-                ExecuteTest(method, "Com.ColorX.FromHSL(Com.PointD3D)");
+                ExecuteTest(method, "FromHSL(Com.PointD3D)");
             }
 
             // FromCMYK
@@ -3854,7 +4067,7 @@ namespace Test
                     _ = Com.ColorX.FromCMYK(cyan, magenta, yellow, black, opacity);
                 };
 
-                ExecuteTest(method, "Com.ColorX.FromCMYK(double, double, double, double, double)");
+                ExecuteTest(method, "FromCMYK(double, double, double, double, double)");
             }
 
             {
@@ -3868,7 +4081,7 @@ namespace Test
                     _ = Com.ColorX.FromCMYK(cyan, magenta, yellow, black);
                 };
 
-                ExecuteTest(method, "Com.ColorX.FromCMYK(double, double, double, double)");
+                ExecuteTest(method, "FromCMYK(double, double, double, double)");
             }
 
             {
@@ -3884,7 +4097,7 @@ namespace Test
                     _ = Com.ColorX.FromCMYK(cmyk, opacity);
                 };
 
-                ExecuteTest(method, "Com.ColorX.FromCMYK(Com.PointD4D, double)");
+                ExecuteTest(method, "FromCMYK(Com.PointD4D, double)");
             }
 
             {
@@ -3899,7 +4112,7 @@ namespace Test
                     _ = Com.ColorX.FromCMYK(cmyk);
                 };
 
-                ExecuteTest(method, "Com.ColorX.FromCMYK(Com.PointD4D)");
+                ExecuteTest(method, "FromCMYK(Com.PointD4D)");
             }
 
             // FromLAB
@@ -3915,7 +4128,7 @@ namespace Test
                     _ = Com.ColorX.FromLAB(lightness, greenRed, blueYellow, opacity);
                 };
 
-                ExecuteTest(method, "Com.ColorX.FromLAB(double, double, double, double)");
+                ExecuteTest(method, "FromLAB(double, double, double, double)");
             }
 
             {
@@ -3928,7 +4141,7 @@ namespace Test
                     _ = Com.ColorX.FromLAB(lightness, greenRed, blueYellow);
                 };
 
-                ExecuteTest(method, "Com.ColorX.FromLAB(double, double, double)");
+                ExecuteTest(method, "FromLAB(double, double, double)");
             }
 
             {
@@ -3943,7 +4156,7 @@ namespace Test
                     _ = Com.ColorX.FromLAB(lab, opacity);
                 };
 
-                ExecuteTest(method, "Com.ColorX.FromLAB(Com.PointD3D, double)");
+                ExecuteTest(method, "FromLAB(Com.PointD3D, double)");
             }
 
             {
@@ -3957,7 +4170,7 @@ namespace Test
                     _ = Com.ColorX.FromLAB(lab);
                 };
 
-                ExecuteTest(method, "Com.ColorX.FromLAB(Com.PointD3D)");
+                ExecuteTest(method, "FromLAB(Com.PointD3D)");
             }
 
             // FromYUV
@@ -3974,10 +4187,10 @@ namespace Test
                     _ = Com.ColorX.FromYUV(luminance, chrominanceBlue, chrominanceRed, opacity);
                 };
 
-                ExecuteTest(method, "Com.ColorX.FromYUV(double, double, double, double)");
+                ExecuteTest(method, "FromYUV(double, double, double, double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
 
 #if ComVer1910
@@ -3991,10 +4204,10 @@ namespace Test
                     _ = Com.ColorX.FromYUV(luminance, chrominanceBlue, chrominanceRed);
                 };
 
-                ExecuteTest(method, "Com.ColorX.FromYUV(double, double, double)");
+                ExecuteTest(method, "FromYUV(double, double, double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
 
 #if ComVer1910
@@ -4010,10 +4223,10 @@ namespace Test
                     _ = Com.ColorX.FromYUV(yuv, opacity);
                 };
 
-                ExecuteTest(method, "Com.ColorX.FromYUV(Com.PointD3D, double)");
+                ExecuteTest(method, "FromYUV(Com.PointD3D, double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
 
 #if ComVer1910
@@ -4028,10 +4241,10 @@ namespace Test
                     _ = Com.ColorX.FromYUV(yuv);
                 };
 
-                ExecuteTest(method, "Com.ColorX.FromYUV(Com.PointD3D)");
+                ExecuteTest(method, "FromYUV(Com.PointD3D)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
 
             // FromHexCode
@@ -4044,7 +4257,7 @@ namespace Test
                     _ = Com.ColorX.FromHexCode(hexCode);
                 };
 
-                ExecuteTest(method, "Com.ColorX.FromHexCode(string)");
+                ExecuteTest(method, "FromHexCode(string)");
             }
 
             // FromName
@@ -4058,10 +4271,10 @@ namespace Test
                     _ = Com.ColorX.FromName(name);
                 };
 
-                ExecuteTest(method, "Com.ColorX.FromName(string)");
+                ExecuteTest(method, "FromName(string)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
 
             // RandomColor
@@ -4072,7 +4285,7 @@ namespace Test
                     _ = Com.ColorX.RandomColor();
                 };
 
-                ExecuteTest(method, "Com.ColorX.RandomColor()");
+                ExecuteTest(method, "RandomColor()");
             }
         }
 
@@ -4089,7 +4302,7 @@ namespace Test
                     _ = (left == right);
                 };
 
-                ExecuteTest(method, "Com.ColorX.operator ==(Com.ColorX, Com.ColorX)");
+                ExecuteTest(method, "operator ==(Com.ColorX, Com.ColorX)");
             }
 
             {
@@ -4101,7 +4314,7 @@ namespace Test
                     _ = (left != right);
                 };
 
-                ExecuteTest(method, "Com.ColorX.operator !=(Com.ColorX, Com.ColorX)");
+                ExecuteTest(method, "operator !=(Com.ColorX, Com.ColorX)");
             }
 
             // 类型转换
@@ -4115,10 +4328,10 @@ namespace Test
                     _ = (Color)color;
                 };
 
-                ExecuteTest(method, "Com.ColorX.explicit operator System.Drawing.Color(Com.ColorX)");
+                ExecuteTest(method, "explicit operator System.Drawing.Color(Com.ColorX)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -4130,16 +4343,46 @@ namespace Test
                     _ = (Com.ColorX)color;
                 };
 
-                ExecuteTest(method, "Com.ColorX.implicit operator Com.ColorX(System.Drawing.Color)");
+                ExecuteTest(method, "implicit operator Com.ColorX(System.Drawing.Color)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
         }
     }
 
     sealed class ComplexTest : ClassPerfTestBase
     {
+        private const string _NamespaceName = "Com";
+        private const string _ClassName = "Complex";
+
+        private void ExecuteTest(Action method, string methodName, string comment)
+        {
+            base.ExecuteTest(method, _NamespaceName, _ClassName, methodName, comment);
+        }
+
+        private void ExecuteTest(Action method, string methodName)
+        {
+            base.ExecuteTest(method, _NamespaceName, _ClassName, methodName);
+        }
+
+        private void ExecuteTest(string methodName, UnsupportedReason unsupportedReason)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, methodName, unsupportedReason);
+        }
+
+        private void ExecuteTest(string methodName)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, methodName);
+        }
+
+        private void ExecuteTest(UnsupportedReason unsupportedReason)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, string.Empty, unsupportedReason);
+        }
+
+        //
+
         private static Com.Complex _GetRandomComplex()
         {
             return new Com.Complex(Com.Statistics.RandomDouble(-1E18, 1E18), Com.Statistics.RandomDouble(-1E18, 1E18));
@@ -4158,7 +4401,7 @@ namespace Test
                     _ = new Com.Complex(real, imaginary);
                 };
 
-                ExecuteTest(method, "Com.Complex.Complex(double, double)");
+                ExecuteTest(method, "Complex(double, double)");
             }
 
             {
@@ -4169,7 +4412,7 @@ namespace Test
                     _ = new Com.Complex(real);
                 };
 
-                ExecuteTest(method, "Com.Complex.Complex(double)");
+                ExecuteTest(method, "Complex(double)");
             }
 
             {
@@ -4180,7 +4423,7 @@ namespace Test
                     _ = new Com.Complex(pt);
                 };
 
-                ExecuteTest(method, "Com.Complex.Complex(Com.PointD)");
+                ExecuteTest(method, "Complex(Com.PointD)");
             }
         }
 
@@ -4196,7 +4439,7 @@ namespace Test
                     _ = comp.IsNaN;
                 };
 
-                ExecuteTest(method, "Com.Complex.IsNaN.get()");
+                ExecuteTest(method, "IsNaN.get()");
             }
 
             {
@@ -4207,7 +4450,7 @@ namespace Test
                     _ = comp.IsInfinity;
                 };
 
-                ExecuteTest(method, "Com.Complex.IsInfinity.get()");
+                ExecuteTest(method, "IsInfinity.get()");
             }
 
             {
@@ -4218,7 +4461,7 @@ namespace Test
                     _ = comp.IsNaNOrInfinity;
                 };
 
-                ExecuteTest(method, "Com.Complex.IsNaNOrInfinity.get()");
+                ExecuteTest(method, "IsNaNOrInfinity.get()");
             }
 
             {
@@ -4229,7 +4472,7 @@ namespace Test
                     _ = comp.IsZero;
                 };
 
-                ExecuteTest(method, "Com.Complex.IsZero.get()");
+                ExecuteTest(method, "IsZero.get()");
             }
 
             {
@@ -4240,7 +4483,7 @@ namespace Test
                     _ = comp.IsOne;
                 };
 
-                ExecuteTest(method, "Com.Complex.IsOne.get()");
+                ExecuteTest(method, "IsOne.get()");
             }
 
 #if ComVer1905
@@ -4252,7 +4495,7 @@ namespace Test
                     _ = comp.IsImaginaryOne;
                 };
 
-                ExecuteTest(method, "Com.Complex.IsImaginaryOne.get()");
+                ExecuteTest(method, "IsImaginaryOne.get()");
             }
 #else
             {
@@ -4263,7 +4506,7 @@ namespace Test
                     _ = comp.IsI;
                 };
 
-                ExecuteTest(method, "Com.Complex.IsI.get()");
+                ExecuteTest(method, "IsI.get()");
             }
 #endif
 
@@ -4277,7 +4520,7 @@ namespace Test
                     _ = comp.Real;
                 };
 
-                ExecuteTest(method, "Com.Complex.Real.get()");
+                ExecuteTest(method, "Real.get()");
             }
 
             {
@@ -4289,7 +4532,7 @@ namespace Test
                     comp.Real = value;
                 };
 
-                ExecuteTest(method, "Com.Complex.Real.set(double)");
+                ExecuteTest(method, "Real.set(double)");
             }
 
 #if ComVer1905
@@ -4301,7 +4544,7 @@ namespace Test
                     _ = comp.Imaginary;
                 };
 
-                ExecuteTest(method, "Com.Complex.Imaginary.get()");
+                ExecuteTest(method, "Imaginary.get()");
             }
 #else
             {
@@ -4312,7 +4555,7 @@ namespace Test
                     _ = comp.Image;
                 };
 
-                ExecuteTest(method, "Com.Complex.Image.get()");
+                ExecuteTest(method, "Image.get()");
             }
 #endif
 
@@ -4326,7 +4569,7 @@ namespace Test
                     comp.Imaginary = value;
                 };
 
-                ExecuteTest(method, "Com.Complex.Imaginary.set(double)");
+                ExecuteTest(method, "Imaginary.set(double)");
             }
 #else
             {
@@ -4338,7 +4581,7 @@ namespace Test
                     comp.Image = value;
                 };
 
-                ExecuteTest(method, "Com.Complex.Image.set(double)");
+                ExecuteTest(method, "Image.set(double)");
             }
 #endif
 
@@ -4352,7 +4595,7 @@ namespace Test
                     _ = comp.Module;
                 };
 
-                ExecuteTest(method, "Com.Complex.Module.get()");
+                ExecuteTest(method, "Module.get()");
             }
 
             {
@@ -4363,7 +4606,7 @@ namespace Test
                     _ = comp.ModuleSquared;
                 };
 
-                ExecuteTest(method, "Com.Complex.ModuleSquared.get()");
+                ExecuteTest(method, "ModuleSquared.get()");
             }
 
             {
@@ -4374,7 +4617,7 @@ namespace Test
                     _ = comp.Argument;
                 };
 
-                ExecuteTest(method, "Com.Complex.Argument.get()");
+                ExecuteTest(method, "Argument.get()");
             }
 
             // 相反数、倒数、共轭
@@ -4388,10 +4631,10 @@ namespace Test
                     _ = comp.Opposite;
                 };
 
-                ExecuteTest(method, "Com.Complex.Opposite.get()");
+                ExecuteTest(method, "Opposite.get()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
 
 #if ComVer1905
@@ -4403,10 +4646,10 @@ namespace Test
                     _ = comp.Reciprocal;
                 };
 
-                ExecuteTest(method, "Com.Complex.Reciprocal.get()");
+                ExecuteTest(method, "Reciprocal.get()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             {
@@ -4417,7 +4660,7 @@ namespace Test
                     _ = comp.Conjugate;
                 };
 
-                ExecuteTest(method, "Com.Complex.Conjugate.get()");
+                ExecuteTest(method, "Conjugate.get()");
             }
         }
 
@@ -4439,7 +4682,7 @@ namespace Test
                     _ = comp.Equals(obj);
                 };
 
-                ExecuteTest(method, "Com.Complex.Equals(object)");
+                ExecuteTest(method, "Equals(object)");
             }
 
             {
@@ -4450,7 +4693,7 @@ namespace Test
                     _ = comp.GetHashCode();
                 };
 
-                ExecuteTest(method, "Com.Complex.GetHashCode()");
+                ExecuteTest(method, "GetHashCode()");
             }
 
             {
@@ -4461,7 +4704,7 @@ namespace Test
                     _ = comp.ToString();
                 };
 
-                ExecuteTest(method, "Com.Complex.ToString()");
+                ExecuteTest(method, "ToString()");
             }
 
             // Equals
@@ -4475,7 +4718,7 @@ namespace Test
                     _ = left.Equals(right);
                 };
 
-                ExecuteTest(method, "Com.Complex.Equals(Com.Complex)");
+                ExecuteTest(method, "Equals(Com.Complex)");
             }
 
             // CompareTo
@@ -4490,10 +4733,10 @@ namespace Test
                     _ = left.CompareTo(right);
                 };
 
-                ExecuteTest(method, "Com.Complex.CompareTo(object)");
+                ExecuteTest(method, "CompareTo(object)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -4506,10 +4749,10 @@ namespace Test
                     _ = left.CompareTo(right);
                 };
 
-                ExecuteTest(method, "Com.Complex.CompareTo(Com.Complex)");
+                ExecuteTest(method, "CompareTo(Com.Complex)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // To
@@ -4522,7 +4765,7 @@ namespace Test
                     _ = comp.ToPointD();
                 };
 
-                ExecuteTest(method, "Com.Complex.ToPointD()");
+                ExecuteTest(method, "ToPointD()");
             }
         }
 
@@ -4539,7 +4782,7 @@ namespace Test
                     _ = Com.Complex.Equals(left, right);
                 };
 
-                ExecuteTest(method, "Com.Complex.Equals(Com.Complex, Com.Complex)");
+                ExecuteTest(method, "Equals(Com.Complex, Com.Complex)");
             }
 
             // Compare
@@ -4554,10 +4797,10 @@ namespace Test
                     _ = Com.Complex.Compare(left, right);
                 };
 
-                ExecuteTest(method, "Com.Complex.CompareTo(Com.Complex, Com.Complex)");
+                ExecuteTest(method, "CompareTo(Com.Complex, Com.Complex)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // From
@@ -4570,7 +4813,7 @@ namespace Test
                     _ = Com.Complex.FromPointD(pt);
                 };
 
-                ExecuteTest(method, "Com.Complex.FromPointD(Com.PointD)");
+                ExecuteTest(method, "FromPointD(Com.PointD)");
             }
 
 #if ComVer1905
@@ -4583,10 +4826,10 @@ namespace Test
                     Com.Complex complex = Com.Complex.FromPolarCoordinates(module, argument);
                 };
 
-                ExecuteTest(method, "Com.Complex.FromPolarCoordinates(double, double)");
+                ExecuteTest(method, "FromPolarCoordinates(double, double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // 幂函数，指数函数，对数函数
@@ -4599,7 +4842,7 @@ namespace Test
                     _ = Com.Complex.Sqr(comp);
                 };
 
-                ExecuteTest(method, "Com.Complex.Sqr(Com.Complex)");
+                ExecuteTest(method, "Sqr(Com.Complex)");
             }
 
             {
@@ -4610,7 +4853,7 @@ namespace Test
                     _ = Com.Complex.Sqrt(comp);
                 };
 
-                ExecuteTest(method, "Com.Complex.Sqrt(Com.Complex)");
+                ExecuteTest(method, "Sqrt(Com.Complex)");
             }
 
             {
@@ -4621,7 +4864,7 @@ namespace Test
                     _ = Com.Complex.Exp(comp);
                 };
 
-                ExecuteTest(method, "Com.Complex.Exp(Com.Complex)");
+                ExecuteTest(method, "Exp(Com.Complex)");
             }
 
             {
@@ -4633,7 +4876,7 @@ namespace Test
                     _ = Com.Complex.Pow(left, right);
                 };
 
-                ExecuteTest(method, "Com.Complex.Pow(Com.Complex, Com.Complex)");
+                ExecuteTest(method, "Pow(Com.Complex, Com.Complex)");
             }
 
 #if ComVer1905
@@ -4646,10 +4889,10 @@ namespace Test
                     _ = Com.Complex.Pow(left, right);
                 };
 
-                ExecuteTest(method, "Com.Complex.Pow(Com.Complex, double)");
+                ExecuteTest(method, "Pow(Com.Complex, double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -4662,10 +4905,10 @@ namespace Test
                     _ = Com.Complex.Pow(left, right);
                 };
 
-                ExecuteTest(method, "Com.Complex.Pow(double, Com.Complex)");
+                ExecuteTest(method, "Pow(double, Com.Complex)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             {
@@ -4676,7 +4919,7 @@ namespace Test
                     _ = Com.Complex.Log(comp);
                 };
 
-                ExecuteTest(method, "Com.Complex.Log(Com.Complex)");
+                ExecuteTest(method, "Log(Com.Complex)");
             }
 
             {
@@ -4688,7 +4931,7 @@ namespace Test
                     _ = Com.Complex.Log(left, right);
                 };
 
-                ExecuteTest(method, "Com.Complex.Log(Com.Complex, Com.Complex)");
+                ExecuteTest(method, "Log(Com.Complex, Com.Complex)");
             }
 
 #if ComVer1905
@@ -4701,10 +4944,10 @@ namespace Test
                     _ = Com.Complex.Log(left, right);
                 };
 
-                ExecuteTest(method, "Com.Complex.Log(Com.Complex, double)");
+                ExecuteTest(method, "Log(Com.Complex, double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -4717,10 +4960,10 @@ namespace Test
                     _ = Com.Complex.Log(left, right);
                 };
 
-                ExecuteTest(method, "Com.Complex.Log(double, Com.Complex)");
+                ExecuteTest(method, "Log(double, Com.Complex)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // 三角函数
@@ -4733,7 +4976,7 @@ namespace Test
                     _ = Com.Complex.Sin(comp);
                 };
 
-                ExecuteTest(method, "Com.Complex.Sin(Com.Complex)");
+                ExecuteTest(method, "Sin(Com.Complex)");
             }
 
             {
@@ -4744,7 +4987,7 @@ namespace Test
                     _ = Com.Complex.Cos(comp);
                 };
 
-                ExecuteTest(method, "Com.Complex.Cos(Com.Complex)");
+                ExecuteTest(method, "Cos(Com.Complex)");
             }
 
             {
@@ -4755,7 +4998,7 @@ namespace Test
                     _ = Com.Complex.Tan(comp);
                 };
 
-                ExecuteTest(method, "Com.Complex.Tan(Com.Complex)");
+                ExecuteTest(method, "Tan(Com.Complex)");
             }
 
             {
@@ -4766,7 +5009,7 @@ namespace Test
                     _ = Com.Complex.Asin(comp);
                 };
 
-                ExecuteTest(method, "Com.Complex.Asin(Com.Complex)");
+                ExecuteTest(method, "Asin(Com.Complex)");
             }
 
             {
@@ -4777,7 +5020,7 @@ namespace Test
                     _ = Com.Complex.Acos(comp);
                 };
 
-                ExecuteTest(method, "Com.Complex.Acos(Com.Complex)");
+                ExecuteTest(method, "Acos(Com.Complex)");
             }
 
             {
@@ -4788,7 +5031,7 @@ namespace Test
                     _ = Com.Complex.Atan(comp);
                 };
 
-                ExecuteTest(method, "Com.Complex.Atan(Com.Complex)");
+                ExecuteTest(method, "Atan(Com.Complex)");
             }
 
             {
@@ -4799,7 +5042,7 @@ namespace Test
                     _ = Com.Complex.Sinh(comp);
                 };
 
-                ExecuteTest(method, "Com.Complex.Sinh(Com.Complex)");
+                ExecuteTest(method, "Sinh(Com.Complex)");
             }
 
             {
@@ -4810,7 +5053,7 @@ namespace Test
                     _ = Com.Complex.Cosh(comp);
                 };
 
-                ExecuteTest(method, "Com.Complex.Cosh(Com.Complex)");
+                ExecuteTest(method, "Cosh(Com.Complex)");
             }
 
             {
@@ -4821,7 +5064,7 @@ namespace Test
                     _ = Com.Complex.Tanh(comp);
                 };
 
-                ExecuteTest(method, "Com.Complex.Tanh(Com.Complex)");
+                ExecuteTest(method, "Tanh(Com.Complex)");
             }
 
             {
@@ -4832,7 +5075,7 @@ namespace Test
                     _ = Com.Complex.Asinh(comp);
                 };
 
-                ExecuteTest(method, "Com.Complex.Asinh(Com.Complex)");
+                ExecuteTest(method, "Asinh(Com.Complex)");
             }
 
             {
@@ -4843,7 +5086,7 @@ namespace Test
                     _ = Com.Complex.Acosh(comp);
                 };
 
-                ExecuteTest(method, "Com.Complex.Acosh(Com.Complex)");
+                ExecuteTest(method, "Acosh(Com.Complex)");
             }
 
             {
@@ -4854,7 +5097,7 @@ namespace Test
                     _ = Com.Complex.Atanh(comp);
                 };
 
-                ExecuteTest(method, "Com.Complex.Atanh(Com.Complex)");
+                ExecuteTest(method, "Atanh(Com.Complex)");
             }
 
             // 初等函数
@@ -4867,7 +5110,7 @@ namespace Test
                     _ = Com.Complex.Abs(comp);
                 };
 
-                ExecuteTest(method, "Com.Complex.Abs(Com.Complex)");
+                ExecuteTest(method, "Abs(Com.Complex)");
             }
 
             {
@@ -4878,7 +5121,7 @@ namespace Test
                     _ = Com.Complex.Sign(comp);
                 };
 
-                ExecuteTest(method, "Com.Complex.Sign(Com.Complex)");
+                ExecuteTest(method, "Sign(Com.Complex)");
             }
 
             {
@@ -4889,7 +5132,7 @@ namespace Test
                     _ = Com.Complex.Ceiling(comp);
                 };
 
-                ExecuteTest(method, "Com.Complex.Ceiling(Com.Complex)");
+                ExecuteTest(method, "Ceiling(Com.Complex)");
             }
 
             {
@@ -4900,7 +5143,7 @@ namespace Test
                     _ = Com.Complex.Floor(comp);
                 };
 
-                ExecuteTest(method, "Com.Complex.Floor(Com.Complex)");
+                ExecuteTest(method, "Floor(Com.Complex)");
             }
 
             {
@@ -4911,7 +5154,7 @@ namespace Test
                     _ = Com.Complex.Round(comp);
                 };
 
-                ExecuteTest(method, "Com.Complex.Round(Com.Complex)");
+                ExecuteTest(method, "Round(Com.Complex)");
             }
 
             {
@@ -4922,7 +5165,7 @@ namespace Test
                     _ = Com.Complex.Truncate(comp);
                 };
 
-                ExecuteTest(method, "Com.Complex.Truncate(Com.Complex)");
+                ExecuteTest(method, "Truncate(Com.Complex)");
             }
 
             {
@@ -4934,7 +5177,7 @@ namespace Test
                     _ = Com.Complex.Max(left, right);
                 };
 
-                ExecuteTest(method, "Com.Complex.Max(Com.Complex, Com.Complex)");
+                ExecuteTest(method, "Max(Com.Complex, Com.Complex)");
             }
 
             {
@@ -4946,7 +5189,7 @@ namespace Test
                     _ = Com.Complex.Min(left, right);
                 };
 
-                ExecuteTest(method, "Com.Complex.Min(Com.Complex, Com.Complex)");
+                ExecuteTest(method, "Min(Com.Complex, Com.Complex)");
             }
         }
 
@@ -4963,7 +5206,7 @@ namespace Test
                     _ = (left == right);
                 };
 
-                ExecuteTest(method, "Com.Complex.operator ==(Com.Complex, Com.Complex)");
+                ExecuteTest(method, "operator ==(Com.Complex, Com.Complex)");
             }
 
             {
@@ -4975,7 +5218,7 @@ namespace Test
                     _ = (left != right);
                 };
 
-                ExecuteTest(method, "Com.Complex.operator !=(Com.Complex, Com.Complex)");
+                ExecuteTest(method, "operator !=(Com.Complex, Com.Complex)");
             }
 
             {
@@ -4987,7 +5230,7 @@ namespace Test
                     _ = (left < right);
                 };
 
-                ExecuteTest(method, "Com.Complex.operator <(Com.Complex, Com.Complex)");
+                ExecuteTest(method, "operator <(Com.Complex, Com.Complex)");
             }
 
             {
@@ -4999,7 +5242,7 @@ namespace Test
                     _ = (left > right);
                 };
 
-                ExecuteTest(method, "Com.Complex.operator >(Com.Complex, Com.Complex)");
+                ExecuteTest(method, "operator >(Com.Complex, Com.Complex)");
             }
 
             {
@@ -5011,7 +5254,7 @@ namespace Test
                     _ = (left <= right);
                 };
 
-                ExecuteTest(method, "Com.Complex.operator <=(Com.Complex, Com.Complex)");
+                ExecuteTest(method, "operator <=(Com.Complex, Com.Complex)");
             }
 
             {
@@ -5023,7 +5266,7 @@ namespace Test
                     _ = (left >= right);
                 };
 
-                ExecuteTest(method, "Com.Complex.operator >=(Com.Complex, Com.Complex)");
+                ExecuteTest(method, "operator >=(Com.Complex, Com.Complex)");
             }
 
             // 运算
@@ -5036,7 +5279,7 @@ namespace Test
                     _ = +comp;
                 };
 
-                ExecuteTest(method, "Com.Complex.operator +(Com.Complex)");
+                ExecuteTest(method, "operator +(Com.Complex)");
             }
 
             {
@@ -5047,7 +5290,7 @@ namespace Test
                     _ = -comp;
                 };
 
-                ExecuteTest(method, "Com.Complex.operator -(Com.Complex)");
+                ExecuteTest(method, "operator -(Com.Complex)");
             }
 
             {
@@ -5059,7 +5302,7 @@ namespace Test
                     _ = left + right;
                 };
 
-                ExecuteTest(method, "Com.Complex.operator +(Com.Complex, Com.Complex)");
+                ExecuteTest(method, "operator +(Com.Complex, Com.Complex)");
             }
 
 #if ComVer1905
@@ -5072,10 +5315,10 @@ namespace Test
                     _ = left + right;
                 };
 
-                ExecuteTest(method, "Com.Complex.operator +(Com.Complex, double)");
+                ExecuteTest(method, "operator +(Com.Complex, double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -5088,10 +5331,10 @@ namespace Test
                     _ = left + right;
                 };
 
-                ExecuteTest(method, "Com.Complex.operator +(double, Com.Complex)");
+                ExecuteTest(method, "operator +(double, Com.Complex)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             {
@@ -5103,7 +5346,7 @@ namespace Test
                     _ = left - right;
                 };
 
-                ExecuteTest(method, "Com.Complex.operator -(Com.Complex, Com.Complex)");
+                ExecuteTest(method, "operator -(Com.Complex, Com.Complex)");
             }
 
 #if ComVer1905
@@ -5116,10 +5359,10 @@ namespace Test
                     _ = left - right;
                 };
 
-                ExecuteTest(method, "Com.Complex.operator -(Com.Complex, double)");
+                ExecuteTest(method, "operator -(Com.Complex, double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -5132,10 +5375,10 @@ namespace Test
                     _ = left - right;
                 };
 
-                ExecuteTest(method, "Com.Complex.operator -(double, Com.Complex)");
+                ExecuteTest(method, "operator -(double, Com.Complex)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             {
@@ -5147,7 +5390,7 @@ namespace Test
                     _ = left * right;
                 };
 
-                ExecuteTest(method, "Com.Complex.operator *(Com.Complex, Com.Complex)");
+                ExecuteTest(method, "operator *(Com.Complex, Com.Complex)");
             }
 
 #if ComVer1905
@@ -5160,10 +5403,10 @@ namespace Test
                     _ = left * right;
                 };
 
-                ExecuteTest(method, "Com.Complex.operator *(Com.Complex, double)");
+                ExecuteTest(method, "operator *(Com.Complex, double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -5176,10 +5419,10 @@ namespace Test
                     _ = left * right;
                 };
 
-                ExecuteTest(method, "Com.Complex.operator *(double, Com.Complex)");
+                ExecuteTest(method, "operator *(double, Com.Complex)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             {
@@ -5191,7 +5434,7 @@ namespace Test
                     _ = left / right;
                 };
 
-                ExecuteTest(method, "Com.Complex.operator /(Com.Complex, Com.Complex)");
+                ExecuteTest(method, "operator /(Com.Complex, Com.Complex)");
             }
 
 #if ComVer1905
@@ -5204,10 +5447,10 @@ namespace Test
                     _ = left / right;
                 };
 
-                ExecuteTest(method, "Com.Complex.operator /(Com.Complex, double)");
+                ExecuteTest(method, "operator /(Com.Complex, double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -5220,10 +5463,10 @@ namespace Test
                     _ = left / right;
                 };
 
-                ExecuteTest(method, "Com.Complex.operator /(double, Com.Complex)");
+                ExecuteTest(method, "operator /(double, Com.Complex)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // 类型转换
@@ -5237,10 +5480,10 @@ namespace Test
                     _ = (Com.PointD)comp;
                 };
 
-                ExecuteTest(method, "Com.Complex.explicit operator Com.PointD(Com.Complex)");
+                ExecuteTest(method, "explicit operator Com.PointD(Com.Complex)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -5252,16 +5495,46 @@ namespace Test
                     _ = (Com.Complex)real;
                 };
 
-                ExecuteTest(method, "Com.Complex.explicit operator Com.Complex(double)");
+                ExecuteTest(method, "explicit operator Com.Complex(double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
         }
     }
 
     sealed class DateTimeXTest : ClassPerfTestBase
     {
+        private const string _NamespaceName = "Com";
+        private const string _ClassName = "DateTimeX";
+
+        private void ExecuteTest(Action method, string methodName, string comment)
+        {
+            base.ExecuteTest(method, _NamespaceName, _ClassName, methodName, comment);
+        }
+
+        private void ExecuteTest(Action method, string methodName)
+        {
+            base.ExecuteTest(method, _NamespaceName, _ClassName, methodName);
+        }
+
+        private void ExecuteTest(string methodName, UnsupportedReason unsupportedReason)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, methodName, unsupportedReason);
+        }
+
+        private void ExecuteTest(string methodName)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, methodName);
+        }
+
+        private void ExecuteTest(UnsupportedReason unsupportedReason)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, string.Empty, unsupportedReason);
+        }
+
+        //
+
         private static Com.DateTimeX _GetRandomDateTimeX()
         {
             decimal totalMilliseconds = (decimal)Com.Statistics.RandomDouble(-1E16, 1E16);
@@ -5298,7 +5571,7 @@ namespace Test
                     _ = new Com.DateTimeX(totalMilliseconds, utcOffset);
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.DateTimeX(decimal, double)");
+                ExecuteTest(method, "DateTimeX(decimal, double)");
             }
 
             {
@@ -5309,7 +5582,7 @@ namespace Test
                     _ = new Com.DateTimeX(totalMilliseconds);
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.DateTimeX(decimal)");
+                ExecuteTest(method, "DateTimeX(decimal)");
             }
 
             {
@@ -5327,7 +5600,7 @@ namespace Test
                     _ = new Com.DateTimeX(year, month, day, hour, minute, second, millisecond, utcOffset);
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.DateTimeX(long, int, int, int, int, int, int, double)");
+                ExecuteTest(method, "DateTimeX(long, int, int, int, int, int, int, double)");
             }
 
             {
@@ -5344,7 +5617,7 @@ namespace Test
                     _ = new Com.DateTimeX(year, month, day, hour, minute, second, millisecond);
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.DateTimeX(long, int, int, int, int, int, int)");
+                ExecuteTest(method, "DateTimeX(long, int, int, int, int, int, int)");
             }
 
             {
@@ -5361,7 +5634,7 @@ namespace Test
                     _ = new Com.DateTimeX(year, month, day, hour, minute, second, utcOffset);
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.DateTimeX(long, int, int, int, int, int, double)");
+                ExecuteTest(method, "DateTimeX(long, int, int, int, int, int, double)");
             }
 
             {
@@ -5377,7 +5650,7 @@ namespace Test
                     _ = new Com.DateTimeX(year, month, day, hour, minute, second);
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.DateTimeX(long, int, int, int, int, int)");
+                ExecuteTest(method, "DateTimeX(long, int, int, int, int, int)");
             }
 
             {
@@ -5391,7 +5664,7 @@ namespace Test
                     _ = new Com.DateTimeX(year, month, day, utcOffset);
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.DateTimeX(long, int, int, double)");
+                ExecuteTest(method, "DateTimeX(long, int, int, double)");
             }
 
             {
@@ -5404,7 +5677,7 @@ namespace Test
                     _ = new Com.DateTimeX(year, month, day);
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.DateTimeX(long, int, int)");
+                ExecuteTest(method, "DateTimeX(long, int, int)");
             }
 
             // UtcOffset，DateTimeX，DateTime
@@ -5418,7 +5691,7 @@ namespace Test
                     _ = new Com.DateTimeX(dateTime, utcOffset);
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.DateTimeX(Com.DateTimeX, double)");
+                ExecuteTest(method, "DateTimeX(Com.DateTimeX, double)");
             }
 
             {
@@ -5429,7 +5702,7 @@ namespace Test
                     _ = new Com.DateTimeX(dateTime);
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.DateTimeX(Com.DateTimeX)");
+                ExecuteTest(method, "DateTimeX(Com.DateTimeX)");
             }
 
             {
@@ -5441,7 +5714,7 @@ namespace Test
                     _ = new Com.DateTimeX(dateTime, utcOffset);
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.DateTimeX(System.DateTime, double)");
+                ExecuteTest(method, "DateTimeX(System.DateTime, double)");
             }
 
             {
@@ -5452,7 +5725,7 @@ namespace Test
                     _ = new Com.DateTimeX(dateTime);
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.DateTimeX(System.DateTime)");
+                ExecuteTest(method, "DateTimeX(System.DateTime)");
             }
         }
 
@@ -5468,7 +5741,7 @@ namespace Test
                     _ = dateTimeX.IsEmpty;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.IsEmpty.get()");
+                ExecuteTest(method, "IsEmpty.get()");
             }
 
             {
@@ -5479,7 +5752,7 @@ namespace Test
                     _ = dateTimeX.IsChristianEra;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.IsChristianEra.get()");
+                ExecuteTest(method, "IsChristianEra.get()");
             }
 
             {
@@ -5490,7 +5763,7 @@ namespace Test
                     _ = dateTimeX.IsMinValue;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.IsMinValue.get()");
+                ExecuteTest(method, "IsMinValue.get()");
             }
 
             {
@@ -5501,7 +5774,7 @@ namespace Test
                     _ = dateTimeX.IsMaxValue;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.IsMaxValue.get()");
+                ExecuteTest(method, "IsMaxValue.get()");
             }
 
             {
@@ -5512,7 +5785,7 @@ namespace Test
                     _ = dateTimeX.IsAnnoDomini;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.IsAnnoDomini.get()");
+                ExecuteTest(method, "IsAnnoDomini.get()");
             }
 
             {
@@ -5523,7 +5796,7 @@ namespace Test
                     _ = dateTimeX.IsBeforeChrist;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.IsBeforeChrist.get()");
+                ExecuteTest(method, "IsBeforeChrist.get()");
             }
 
             {
@@ -5534,7 +5807,7 @@ namespace Test
                     _ = dateTimeX.IsLeap;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.IsLeap.get()");
+                ExecuteTest(method, "IsLeap.get()");
             }
 
             // UtcOffset，TotalMS，YMD-hms
@@ -5547,7 +5820,7 @@ namespace Test
                     _ = dateTimeX.UtcOffset;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.UtcOffset.get()");
+                ExecuteTest(method, "UtcOffset.get()");
             }
 
             {
@@ -5559,7 +5832,7 @@ namespace Test
                     dateTimeX.UtcOffset = value;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.UtcOffset.set(double)");
+                ExecuteTest(method, "UtcOffset.set(double)");
             }
 
             {
@@ -5570,7 +5843,7 @@ namespace Test
                     _ = dateTimeX.TotalMilliseconds;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.TotalMilliseconds.get()");
+                ExecuteTest(method, "TotalMilliseconds.get()");
             }
 
             {
@@ -5582,7 +5855,7 @@ namespace Test
                     dateTimeX.TotalMilliseconds = value;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.TotalMilliseconds.set(decimal)");
+                ExecuteTest(method, "TotalMilliseconds.set(decimal)");
             }
 
             {
@@ -5593,7 +5866,7 @@ namespace Test
                     _ = dateTimeX.Year;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.Year.get()");
+                ExecuteTest(method, "Year.get()");
             }
 
             {
@@ -5606,7 +5879,7 @@ namespace Test
                     dateTimeX.Year = value;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.Year.set(long)");
+                ExecuteTest(method, "Year.set(long)");
             }
 
             {
@@ -5617,7 +5890,7 @@ namespace Test
                     _ = dateTimeX.Month;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.Month.get()");
+                ExecuteTest(method, "Month.get()");
             }
 
             {
@@ -5630,7 +5903,7 @@ namespace Test
                     dateTimeX.Month = value;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.Month.set(int)");
+                ExecuteTest(method, "Month.set(int)");
             }
 
             {
@@ -5641,7 +5914,7 @@ namespace Test
                     _ = dateTimeX.Day;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.Day.get()");
+                ExecuteTest(method, "Day.get()");
             }
 
             {
@@ -5653,7 +5926,7 @@ namespace Test
                     dateTimeX.Day = value;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.Day.set(int)");
+                ExecuteTest(method, "Day.set(int)");
             }
 
             {
@@ -5664,7 +5937,7 @@ namespace Test
                     _ = dateTimeX.Hour;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.Hour.get()");
+                ExecuteTest(method, "Hour.get()");
             }
 
             {
@@ -5676,7 +5949,7 @@ namespace Test
                     dateTimeX.Hour = value;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.Hour.set(int)");
+                ExecuteTest(method, "Hour.set(int)");
             }
 
             {
@@ -5687,7 +5960,7 @@ namespace Test
                     _ = dateTimeX.Minute;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.Minute.get()");
+                ExecuteTest(method, "Minute.get()");
             }
 
             {
@@ -5699,7 +5972,7 @@ namespace Test
                     dateTimeX.Minute = value;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.Minute.set(int)");
+                ExecuteTest(method, "Minute.set(int)");
             }
 
             {
@@ -5710,7 +5983,7 @@ namespace Test
                     _ = dateTimeX.Second;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.Second.get()");
+                ExecuteTest(method, "Second.get()");
             }
 
             {
@@ -5722,7 +5995,7 @@ namespace Test
                     dateTimeX.Second = value;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.Second.set(int)");
+                ExecuteTest(method, "Second.set(int)");
             }
 
             {
@@ -5733,7 +6006,7 @@ namespace Test
                     _ = dateTimeX.Millisecond;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.Millisecond.get()");
+                ExecuteTest(method, "Millisecond.get()");
             }
 
             {
@@ -5745,7 +6018,7 @@ namespace Test
                     dateTimeX.Millisecond = value;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.Millisecond.set(int)");
+                ExecuteTest(method, "Millisecond.set(int)");
             }
 
             // Date，TimeOfDay
@@ -5758,7 +6031,7 @@ namespace Test
                     _ = dateTimeX.Date;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.Date.get()");
+                ExecuteTest(method, "Date.get()");
             }
 
             {
@@ -5769,7 +6042,7 @@ namespace Test
                     _ = dateTimeX.TimeOfDay;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.TimeOfDay.get()");
+                ExecuteTest(method, "TimeOfDay.get()");
             }
 
             // Of
@@ -5782,7 +6055,7 @@ namespace Test
                     _ = dateTimeX.WeekOfYear;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.WeekOfYear.get()");
+                ExecuteTest(method, "WeekOfYear.get()");
             }
 
             {
@@ -5793,7 +6066,7 @@ namespace Test
                     _ = dateTimeX.DayOfYear;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.DayOfYear.get()");
+                ExecuteTest(method, "DayOfYear.get()");
             }
 
             {
@@ -5804,7 +6077,7 @@ namespace Test
                     _ = dateTimeX.HourOfYear;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.HourOfYear.get()");
+                ExecuteTest(method, "HourOfYear.get()");
             }
 
             {
@@ -5815,7 +6088,7 @@ namespace Test
                     _ = dateTimeX.MinuteOfYear;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.MinuteOfYear.get()");
+                ExecuteTest(method, "MinuteOfYear.get()");
             }
 
             {
@@ -5826,7 +6099,7 @@ namespace Test
                     _ = dateTimeX.SecondOfYear;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.SecondOfYear.get()");
+                ExecuteTest(method, "SecondOfYear.get()");
             }
 
             {
@@ -5837,7 +6110,7 @@ namespace Test
                     _ = dateTimeX.MillisecondOfYear;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.MillisecondOfYear.get()");
+                ExecuteTest(method, "MillisecondOfYear.get()");
             }
 
             {
@@ -5848,7 +6121,7 @@ namespace Test
                     _ = dateTimeX.DayOfWeek;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.DayOfWeek.get()");
+                ExecuteTest(method, "DayOfWeek.get()");
             }
 
             {
@@ -5859,7 +6132,7 @@ namespace Test
                     _ = dateTimeX.HourOfDay;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.HourOfDay.get()");
+                ExecuteTest(method, "HourOfDay.get()");
             }
 
             {
@@ -5870,7 +6143,7 @@ namespace Test
                     _ = dateTimeX.MinuteOfDay;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.MinuteOfDay.get()");
+                ExecuteTest(method, "MinuteOfDay.get()");
             }
 
             {
@@ -5881,7 +6154,7 @@ namespace Test
                     _ = dateTimeX.SecondOfDay;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.SecondOfDay.get()");
+                ExecuteTest(method, "SecondOfDay.get()");
             }
 
             {
@@ -5892,7 +6165,7 @@ namespace Test
                     _ = dateTimeX.MillisecondOfDay;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.MillisecondOfDay.get()");
+                ExecuteTest(method, "MillisecondOfDay.get()");
             }
 
             // MonthString
@@ -5905,7 +6178,7 @@ namespace Test
                     _ = dateTimeX.MonthStringInChinese;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.MonthStringInChinese.get()");
+                ExecuteTest(method, "MonthStringInChinese.get()");
             }
 
             {
@@ -5916,7 +6189,7 @@ namespace Test
                     _ = dateTimeX.MonthLongStringInEnglish;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.MonthLongStringInEnglish.get()");
+                ExecuteTest(method, "MonthLongStringInEnglish.get()");
             }
 
             {
@@ -5927,7 +6200,7 @@ namespace Test
                     _ = dateTimeX.MonthShortStringInEnglish;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.MonthShortStringInEnglish.get()");
+                ExecuteTest(method, "MonthShortStringInEnglish.get()");
             }
 
             {
@@ -5938,7 +6211,7 @@ namespace Test
                     _ = dateTimeX.MonthStringInJapaneseKanji;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.MonthStringInJapaneseKanji.get()");
+                ExecuteTest(method, "MonthStringInJapaneseKanji.get()");
             }
 
             {
@@ -5949,7 +6222,7 @@ namespace Test
                     _ = dateTimeX.MonthStringInJapaneseHiragana;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.MonthStringInJapaneseHiragana.get()");
+                ExecuteTest(method, "MonthStringInJapaneseHiragana.get()");
             }
 
             // WeekdayString
@@ -5962,7 +6235,7 @@ namespace Test
                     _ = dateTimeX.WeekdayLongStringInChinese;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.WeekdayLongStringInChinese.get()");
+                ExecuteTest(method, "WeekdayLongStringInChinese.get()");
             }
 
             {
@@ -5973,7 +6246,7 @@ namespace Test
                     _ = dateTimeX.WeekdayShortStringInChinese;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.WeekdayShortStringInChinese.get()");
+                ExecuteTest(method, "WeekdayShortStringInChinese.get()");
             }
 
             {
@@ -5984,7 +6257,7 @@ namespace Test
                     _ = dateTimeX.WeekdayLongStringInEnglish;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.WeekdayLongStringInEnglish.get()");
+                ExecuteTest(method, "WeekdayLongStringInEnglish.get()");
             }
 
             {
@@ -5995,7 +6268,7 @@ namespace Test
                     _ = dateTimeX.WeekdayShortStringInEnglish;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.WeekdayShortStringInEnglish.get()");
+                ExecuteTest(method, "WeekdayShortStringInEnglish.get()");
             }
 
             {
@@ -6006,7 +6279,7 @@ namespace Test
                     _ = dateTimeX.WeekdayLongStringInJapanese;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.WeekdayLongStringInJapanese.get()");
+                ExecuteTest(method, "WeekdayLongStringInJapanese.get()");
             }
 
             {
@@ -6017,7 +6290,7 @@ namespace Test
                     _ = dateTimeX.WeekdayShortStringInJapanese;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.WeekdayShortStringInJapanese.get()");
+                ExecuteTest(method, "WeekdayShortStringInJapanese.get()");
             }
 
             // DateTimeString
@@ -6030,7 +6303,7 @@ namespace Test
                     _ = dateTimeX.DateLongString;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.DateLongString.get()");
+                ExecuteTest(method, "DateLongString.get()");
             }
 
             {
@@ -6041,7 +6314,7 @@ namespace Test
                     _ = dateTimeX.DateShortString;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.DateShortString.get()");
+                ExecuteTest(method, "DateShortString.get()");
             }
 
             {
@@ -6052,7 +6325,7 @@ namespace Test
                     _ = dateTimeX.TimeLongString;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.TimeLongString.get()");
+                ExecuteTest(method, "TimeLongString.get()");
             }
 
             {
@@ -6063,7 +6336,7 @@ namespace Test
                     _ = dateTimeX.TimeShortString;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.TimeShortString.get()");
+                ExecuteTest(method, "TimeShortString.get()");
             }
         }
 
@@ -6075,7 +6348,7 @@ namespace Test
                     _ = Com.DateTimeX.Now;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.Now.get()");
+                ExecuteTest(method, "Now.get()");
             }
 
             {
@@ -6084,7 +6357,7 @@ namespace Test
                     _ = Com.DateTimeX.UtcNow;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.UtcNow.get()");
+                ExecuteTest(method, "UtcNow.get()");
             }
 
             {
@@ -6093,7 +6366,7 @@ namespace Test
                     _ = Com.DateTimeX.Today;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.Today.get()");
+                ExecuteTest(method, "Today.get()");
             }
 
             {
@@ -6102,7 +6375,7 @@ namespace Test
                     _ = Com.DateTimeX.UtcToday;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.UtcToday.get()");
+                ExecuteTest(method, "UtcToday.get()");
             }
         }
 
@@ -6119,7 +6392,7 @@ namespace Test
                     _ = dateTimeX.Equals(obj);
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.Equals(object)");
+                ExecuteTest(method, "Equals(object)");
             }
 
             {
@@ -6130,7 +6403,7 @@ namespace Test
                     _ = dateTimeX.GetHashCode();
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.GetHashCode()");
+                ExecuteTest(method, "GetHashCode()");
             }
 
             {
@@ -6141,7 +6414,7 @@ namespace Test
                     _ = dateTimeX.ToString();
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.ToString()");
+                ExecuteTest(method, "ToString()");
             }
 
             // Equals
@@ -6155,7 +6428,7 @@ namespace Test
                     _ = left.Equals(right);
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.Equals(Com.DateTimeX)");
+                ExecuteTest(method, "Equals(Com.DateTimeX)");
             }
 
             // CompareTo
@@ -6170,10 +6443,10 @@ namespace Test
                     _ = dateTimeX.CompareTo(obj);
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.CompareTo(object)");
+                ExecuteTest(method, "CompareTo(object)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -6186,10 +6459,10 @@ namespace Test
                     _ = left.CompareTo(right);
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.CompareTo(Com.DateTimeX)");
+                ExecuteTest(method, "CompareTo(Com.DateTimeX)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // Add
@@ -6203,7 +6476,7 @@ namespace Test
                     _ = dateTimeX.Add(timeSpan);
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.Add(TimeSpan)");
+                ExecuteTest(method, "Add(TimeSpan)");
             }
 
             {
@@ -6215,7 +6488,7 @@ namespace Test
                     _ = dateTimeX.AddYears(years);
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.AddYears(long)");
+                ExecuteTest(method, "AddYears(long)");
             }
 
             {
@@ -6227,7 +6500,7 @@ namespace Test
                     _ = dateTimeX.AddMonths(months);
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.AddMonths(long)");
+                ExecuteTest(method, "AddMonths(long)");
             }
 
             {
@@ -6239,7 +6512,7 @@ namespace Test
                     _ = dateTimeX.AddWeeks(weeks);
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.AddWeeks(double)");
+                ExecuteTest(method, "AddWeeks(double)");
             }
 
             {
@@ -6251,7 +6524,7 @@ namespace Test
                     _ = dateTimeX.AddDays(days);
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.AddDays(double)");
+                ExecuteTest(method, "AddDays(double)");
             }
 
             {
@@ -6263,7 +6536,7 @@ namespace Test
                     _ = dateTimeX.AddHours(hours);
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.AddHours(double)");
+                ExecuteTest(method, "AddHours(double)");
             }
 
             {
@@ -6275,7 +6548,7 @@ namespace Test
                     _ = dateTimeX.AddMinutes(minutes);
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.AddMinutes(double)");
+                ExecuteTest(method, "AddMinutes(double)");
             }
 
             {
@@ -6287,7 +6560,7 @@ namespace Test
                     _ = dateTimeX.AddSeconds(seconds);
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.AddSeconds(double)");
+                ExecuteTest(method, "AddSeconds(double)");
             }
 
             {
@@ -6299,7 +6572,7 @@ namespace Test
                     _ = dateTimeX.AddMilliseconds(milliseconds);
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.AddMilliseconds(decimal)");
+                ExecuteTest(method, "AddMilliseconds(decimal)");
             }
 
             {
@@ -6311,7 +6584,7 @@ namespace Test
                     _ = dateTimeX.AddMilliseconds(milliseconds);
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.AddMilliseconds(double)");
+                ExecuteTest(method, "AddMilliseconds(double)");
             }
 
             // To
@@ -6324,7 +6597,7 @@ namespace Test
                     _ = dateTimeX.ToLocalTime();
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.ToLocalTime()");
+                ExecuteTest(method, "ToLocalTime()");
             }
 
             {
@@ -6335,7 +6608,7 @@ namespace Test
                     _ = dateTimeX.ToUniversalTime();
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.ToUniversalTime()");
+                ExecuteTest(method, "ToUniversalTime()");
             }
 
             // ToString
@@ -6348,7 +6621,7 @@ namespace Test
                     _ = dateTimeX.ToLongDateString();
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.ToLongDateString()");
+                ExecuteTest(method, "ToLongDateString()");
             }
 
             {
@@ -6359,7 +6632,7 @@ namespace Test
                     _ = dateTimeX.ToShortDateString();
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.ToShortDateString()");
+                ExecuteTest(method, "ToShortDateString()");
             }
 
             {
@@ -6370,7 +6643,7 @@ namespace Test
                     _ = dateTimeX.ToLongTimeString();
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.ToLongTimeString()");
+                ExecuteTest(method, "ToLongTimeString()");
             }
 
             {
@@ -6381,7 +6654,7 @@ namespace Test
                     _ = dateTimeX.ToShortTimeString();
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.ToShortTimeString()");
+                ExecuteTest(method, "ToShortTimeString()");
             }
         }
 
@@ -6398,7 +6671,7 @@ namespace Test
                     _ = Com.DateTimeX.Equals(left, right);
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.Equals(Com.DateTimeX, Com.DateTimeX)");
+                ExecuteTest(method, "Equals(Com.DateTimeX, Com.DateTimeX)");
             }
 
             // Compare
@@ -6413,10 +6686,10 @@ namespace Test
                     _ = Com.DateTimeX.Compare(left, right);
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.Compare(Com.DateTimeX, Com.DateTimeX)");
+                ExecuteTest(method, "Compare(Com.DateTimeX, Com.DateTimeX)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // IsLeapYear
@@ -6429,7 +6702,7 @@ namespace Test
                     _ = Com.DateTimeX.IsLeapYear(year);
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.IsLeapYear(long)");
+                ExecuteTest(method, "IsLeapYear(long)");
             }
 
             // Days
@@ -6442,7 +6715,7 @@ namespace Test
                     _ = Com.DateTimeX.DaysInYear(year);
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.DaysInYear(long)");
+                ExecuteTest(method, "DaysInYear(long)");
             }
 
             {
@@ -6454,7 +6727,7 @@ namespace Test
                     _ = Com.DateTimeX.DaysInMonth(year, month);
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.DaysInMonth(long, int)");
+                ExecuteTest(method, "DaysInMonth(long, int)");
             }
         }
 
@@ -6471,7 +6744,7 @@ namespace Test
                     _ = (left == right);
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.operator ==(Com.DateTimeX, Com.DateTimeX)");
+                ExecuteTest(method, "operator ==(Com.DateTimeX, Com.DateTimeX)");
             }
 
             {
@@ -6483,7 +6756,7 @@ namespace Test
                     _ = (left != right);
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.operator !=(Com.DateTimeX, Com.DateTimeX)");
+                ExecuteTest(method, "operator !=(Com.DateTimeX, Com.DateTimeX)");
             }
 
             {
@@ -6495,7 +6768,7 @@ namespace Test
                     _ = (left < right);
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.operator <(Com.DateTimeX, Com.DateTimeX)");
+                ExecuteTest(method, "operator <(Com.DateTimeX, Com.DateTimeX)");
             }
 
             {
@@ -6507,7 +6780,7 @@ namespace Test
                     _ = (left > right);
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.operator >(Com.DateTimeX, Com.DateTimeX)");
+                ExecuteTest(method, "operator >(Com.DateTimeX, Com.DateTimeX)");
             }
 
             {
@@ -6519,7 +6792,7 @@ namespace Test
                     _ = (left <= right);
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.operator <=(Com.DateTimeX, Com.DateTimeX)");
+                ExecuteTest(method, "operator <=(Com.DateTimeX, Com.DateTimeX)");
             }
 
             {
@@ -6531,7 +6804,7 @@ namespace Test
                     _ = (left >= right);
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.operator >=(Com.DateTimeX, Com.DateTimeX)");
+                ExecuteTest(method, "operator >=(Com.DateTimeX, Com.DateTimeX)");
             }
 
             // 运算
@@ -6545,7 +6818,7 @@ namespace Test
                     _ = dateTime - timeSpan;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.operator +(Com.DateTimeX, TimeSpan)");
+                ExecuteTest(method, "operator +(Com.DateTimeX, TimeSpan)");
             }
 
             {
@@ -6557,7 +6830,7 @@ namespace Test
                     _ = dateTime - timeSpan;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.operator -(Com.DateTimeX, TimeSpan)");
+                ExecuteTest(method, "operator -(Com.DateTimeX, TimeSpan)");
             }
 
             // 类型转换
@@ -6571,16 +6844,46 @@ namespace Test
                     _ = (Com.DateTimeX)dateTime;
                 };
 
-                ExecuteTest(method, "Com.DateTimeX.implicit operator Com.DateTimeX(System.DateTime)");
+                ExecuteTest(method, "implicit operator Com.DateTimeX(System.DateTime)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
         }
     }
 
     sealed class GeometryTest : ClassPerfTestBase
     {
+        private const string _NamespaceName = "Com";
+        private const string _ClassName = "Geometry";
+
+        private void ExecuteTest(Action method, string methodName, string comment)
+        {
+            base.ExecuteTest(method, _NamespaceName, _ClassName, methodName, comment);
+        }
+
+        private void ExecuteTest(Action method, string methodName)
+        {
+            base.ExecuteTest(method, _NamespaceName, _ClassName, methodName);
+        }
+
+        private void ExecuteTest(string methodName, UnsupportedReason unsupportedReason)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, methodName, unsupportedReason);
+        }
+
+        private void ExecuteTest(string methodName)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, methodName);
+        }
+
+        private void ExecuteTest(UnsupportedReason unsupportedReason)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, string.Empty, unsupportedReason);
+        }
+
+        //
+
         private static Com.PointD _GetRandomPointD()
         {
             return new Com.PointD(Com.Statistics.RandomDouble(-1E9, 1E9), Com.Statistics.RandomDouble(-1E9, 1E9));
@@ -6635,10 +6938,10 @@ namespace Test
                     Com.Geometry.CalcLineGeneralFunction(pt1, pt2, out A, out B, out C);
                 };
 
-                ExecuteTest(method, "Com.Geometry.CalcLineGeneralFunction(Com.PointD, Com.PointD, out double, out double, out double)");
+                ExecuteTest(method, "CalcLineGeneralFunction(Com.PointD, Com.PointD, out double, out double, out double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -6653,10 +6956,10 @@ namespace Test
                     _ = Com.Geometry.GetDistanceBetweenPointAndLine(pt, A, B, C);
                 };
 
-                ExecuteTest(method, "Com.Geometry.GetDistanceBetweenPointAndLine(Com.PointD, double, double, double)");
+                ExecuteTest(method, "GetDistanceBetweenPointAndLine(Com.PointD, double, double, double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -6670,10 +6973,10 @@ namespace Test
                     _ = Com.Geometry.GetDistanceBetweenPointAndLine(pt, pt1, pt2);
                 };
 
-                ExecuteTest(method, "Com.Geometry.GetDistanceBetweenPointAndLine(Com.PointD, Com.PointD, Com.PointD)");
+                ExecuteTest(method, "GetDistanceBetweenPointAndLine(Com.PointD, Com.PointD, Com.PointD)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             {
@@ -6686,7 +6989,7 @@ namespace Test
                     _ = Com.Geometry.GetFootPoint(pt, pt1, pt2);
                 };
 
-                ExecuteTest(method, "Com.Geometry.GetFootPoint(Com.PointD, Com.PointD, Com.PointD)");
+                ExecuteTest(method, "GetFootPoint(Com.PointD, Com.PointD, Com.PointD)");
             }
 
             // 角度
@@ -6700,7 +7003,7 @@ namespace Test
                     _ = Com.Geometry.GetAngleOfTwoPoints(pt1, pt2);
                 };
 
-                ExecuteTest(method, "Com.Geometry.GetAngleOfTwoPoints(Com.PointD, Com.PointD)");
+                ExecuteTest(method, "GetAngleOfTwoPoints(Com.PointD, Com.PointD)");
             }
 
 #if ComVer1910
@@ -6712,10 +7015,10 @@ namespace Test
                     _ = Com.Geometry.AngleMapping(angle, true, true);
                 };
 
-                ExecuteTest(method, "Com.Geometry.AngleMapping(double, bool, bool)");
+                ExecuteTest(method, "AngleMapping(double, bool, bool)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
 
 #if ComVer1910
@@ -6727,10 +7030,10 @@ namespace Test
                     _ = Com.Geometry.AngleMapping(angle, true);
                 };
 
-                ExecuteTest(method, "Com.Geometry.AngleMapping(double, bool)");
+                ExecuteTest(method, "AngleMapping(double, bool)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
 
             {
@@ -6741,7 +7044,7 @@ namespace Test
                     _ = Com.Geometry.AngleMapping(angle);
                 };
 
-                ExecuteTest(method, "Com.Geometry.AngleMapping(double)");
+                ExecuteTest(method, "AngleMapping(double)");
             }
 
 #if ComVer1910
@@ -6753,10 +7056,10 @@ namespace Test
                     _ = Com.Geometry.RadianToDegree(angle);
                 };
 
-                ExecuteTest(method, "Com.Geometry.RadianToDegree(double)");
+                ExecuteTest(method, "RadianToDegree(double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
 
 #if ComVer1910
@@ -6768,25 +7071,25 @@ namespace Test
                     _ = Com.Geometry.DegreeToRadian(angle);
                 };
 
-                ExecuteTest(method, "Com.Geometry.DegreeToRadian(double)");
+                ExecuteTest(method, "DegreeToRadian(double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
 
             // 控件
 
-            ExecuteTest(WillNotTest, "Com.Geometry.GetCursorPositionOfControl(System.Windows.Forms.Control)");
+            ExecuteTest("GetCursorPositionOfControl(System.Windows.Forms.Control)");
 
-            ExecuteTest(WillNotTest, "Com.Geometry.CursorIsInControl(System.Windows.Forms.Control)");
+            ExecuteTest("CursorIsInControl(System.Windows.Forms.Control)");
 
-            ExecuteTest(WillNotTest, "Com.Geometry.PointIsInControl(System.Drawing.Point, System.Windows.Forms.Control)");
+            ExecuteTest("PointIsInControl(System.Drawing.Point, System.Windows.Forms.Control)");
 
-            ExecuteTest(WillNotTest, "Com.Geometry.ScreenPointIsInControl(System.Drawing.Point, System.Windows.Forms.Control)");
+            ExecuteTest("ScreenPointIsInControl(System.Drawing.Point, System.Windows.Forms.Control)");
 
-            ExecuteTest(WillNotTest, "Com.Geometry.GetMinimumBoundingRectangleOfControls(System.Windows.Forms.Control[], int)");
+            ExecuteTest("GetMinimumBoundingRectangleOfControls(System.Windows.Forms.Control[], int)");
 
-            ExecuteTest(WillNotTest, "Com.Geometry.GetMinimumBoundingRectangleOfControls(System.Windows.Forms.Control[])");
+            ExecuteTest("GetMinimumBoundingRectangleOfControls(System.Windows.Forms.Control[])");
 
             // 图形可见性
 
@@ -6799,7 +7102,7 @@ namespace Test
                     _ = Com.Geometry.PointIsVisibleInRectangle(pt, rect);
                 };
 
-                ExecuteTest(method, "Com.Geometry.PointIsVisibleInRectangle(Com.PointD, System.Drawing.RectangleF)");
+                ExecuteTest(method, "PointIsVisibleInRectangle(Com.PointD, System.Drawing.RectangleF)");
             }
 
             {
@@ -6812,7 +7115,7 @@ namespace Test
                     _ = Com.Geometry.PointIsVisibleInCircle(pt, offset, radius);
                 };
 
-                ExecuteTest(method, "Com.Geometry.PointIsVisibleInCircle(Com.PointD, Com.PointD, double)");
+                ExecuteTest(method, "PointIsVisibleInCircle(Com.PointD, Com.PointD, double)");
             }
 
             {
@@ -6827,7 +7130,7 @@ namespace Test
                     _ = Com.Geometry.PointIsVisibleInEllipse(pt, offset, semiMajorAxis, eccentricity, rotateAngle);
                 };
 
-                ExecuteTest(method, "Com.Geometry.PointIsVisibleInEllipse(Com.PointD, Com.PointD, double, double, double)");
+                ExecuteTest(method, "PointIsVisibleInEllipse(Com.PointD, Com.PointD, double, double, double)");
             }
 
             {
@@ -6842,7 +7145,7 @@ namespace Test
                     _ = Com.Geometry.PointIsVisibleInRhombus(pt, offset, semiMajorAxis, semiMinorAxis, rotateAngle);
                 };
 
-                ExecuteTest(method, "Com.Geometry.PointIsVisibleInRhombus(Com.PointD, Com.PointD, double, double, double)");
+                ExecuteTest(method, "PointIsVisibleInRhombus(Com.PointD, Com.PointD, double, double, double)");
             }
 
             {
@@ -6855,7 +7158,7 @@ namespace Test
                     _ = Com.Geometry.LineIsVisibleInRectangle(pt1, pt2, rect);
                 };
 
-                ExecuteTest(method, "Com.Geometry.LineIsVisibleInRectangle(Com.PointD, Com.PointD, System.Drawing.RectangleF)");
+                ExecuteTest(method, "LineIsVisibleInRectangle(Com.PointD, Com.PointD, System.Drawing.RectangleF)");
             }
 
             {
@@ -6869,7 +7172,7 @@ namespace Test
                     _ = Com.Geometry.LineIsVisibleInCircle(pt1, pt2, offset, radius);
                 };
 
-                ExecuteTest(method, "Com.Geometry.LineIsVisibleInCircle(Com.PointD, Com.PointD, Com.PointD, double)");
+                ExecuteTest(method, "LineIsVisibleInCircle(Com.PointD, Com.PointD, Com.PointD, double)");
             }
 
             {
@@ -6882,7 +7185,7 @@ namespace Test
                     _ = Com.Geometry.CircleInnerIsVisibleInRectangle(offset, radius, rect);
                 };
 
-                ExecuteTest(method, "Com.Geometry.CircleInnerIsVisibleInRectangle(Com.PointD, double, System.Drawing.RectangleF)");
+                ExecuteTest(method, "CircleInnerIsVisibleInRectangle(Com.PointD, double, System.Drawing.RectangleF)");
             }
 
             {
@@ -6895,7 +7198,7 @@ namespace Test
                     _ = Com.Geometry.CircumferenceIsVisibleInRectangle(offset, radius, rect);
                 };
 
-                ExecuteTest(method, "Com.Geometry.CircumferenceIsVisibleInRectangle(Com.PointD, double, System.Drawing.RectangleF)");
+                ExecuteTest(method, "CircumferenceIsVisibleInRectangle(Com.PointD, double, System.Drawing.RectangleF)");
             }
 
             // 圆锥曲线
@@ -6910,7 +7213,7 @@ namespace Test
                     _ = Com.Geometry.GetRadiusOfEllipse(semiMajorAxis, eccentricity, phase);
                 };
 
-                ExecuteTest(method, "Com.Geometry.GetRadiusOfEllipse(double, double, double)");
+                ExecuteTest(method, "GetRadiusOfEllipse(double, double, double)");
             }
 
             {
@@ -6923,7 +7226,7 @@ namespace Test
                     _ = Com.Geometry.GetFocalRadiusOfEllipse(semiMajorAxis, eccentricity, phase);
                 };
 
-                ExecuteTest(method, "Com.Geometry.GetFocalRadiusOfEllipse(double, double, double)");
+                ExecuteTest(method, "GetFocalRadiusOfEllipse(double, double, double)");
             }
 
             {
@@ -6935,7 +7238,7 @@ namespace Test
                     _ = Com.Geometry.EllipseCentralAngleToPhase(centralAngle, eccentricity);
                 };
 
-                ExecuteTest(method, "Com.Geometry.EllipseCentralAngleToPhase(double, double, double)");
+                ExecuteTest(method, "EllipseCentralAngleToPhase(double, double, double)");
             }
 
             // 位图
@@ -6950,7 +7253,7 @@ namespace Test
                     _ = Com.Geometry.RotateBitmap(bmp, rotateAngle, antiAlias);
                 };
 
-                ExecuteTest(method, "Com.Geometry.RotateBitmap(System.Drawing.Bitmap, double, bool)", "bmp at 1024x1024 pixels, enable antiAlias");
+                ExecuteTest(method, "RotateBitmap(System.Drawing.Bitmap, double, bool)", "bmp at 1024x1024 pixels, enable antiAlias");
             }
 
             // 路径
@@ -6964,7 +7267,7 @@ namespace Test
                     _ = Com.Geometry.CreateRoundedRectanglePath(rect, cornerRadius);
                 };
 
-                ExecuteTest(method, "Com.Geometry.CreateRoundedRectanglePath(System.Drawing.Rectangle, int)");
+                ExecuteTest(method, "CreateRoundedRectanglePath(System.Drawing.Rectangle, int)");
             }
 
             {
@@ -6979,7 +7282,7 @@ namespace Test
                     _ = Com.Geometry.CreateRoundedRectanglePath(rect, cornerRadiusLT, cornerRadiusRT, cornerRadiusRB, cornerRadiusLB);
                 };
 
-                ExecuteTest(method, "Com.Geometry.CreateRoundedRectanglePath(System.Drawing.Rectangle, int, int, int, int)");
+                ExecuteTest(method, "CreateRoundedRectanglePath(System.Drawing.Rectangle, int, int, int, int)");
             }
 
             {
@@ -6991,7 +7294,7 @@ namespace Test
                     _ = Com.Geometry.CreateRoundedRectangleOuterPaths(rect, cornerRadius);
                 };
 
-                ExecuteTest(method, "Com.Geometry.CreateRoundedRectangleOuterPaths(System.Drawing.Rectangle, int)");
+                ExecuteTest(method, "CreateRoundedRectangleOuterPaths(System.Drawing.Rectangle, int)");
             }
 
             {
@@ -7006,7 +7309,7 @@ namespace Test
                     _ = Com.Geometry.CreateRoundedRectangleOuterPaths(rect, cornerRadiusLT, cornerRadiusRT, cornerRadiusRB, cornerRadiusLB);
                 };
 
-                ExecuteTest(method, "Com.Geometry.CreateRoundedRectangleOuterPaths(System.Drawing.Rectangle, int, int, int, int)");
+                ExecuteTest(method, "CreateRoundedRectangleOuterPaths(System.Drawing.Rectangle, int, int, int, int)");
             }
         }
 
@@ -7018,6 +7321,36 @@ namespace Test
 
     sealed class IOTest : ClassPerfTestBase
     {
+        private const string _NamespaceName = "Com";
+        private const string _ClassName = "IO";
+
+        private void ExecuteTest(Action method, string methodName, string comment)
+        {
+            base.ExecuteTest(method, _NamespaceName, _ClassName, methodName, comment);
+        }
+
+        private void ExecuteTest(Action method, string methodName)
+        {
+            base.ExecuteTest(method, _NamespaceName, _ClassName, methodName);
+        }
+
+        private void ExecuteTest(string methodName, UnsupportedReason unsupportedReason)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, methodName, unsupportedReason);
+        }
+
+        private void ExecuteTest(string methodName)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, methodName);
+        }
+
+        private void ExecuteTest(UnsupportedReason unsupportedReason)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, string.Empty, unsupportedReason);
+        }
+
+        //
+
         protected override void Constructor()
         {
 
@@ -7040,13 +7373,13 @@ namespace Test
 
         protected override void StaticMethod()
         {
-            ExecuteTest(WillNotTest, "Com.IO.CopyFolder(string, string, bool, bool, bool)");
+            ExecuteTest("CopyFolder(string, string, bool, bool, bool)");
 
-            ExecuteTest(WillNotTest, "Com.IO.CopyFolder(string, string, bool, bool)");
+            ExecuteTest("CopyFolder(string, string, bool, bool)");
 
-            ExecuteTest(WillNotTest, "Com.IO.CopyFolder(string, string, bool)");
+            ExecuteTest("CopyFolder(string, string, bool)");
 
-            ExecuteTest(WillNotTest, "Com.IO.CopyFolder(string, string)");
+            ExecuteTest("CopyFolder(string, string)");
         }
 
         protected override void Operator()
@@ -7057,6 +7390,36 @@ namespace Test
 
     sealed class MatrixTest : ClassPerfTestBase
     {
+        private const string _NamespaceName = "Com";
+        private const string _ClassName = "Matrix";
+
+        private void ExecuteTest(Action method, string methodName, string comment)
+        {
+            base.ExecuteTest(method, _NamespaceName, _ClassName, methodName, comment);
+        }
+
+        private void ExecuteTest(Action method, string methodName)
+        {
+            base.ExecuteTest(method, _NamespaceName, _ClassName, methodName);
+        }
+
+        private void ExecuteTest(string methodName, UnsupportedReason unsupportedReason)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, methodName, unsupportedReason);
+        }
+
+        private void ExecuteTest(string methodName)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, methodName);
+        }
+
+        private void ExecuteTest(UnsupportedReason unsupportedReason)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, string.Empty, unsupportedReason);
+        }
+
+        //
+
         private static Com.Matrix _GetRandomMatrix(int width, int height)
         {
             if (width > 0 && height > 0)
@@ -7095,7 +7458,7 @@ namespace Test
                     _ = new Com.Matrix(size);
                 };
 
-                ExecuteTest(method, "Com.Matrix.Matrix(System.Drawing.Size)", "size at 32x32");
+                ExecuteTest(method, "Matrix(System.Drawing.Size)", "size at 32x32");
             }
 
             {
@@ -7107,7 +7470,7 @@ namespace Test
                     _ = new Com.Matrix(size, value);
                 };
 
-                ExecuteTest(method, "Com.Matrix.Matrix(System.Drawing.Size, double)", "size at 32x32");
+                ExecuteTest(method, "Matrix(System.Drawing.Size, double)", "size at 32x32");
             }
 
             {
@@ -7119,7 +7482,7 @@ namespace Test
                     _ = new Com.Matrix(width, height);
                 };
 
-                ExecuteTest(method, "Com.Matrix.Matrix(int, int)", "size at 32x32");
+                ExecuteTest(method, "Matrix(int, int)", "size at 32x32");
             }
 
             {
@@ -7132,7 +7495,7 @@ namespace Test
                     _ = new Com.Matrix(width, height, value);
                 };
 
-                ExecuteTest(method, "Com.Matrix.Matrix(int, int, double)", "size at 32x32");
+                ExecuteTest(method, "Matrix(int, int, double)", "size at 32x32");
             }
 
             {
@@ -7151,7 +7514,7 @@ namespace Test
                     _ = new Com.Matrix(values);
                 };
 
-                ExecuteTest(method, "Com.Matrix.Matrix(double[,])", "size at 32x32");
+                ExecuteTest(method, "Matrix(double[,])", "size at 32x32");
             }
         }
 
@@ -7169,7 +7532,7 @@ namespace Test
                     _ = matrix[x, y];
                 };
 
-                ExecuteTest(method, "Com.Matrix.this[int, int].get()", "size at 32x32");
+                ExecuteTest(method, "this[int, int].get()", "size at 32x32");
             }
 
             {
@@ -7183,7 +7546,7 @@ namespace Test
                     matrix[x, y] = value;
                 };
 
-                ExecuteTest(method, "Com.Matrix.this[int, int].set(double)", "size at 32x32");
+                ExecuteTest(method, "this[int, int].set(double)", "size at 32x32");
             }
 
             {
@@ -7195,7 +7558,7 @@ namespace Test
                     _ = matrix[index];
                 };
 
-                ExecuteTest(method, "Com.Matrix.this[System.Drawing.Point].get()", "size at 32x32");
+                ExecuteTest(method, "this[System.Drawing.Point].get()", "size at 32x32");
             }
 
             {
@@ -7208,7 +7571,7 @@ namespace Test
                     matrix[index] = value;
                 };
 
-                ExecuteTest(method, "Com.Matrix.this[System.Drawing.Point].set(double)", "size at 32x32");
+                ExecuteTest(method, "this[System.Drawing.Point].set(double)", "size at 32x32");
             }
 
             // Is
@@ -7222,7 +7585,7 @@ namespace Test
                     _ = matrix.IsEmpty;
                 };
 
-                ExecuteTest(method, "Com.Matrix.IsEmpty.get()", "size at 32x32");
+                ExecuteTest(method, "IsEmpty.get()", "size at 32x32");
             }
 #else
             {
@@ -7233,7 +7596,7 @@ namespace Test
                     _ = matrix.IsNonMatrix;
                 };
 
-                ExecuteTest(method, "Com.Matrix.IsNonMatrix.get()", "size at 32x32");
+                ExecuteTest(method, "IsNonMatrix.get()", "size at 32x32");
             }
 #endif
 
@@ -7247,7 +7610,7 @@ namespace Test
                     _ = matrix.Size;
                 };
 
-                ExecuteTest(method, "Com.Matrix.Size.get()", "size at 32x32");
+                ExecuteTest(method, "Size.get()", "size at 32x32");
             }
 
             {
@@ -7258,7 +7621,7 @@ namespace Test
                     _ = matrix.Width;
                 };
 
-                ExecuteTest(method, "Com.Matrix.Width.get()", "size at 32x32");
+                ExecuteTest(method, "Width.get()", "size at 32x32");
             }
 
             {
@@ -7269,7 +7632,7 @@ namespace Test
                     _ = matrix.Column;
                 };
 
-                ExecuteTest(method, "Com.Matrix.Column.get()", "size at 32x32");
+                ExecuteTest(method, "Column.get()", "size at 32x32");
             }
 
             {
@@ -7280,7 +7643,7 @@ namespace Test
                     _ = matrix.Height;
                 };
 
-                ExecuteTest(method, "Com.Matrix.Height.get()", "size at 32x32");
+                ExecuteTest(method, "Height.get()", "size at 32x32");
             }
 
             {
@@ -7291,7 +7654,7 @@ namespace Test
                     _ = matrix.Row;
                 };
 
-                ExecuteTest(method, "Com.Matrix.Row.get()", "size at 32x32");
+                ExecuteTest(method, "Row.get()", "size at 32x32");
             }
 
             {
@@ -7302,7 +7665,7 @@ namespace Test
                     _ = matrix.Count;
                 };
 
-                ExecuteTest(method, "Com.Matrix.Count.get()", "size at 32x32");
+                ExecuteTest(method, "Count.get()", "size at 32x32");
             }
 
             // 线性代数属性
@@ -7315,7 +7678,7 @@ namespace Test
                     _ = matrix.Determinant;
                 };
 
-                ExecuteTest(method, "Com.Matrix.Determinant.get()", "size at 8x8");
+                ExecuteTest(method, "Determinant.get()", "size at 8x8");
             }
 
             {
@@ -7326,7 +7689,7 @@ namespace Test
                     _ = matrix.Rank;
                 };
 
-                ExecuteTest(method, "Com.Matrix.Rank.get()", "size at 8x8");
+                ExecuteTest(method, "Rank.get()", "size at 8x8");
             }
 
             {
@@ -7337,7 +7700,7 @@ namespace Test
                     _ = matrix.Transport;
                 };
 
-                ExecuteTest(method, "Com.Matrix.Transport.get()", "size at 8x8");
+                ExecuteTest(method, "Transport.get()", "size at 8x8");
             }
 
             {
@@ -7348,7 +7711,7 @@ namespace Test
                     _ = matrix.Adjoint;
                 };
 
-                ExecuteTest(method, "Com.Matrix.Adjoint.get()", "size at 8x8");
+                ExecuteTest(method, "Adjoint.get()", "size at 8x8");
             }
 
             {
@@ -7359,7 +7722,7 @@ namespace Test
                     _ = matrix.Invert;
                 };
 
-                ExecuteTest(method, "Com.Matrix.Invert.get()", "size at 8x8");
+                ExecuteTest(method, "Invert.get()", "size at 8x8");
             }
         }
 
@@ -7374,7 +7737,7 @@ namespace Test
                     _ = Com.Matrix.Empty;
                 };
 
-                ExecuteTest(method, "Com.Matrix.Empty.get()");
+                ExecuteTest(method, "Empty.get()");
             }
 #else
             {
@@ -7383,7 +7746,7 @@ namespace Test
                     _ = Com.Matrix.NonMatrix;
                 };
 
-                ExecuteTest(method, "Com.Matrix.NonMatrix.get()");
+                ExecuteTest(method, "NonMatrix.get()");
             }
 #endif
         }
@@ -7401,7 +7764,7 @@ namespace Test
                     _ = matrix.Equals(obj);
                 };
 
-                ExecuteTest(method, "Com.Matrix.Equals(object)", "size at 32x32");
+                ExecuteTest(method, "Equals(object)", "size at 32x32");
             }
 
             {
@@ -7412,7 +7775,7 @@ namespace Test
                     _ = matrix.GetHashCode();
                 };
 
-                ExecuteTest(method, "Com.Matrix.GetHashCode()", "size at 32x32");
+                ExecuteTest(method, "GetHashCode()", "size at 32x32");
             }
 
             {
@@ -7423,7 +7786,7 @@ namespace Test
                     _ = matrix.ToString();
                 };
 
-                ExecuteTest(method, "Com.Matrix.ToString()", "size at 32x32");
+                ExecuteTest(method, "ToString()", "size at 32x32");
             }
 
             // Equals
@@ -7437,7 +7800,7 @@ namespace Test
                     _ = left.Equals(right);
                 };
 
-                ExecuteTest(method, "Com.Matrix.Equals(Com.Matrix)", "size at 32x32");
+                ExecuteTest(method, "Equals(Com.Matrix)", "size at 32x32");
             }
 
             // Copy
@@ -7450,7 +7813,7 @@ namespace Test
                     _ = matrix.Copy();
                 };
 
-                ExecuteTest(method, "Com.Matrix.Copy()", "size at 32x32");
+                ExecuteTest(method, "Copy()", "size at 32x32");
             }
 
             // 子矩阵
@@ -7465,7 +7828,7 @@ namespace Test
                     _ = matrix.SubMatrix(index, size);
                 };
 
-                ExecuteTest(method, "Com.Matrix.SubMatrix(System.Drawing.Point, System.Drawing.Size)", "size at 32x32, SubMatrix is 16x16 at (8,8)");
+                ExecuteTest(method, "SubMatrix(System.Drawing.Point, System.Drawing.Size)", "size at 32x32, SubMatrix is 16x16 at (8,8)");
             }
 
             {
@@ -7480,7 +7843,7 @@ namespace Test
                     _ = matrix.SubMatrix(x, y, width, height);
                 };
 
-                ExecuteTest(method, "Com.Matrix.SubMatrix(int, int, int, int)", "size at 32x32, SubMatrix is 16x16 at (8,8)");
+                ExecuteTest(method, "SubMatrix(int, int, int, int)", "size at 32x32, SubMatrix is 16x16 at (8,8)");
             }
 
             // 获取行列
@@ -7494,7 +7857,7 @@ namespace Test
                     _ = matrix.GetColumn(x);
                 };
 
-                ExecuteTest(method, "Com.Matrix.GetColumn(int)", "size at 32x32");
+                ExecuteTest(method, "GetColumn(int)", "size at 32x32");
             }
 
             {
@@ -7506,7 +7869,7 @@ namespace Test
                     _ = matrix.GetRow(y);
                 };
 
-                ExecuteTest(method, "Com.Matrix.GetRow(int)", "size at 32x32");
+                ExecuteTest(method, "GetRow(int)", "size at 32x32");
             }
 
             // ToArray
@@ -7519,7 +7882,7 @@ namespace Test
                     _ = matrix.ToArray();
                 };
 
-                ExecuteTest(method, "Com.Matrix.ToArray()", "size at 32x32");
+                ExecuteTest(method, "ToArray()", "size at 32x32");
             }
         }
 
@@ -7536,7 +7899,7 @@ namespace Test
                     _ = Com.Matrix.IsNullOrEmpty(matrix);
                 };
 
-                ExecuteTest(method, "Com.Matrix.IsNullOrEmpty(Com.Matrix)", "size at 32x32");
+                ExecuteTest(method, "IsNullOrEmpty(Com.Matrix)", "size at 32x32");
             }
 #else
             {
@@ -7547,7 +7910,7 @@ namespace Test
                     _ = Com.Matrix.IsNullOrNonMatrix(matrix);
                 };
 
-                ExecuteTest(method, "Com.Matrix.IsNullOrNonMatrix(Com.Matrix)", "size at 32x32");
+                ExecuteTest(method, "IsNullOrNonMatrix(Com.Matrix)", "size at 32x32");
             }
 #endif
 
@@ -7562,7 +7925,7 @@ namespace Test
                     _ = Com.Matrix.Equals(left, right);
                 };
 
-                ExecuteTest(method, "Com.Matrix.Equals(Com.Matrix, Com.Matrix)", "size at 32x32");
+                ExecuteTest(method, "Equals(Com.Matrix, Com.Matrix)", "size at 32x32");
             }
 
             // 矩阵生成
@@ -7575,7 +7938,7 @@ namespace Test
                     _ = Com.Matrix.Identity(order);
                 };
 
-                ExecuteTest(method, "Com.Matrix.Identity(int)", "size at 32x32");
+                ExecuteTest(method, "Identity(int)", "size at 32x32");
             }
 
             {
@@ -7586,7 +7949,7 @@ namespace Test
                     _ = Com.Matrix.Zeros(size);
                 };
 
-                ExecuteTest(method, "Com.Matrix.Zeros(System.Drawing.Size)", "size at 32x32");
+                ExecuteTest(method, "Zeros(System.Drawing.Size)", "size at 32x32");
             }
 
             {
@@ -7598,7 +7961,7 @@ namespace Test
                     _ = Com.Matrix.Zeros(width, height);
                 };
 
-                ExecuteTest(method, "Com.Matrix.Zeros(int, int)", "size at 32x32");
+                ExecuteTest(method, "Zeros(int, int)", "size at 32x32");
             }
 
             {
@@ -7609,7 +7972,7 @@ namespace Test
                     _ = Com.Matrix.Ones(size);
                 };
 
-                ExecuteTest(method, "Com.Matrix.Ones(System.Drawing.Size)", "size at 32x32");
+                ExecuteTest(method, "Ones(System.Drawing.Size)", "size at 32x32");
             }
 
             {
@@ -7621,7 +7984,7 @@ namespace Test
                     _ = Com.Matrix.Ones(width, height);
                 };
 
-                ExecuteTest(method, "Com.Matrix.Ones(int, int)", "size at 32x32");
+                ExecuteTest(method, "Ones(int, int)", "size at 32x32");
             }
 
             {
@@ -7639,7 +8002,7 @@ namespace Test
                     _ = Com.Matrix.Diagonal(array, rowsUponMainDiag);
                 };
 
-                ExecuteTest(method, "Com.Matrix.Diagonal(double[], int)", "size at 32x32");
+                ExecuteTest(method, "Diagonal(double[], int)", "size at 32x32");
             }
 
             {
@@ -7655,7 +8018,7 @@ namespace Test
                     _ = Com.Matrix.Diagonal(array);
                 };
 
-                ExecuteTest(method, "Com.Matrix.Diagonal(double[])", "size at 32x32");
+                ExecuteTest(method, "Diagonal(double[])", "size at 32x32");
             }
 
             // 增广矩阵
@@ -7669,7 +8032,7 @@ namespace Test
                     _ = Com.Matrix.Augment(left, right);
                 };
 
-                ExecuteTest(method, "Com.Matrix.Augment(Com.Matrix, Com.Matrix)", "size at 32x32");
+                ExecuteTest(method, "Augment(Com.Matrix, Com.Matrix)", "size at 32x32");
             }
 
             // 线性代数运算
@@ -7683,7 +8046,7 @@ namespace Test
                     _ = Com.Matrix.Add(matrix, n);
                 };
 
-                ExecuteTest(method, "Com.Matrix.Add(Com.Matrix, double)", "size at 32x32");
+                ExecuteTest(method, "Add(Com.Matrix, double)", "size at 32x32");
             }
 
             {
@@ -7695,7 +8058,7 @@ namespace Test
                     _ = Com.Matrix.Add(n, matrix);
                 };
 
-                ExecuteTest(method, "Com.Matrix.Add(double, Com.Matrix)", "size at 32x32");
+                ExecuteTest(method, "Add(double, Com.Matrix)", "size at 32x32");
             }
 
             {
@@ -7707,7 +8070,7 @@ namespace Test
                     _ = Com.Matrix.Add(left, right);
                 };
 
-                ExecuteTest(method, "Com.Matrix.Add(Com.Matrix, Com.Matrix)", "size at 32x32");
+                ExecuteTest(method, "Add(Com.Matrix, Com.Matrix)", "size at 32x32");
             }
 
             {
@@ -7719,7 +8082,7 @@ namespace Test
                     _ = Com.Matrix.Subtract(matrix, n);
                 };
 
-                ExecuteTest(method, "Com.Matrix.Subtract(Com.Matrix, double)", "size at 32x32");
+                ExecuteTest(method, "Subtract(Com.Matrix, double)", "size at 32x32");
             }
 
             {
@@ -7731,7 +8094,7 @@ namespace Test
                     _ = Com.Matrix.Subtract(n, matrix);
                 };
 
-                ExecuteTest(method, "Com.Matrix.Subtract(double, Com.Matrix)", "size at 32x32");
+                ExecuteTest(method, "Subtract(double, Com.Matrix)", "size at 32x32");
             }
 
             {
@@ -7743,7 +8106,7 @@ namespace Test
                     _ = Com.Matrix.Subtract(left, right);
                 };
 
-                ExecuteTest(method, "Com.Matrix.Subtract(Com.Matrix, Com.Matrix)", "size at 32x32");
+                ExecuteTest(method, "Subtract(Com.Matrix, Com.Matrix)", "size at 32x32");
             }
 
             {
@@ -7755,7 +8118,7 @@ namespace Test
                     _ = Com.Matrix.Multiply(matrix, n);
                 };
 
-                ExecuteTest(method, "Com.Matrix.Multiply(Com.Matrix, double)", "size at 32x32");
+                ExecuteTest(method, "Multiply(Com.Matrix, double)", "size at 32x32");
             }
 
             {
@@ -7767,7 +8130,7 @@ namespace Test
                     _ = Com.Matrix.Multiply(n, matrix);
                 };
 
-                ExecuteTest(method, "Com.Matrix.Multiply(double, Com.Matrix)", "size at 32x32");
+                ExecuteTest(method, "Multiply(double, Com.Matrix)", "size at 32x32");
             }
 
             {
@@ -7779,7 +8142,7 @@ namespace Test
                     _ = Com.Matrix.Multiply(left, right);
                 };
 
-                ExecuteTest(method, "Com.Matrix.Multiply(Com.Matrix, Com.Matrix)", "size at 32x32");
+                ExecuteTest(method, "Multiply(Com.Matrix, Com.Matrix)", "size at 32x32");
             }
 
             {
@@ -7795,7 +8158,7 @@ namespace Test
                     _ = Com.Matrix.MultiplyLeft(list);
                 };
 
-                ExecuteTest(method, "Com.Matrix.MultiplyLeft(System.Collections.Generic.List<Com.Matrix>)", "size at 32x32, total 8 matrices");
+                ExecuteTest(method, "MultiplyLeft(System.Collections.Generic.List<Com.Matrix>)", "size at 32x32, total 8 matrices");
             }
 
             {
@@ -7811,7 +8174,7 @@ namespace Test
                     _ = Com.Matrix.MultiplyRight(list);
                 };
 
-                ExecuteTest(method, "Com.Matrix.MultiplyRight(System.Collections.Generic.List<Com.Matrix>)", "size at 32x32, total 8 matrices");
+                ExecuteTest(method, "MultiplyRight(System.Collections.Generic.List<Com.Matrix>)", "size at 32x32, total 8 matrices");
             }
 
             {
@@ -7823,7 +8186,7 @@ namespace Test
                     _ = Com.Matrix.Divide(matrix, n);
                 };
 
-                ExecuteTest(method, "Com.Matrix.Divide(Com.Matrix, double)", "size at 32x32");
+                ExecuteTest(method, "Divide(Com.Matrix, double)", "size at 32x32");
             }
 
             {
@@ -7835,7 +8198,7 @@ namespace Test
                     _ = Com.Matrix.Divide(n, matrix);
                 };
 
-                ExecuteTest(method, "Com.Matrix.Divide(double, Com.Matrix)", "size at 32x32");
+                ExecuteTest(method, "Divide(double, Com.Matrix)", "size at 32x32");
             }
 
             {
@@ -7847,7 +8210,7 @@ namespace Test
                     _ = Com.Matrix.DivideLeft(left, right);
                 };
 
-                ExecuteTest(method, "Com.Matrix.DivideLeft(Com.Matrix, Com.Matrix)", "size at 8x8");
+                ExecuteTest(method, "DivideLeft(Com.Matrix, Com.Matrix)", "size at 8x8");
             }
 
             {
@@ -7859,7 +8222,7 @@ namespace Test
                     _ = Com.Matrix.DivideRight(left, right);
                 };
 
-                ExecuteTest(method, "Com.Matrix.DivideRight(Com.Matrix, Com.Matrix)", "size at 8x8");
+                ExecuteTest(method, "DivideRight(Com.Matrix, Com.Matrix)", "size at 8x8");
             }
 
             // 求解线性方程组
@@ -7878,7 +8241,7 @@ namespace Test
                     _ = Com.Matrix.SolveLinearEquation(matrix, vector);
                 };
 
-                ExecuteTest(method, "Com.Matrix.SolveLinearEquation(Com.Matrix, Com.Vector)", "size at 8x8");
+                ExecuteTest(method, "SolveLinearEquation(Com.Matrix, Com.Vector)", "size at 8x8");
             }
         }
 
@@ -7895,7 +8258,7 @@ namespace Test
                     _ = (left == right);
                 };
 
-                ExecuteTest(method, "Com.Matrix.operator ==(Com.Matrix, Com.Matrix)", "size at 32x32");
+                ExecuteTest(method, "operator ==(Com.Matrix, Com.Matrix)", "size at 32x32");
             }
 
             {
@@ -7907,13 +8270,43 @@ namespace Test
                     _ = (left != right);
                 };
 
-                ExecuteTest(method, "Com.Matrix.operator !=(Com.Matrix, Com.Matrix)", "size at 32x32");
+                ExecuteTest(method, "operator !=(Com.Matrix, Com.Matrix)", "size at 32x32");
             }
         }
     }
 
     sealed class Painting2DTest : ClassPerfTestBase
     {
+        private const string _NamespaceName = "Com";
+        private const string _ClassName = "Painting2D";
+
+        private void ExecuteTest(Action method, string methodName, string comment)
+        {
+            base.ExecuteTest(method, _NamespaceName, _ClassName, methodName, comment);
+        }
+
+        private void ExecuteTest(Action method, string methodName)
+        {
+            base.ExecuteTest(method, _NamespaceName, _ClassName, methodName);
+        }
+
+        private void ExecuteTest(string methodName, UnsupportedReason unsupportedReason)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, methodName, unsupportedReason);
+        }
+
+        private void ExecuteTest(string methodName)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, methodName);
+        }
+
+        private void ExecuteTest(UnsupportedReason unsupportedReason)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, string.Empty, unsupportedReason);
+        }
+
+        //
+
         protected override void Constructor()
         {
 
@@ -7949,7 +8342,7 @@ namespace Test
                     _ = Com.Painting2D.PaintLine(bmp, pt1, pt2, color, width, antiAlias);
                 };
 
-                ExecuteTest(method, "Com.Painting2D.PaintLine(System.Drawing.Bitmap, Com.PointD, Com.PointD, System.Drawing.Color, float, bool)", "bmp at 1024x1024 pixels, width at 1.0F, enable antiAlias");
+                ExecuteTest(method, "PaintLine(System.Drawing.Bitmap, Com.PointD, Com.PointD, System.Drawing.Color, float, bool)", "bmp at 1024x1024 pixels, width at 1.0F, enable antiAlias");
             }
 
             {
@@ -7970,7 +8363,7 @@ namespace Test
                     _ = Com.Painting2D.PaintPolarGrid(bmp, offset, radius, deltaRadius, normalIncreasePeriod, color, antiAlias);
                 };
 
-                ExecuteTest(method, "Com.Painting2D.PaintPolarGrid(System.Drawing.Bitmap, Com.PointD, double, double, int, System.Drawing.Color, bool)", "bmp at 1024x1024 pixels, radius at half diagonal of bmp, deltaRadius at 1/9 of radius, normalIncreasePeriod at 3, enable antiAlias");
+                ExecuteTest(method, "PaintPolarGrid(System.Drawing.Bitmap, Com.PointD, double, double, int, System.Drawing.Color, bool)", "bmp at 1024x1024 pixels, radius at half diagonal of bmp, deltaRadius at 1/9 of radius, normalIncreasePeriod at 3, enable antiAlias");
             }
 
             {
@@ -7986,7 +8379,7 @@ namespace Test
                     _ = Com.Painting2D.PaintCircle(bmp, offset, radius, color, width, antiAlias);
                 };
 
-                ExecuteTest(method, "Com.Painting2D.PaintCircle(System.Drawing.Bitmap, Com.PointD, double, System.Drawing.Color, float, bool)", "bmp at 1024x1024 pixels, radius at half width of bmp, width at 1.0F, enable antiAlias");
+                ExecuteTest(method, "PaintCircle(System.Drawing.Bitmap, Com.PointD, double, System.Drawing.Color, float, bool)", "bmp at 1024x1024 pixels, radius at half width of bmp, width at 1.0F, enable antiAlias");
             }
 
             {
@@ -8006,7 +8399,7 @@ namespace Test
                     _ = Com.Painting2D.PaintLargeCircle(bmp, offset, radius, refPhase, color, width, antiAlias, minDiv, maxDiv, divArc);
                 };
 
-                ExecuteTest(method, "Com.Painting2D.PaintLargeCircle(System.Drawing.Bitmap, Com.PointD, double, double, System.Drawing.Color, float, bool, int, int, double)", "bmp at 1024x1024 pixels, radius at sqrt(5) width of bmp, width at 1.0F, enable antiAlias, minDiv at 32, maxDiv at 256, divArc at 4");
+                ExecuteTest(method, "PaintLargeCircle(System.Drawing.Bitmap, Com.PointD, double, double, System.Drawing.Color, float, bool, int, int, double)", "bmp at 1024x1024 pixels, radius at sqrt(5) width of bmp, width at 1.0F, enable antiAlias, minDiv at 32, maxDiv at 256, divArc at 4");
             }
 
             {
@@ -8023,7 +8416,7 @@ namespace Test
                     _ = Com.Painting2D.PaintLargeCircle(bmp, offset, radius, refPhase, color, width, antiAlias);
                 };
 
-                ExecuteTest(method, "Com.Painting2D.PaintLargeCircle(System.Drawing.Bitmap, Com.PointD, double, double, System.Drawing.Color, float, bool, int, int, double)", "bmp at 1024x1024 pixels, radius at sqrt(5) width of bmp, width at 1.0F, enable antiAlias");
+                ExecuteTest(method, "PaintLargeCircle(System.Drawing.Bitmap, Com.PointD, double, double, System.Drawing.Color, float, bool, int, int, double)", "bmp at 1024x1024 pixels, radius at sqrt(5) width of bmp, width at 1.0F, enable antiAlias");
             }
 
             {
@@ -8045,7 +8438,7 @@ namespace Test
                     _ = Com.Painting2D.PaintLargeEllipse(bmp, offset, semiMajorAxis, eccentricity, rotateAngle, refPhase, color, width, antiAlias, minDiv, maxDiv, divArc);
                 };
 
-                ExecuteTest(method, "Com.Painting2D.PaintLargeEllipse(System.Drawing.Bitmap, Com.PointD, double, double, double, double, System.Drawing.Color, float, bool, int, int, double)", "bmp at 1024x1024 pixels, semiMajorAxis at 5 width of bmp, eccentricity at 0.8, width at 1.0F, enable antiAlias, minDiv at 32, maxDiv at 256, divArc at 4");
+                ExecuteTest(method, "PaintLargeEllipse(System.Drawing.Bitmap, Com.PointD, double, double, double, double, System.Drawing.Color, float, bool, int, int, double)", "bmp at 1024x1024 pixels, semiMajorAxis at 5 width of bmp, eccentricity at 0.8, width at 1.0F, enable antiAlias, minDiv at 32, maxDiv at 256, divArc at 4");
             }
 
             {
@@ -8064,7 +8457,7 @@ namespace Test
                     _ = Com.Painting2D.PaintLargeEllipse(bmp, offset, semiMajorAxis, eccentricity, rotateAngle, refPhase, color, width, antiAlias);
                 };
 
-                ExecuteTest(method, "Com.Painting2D.PaintLargeEllipse(System.Drawing.Bitmap, Com.PointD, double, double, double, double, System.Drawing.Color, float, bool)", "bmp at 1024x1024 pixels, semiMajorAxis at 5 width of bmp, eccentricity at 0.8, width at 1.0F, enable antiAlias");
+                ExecuteTest(method, "PaintLargeEllipse(System.Drawing.Bitmap, Com.PointD, double, double, double, double, System.Drawing.Color, float, bool)", "bmp at 1024x1024 pixels, semiMajorAxis at 5 width of bmp, eccentricity at 0.8, width at 1.0F, enable antiAlias");
             }
 
             {
@@ -8082,10 +8475,10 @@ namespace Test
                     _ = Com.Painting2D.PaintTextWithShadow(bmp, text, font, frontColor, backColor, pt, offset, antiAlias);
                 };
 
-                ExecuteTest(method, "Com.Painting2D.PaintTextWithShadow(System.Drawing.Bitmap, string, System.Drawing.Font, System.Drawing.Color, System.Drawing.Color, System.Drawing.PointF, float, bool)", "bmp at 1024x1024 pixels, font at 42 pt, enable antiAlias");
+                ExecuteTest(method, "PaintTextWithShadow(System.Drawing.Bitmap, string, System.Drawing.Font, System.Drawing.Color, System.Drawing.Color, System.Drawing.PointF, float, bool)", "bmp at 1024x1024 pixels, font at 42 pt, enable antiAlias");
             }
 
-            ExecuteTest(WillNotTest, "Com.Painting2D.PaintImageOnTransparentForm(System.Windows.Forms.Form, System.Drawing.Bitmap, double)");
+            ExecuteTest("PaintImageOnTransparentForm(System.Windows.Forms.Form, System.Drawing.Bitmap, double)");
         }
 
         protected override void Operator()
@@ -8096,6 +8489,36 @@ namespace Test
 
     sealed class Painting3DTest : ClassPerfTestBase
     {
+        private const string _NamespaceName = "Com";
+        private const string _ClassName = "Painting3D";
+
+        private void ExecuteTest(Action method, string methodName, string comment)
+        {
+            base.ExecuteTest(method, _NamespaceName, _ClassName, methodName, comment);
+        }
+
+        private void ExecuteTest(Action method, string methodName)
+        {
+            base.ExecuteTest(method, _NamespaceName, _ClassName, methodName);
+        }
+
+        private void ExecuteTest(string methodName, UnsupportedReason unsupportedReason)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, methodName, unsupportedReason);
+        }
+
+        private void ExecuteTest(string methodName)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, methodName);
+        }
+
+        private void ExecuteTest(UnsupportedReason unsupportedReason)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, string.Empty, unsupportedReason);
+        }
+
+        //
+
         protected override void Constructor()
         {
 
@@ -8136,7 +8559,7 @@ namespace Test
                     _ = Com.Painting3D.PaintCuboid(bmp, center, size, color, edgeWidth, affineMatrixList, focalLength, illuminationDirection, illuminationDirectionIsAfterAffineTransform, exposure, antiAlias);
                 };
 
-                ExecuteTest(method, "Com.Painting3D.PaintCuboid(System.Drawing.Bitmap, Com.PointD3D, Com.PointD3D, System.Drawing.Color, float, System.Collections.Generic.List<Com.Matrix>, double, Com.PointD3D, bool, double, bool)", "bmp at 1024x1024 pixels, cuboid size at 512x512x512, edgeWidth at 1.0F, total 4 matrices, focalLength at 1024, enable antiAlias");
+                ExecuteTest(method, "PaintCuboid(System.Drawing.Bitmap, Com.PointD3D, Com.PointD3D, System.Drawing.Color, float, System.Collections.Generic.List<Com.Matrix>, double, Com.PointD3D, bool, double, bool)", "bmp at 1024x1024 pixels, cuboid size at 512x512x512, edgeWidth at 1.0F, total 4 matrices, focalLength at 1024, enable antiAlias");
             }
 
             {
@@ -8157,7 +8580,7 @@ namespace Test
                     _ = Com.Painting3D.PaintCuboid(bmp, center, size, color, edgeWidth, affineMatrix, focalLength, illuminationDirection, illuminationDirectionIsAfterAffineTransform, exposure, antiAlias);
                 };
 
-                ExecuteTest(method, "Com.Painting3D.PaintCuboid(System.Drawing.Bitmap, Com.PointD3D, Com.PointD3D, System.Drawing.Color, float, Com.Matrix, double, Com.PointD3D, bool, double, bool)", "bmp at 1024x1024 pixels, cuboid size at 512x512x512, edgeWidth at 1.0F, focalLength at 1024, enable antiAlias");
+                ExecuteTest(method, "PaintCuboid(System.Drawing.Bitmap, Com.PointD3D, Com.PointD3D, System.Drawing.Color, float, Com.Matrix, double, Com.PointD3D, bool, double, bool)", "bmp at 1024x1024 pixels, cuboid size at 512x512x512, edgeWidth at 1.0F, focalLength at 1024, enable antiAlias");
             }
 
             {
@@ -8175,7 +8598,7 @@ namespace Test
                     _ = Com.Painting3D.PaintCuboid(bmp, center, size, color, edgeWidth, affineMatrixList, focalLength, antiAlias);
                 };
 
-                ExecuteTest(method, "Com.Painting3D.PaintCuboid(System.Drawing.Bitmap, Com.PointD3D, Com.PointD3D, System.Drawing.Color, float, System.Collections.Generic.List<Com.Matrix>, double, bool)", "bmp at 1024x1024 pixels, cuboid size at 512x512x512, edgeWidth at 1.0F, total 4 matrices, focalLength at 1024, enable antiAlias");
+                ExecuteTest(method, "PaintCuboid(System.Drawing.Bitmap, Com.PointD3D, Com.PointD3D, System.Drawing.Color, float, System.Collections.Generic.List<Com.Matrix>, double, bool)", "bmp at 1024x1024 pixels, cuboid size at 512x512x512, edgeWidth at 1.0F, total 4 matrices, focalLength at 1024, enable antiAlias");
             }
 
             {
@@ -8193,7 +8616,7 @@ namespace Test
                     _ = Com.Painting3D.PaintCuboid(bmp, center, size, color, edgeWidth, affineMatrix, focalLength, antiAlias);
                 };
 
-                ExecuteTest(method, "Com.Painting3D.PaintCuboid(System.Drawing.Bitmap, Com.PointD3D, Com.PointD3D, System.Drawing.Color, float, Com.Matrix, double, bool)", "bmp at 1024x1024 pixels, cuboid size at 512x512x512, edgeWidth at 1.0F, focalLength at 1024, enable antiAlias");
+                ExecuteTest(method, "PaintCuboid(System.Drawing.Bitmap, Com.PointD3D, Com.PointD3D, System.Drawing.Color, float, Com.Matrix, double, bool)", "bmp at 1024x1024 pixels, cuboid size at 512x512x512, edgeWidth at 1.0F, focalLength at 1024, enable antiAlias");
             }
         }
 
@@ -8205,6 +8628,36 @@ namespace Test
 
     sealed class PointDTest : ClassPerfTestBase
     {
+        private const string _NamespaceName = "Com";
+        private const string _ClassName = "PointD";
+
+        private void ExecuteTest(Action method, string methodName, string comment)
+        {
+            base.ExecuteTest(method, _NamespaceName, _ClassName, methodName, comment);
+        }
+
+        private void ExecuteTest(Action method, string methodName)
+        {
+            base.ExecuteTest(method, _NamespaceName, _ClassName, methodName);
+        }
+
+        private void ExecuteTest(string methodName, UnsupportedReason unsupportedReason)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, methodName, unsupportedReason);
+        }
+
+        private void ExecuteTest(string methodName)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, methodName);
+        }
+
+        private void ExecuteTest(UnsupportedReason unsupportedReason)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, string.Empty, unsupportedReason);
+        }
+
+        //
+
         private static Com.PointD _GetRandomPointD()
         {
             return new Com.PointD(Com.Statistics.RandomDouble(-1E18, 1E18), Com.Statistics.RandomDouble(-1E18, 1E18));
@@ -8258,7 +8711,7 @@ namespace Test
                     _ = new Com.PointD(x, y);
                 };
 
-                ExecuteTest(method, "Com.PointD.PointD(double, double)");
+                ExecuteTest(method, "PointD(double, double)");
             }
 
             {
@@ -8269,7 +8722,7 @@ namespace Test
                     _ = new Com.PointD(pt);
                 };
 
-                ExecuteTest(method, "Com.PointD.PointD(System.Drawing.Point)");
+                ExecuteTest(method, "PointD(System.Drawing.Point)");
             }
 
             {
@@ -8280,7 +8733,7 @@ namespace Test
                     _ = new Com.PointD(pt);
                 };
 
-                ExecuteTest(method, "Com.PointD.PointD(System.Drawing.PointF)");
+                ExecuteTest(method, "PointD(System.Drawing.PointF)");
             }
 
             {
@@ -8291,7 +8744,7 @@ namespace Test
                     _ = new Com.PointD(sz);
                 };
 
-                ExecuteTest(method, "Com.PointD.PointD(System.Drawing.Size)");
+                ExecuteTest(method, "PointD(System.Drawing.Size)");
             }
 
             {
@@ -8302,7 +8755,7 @@ namespace Test
                     _ = new Com.PointD(sz);
                 };
 
-                ExecuteTest(method, "Com.PointD.PointD(System.Drawing.SizeF)");
+                ExecuteTest(method, "PointD(System.Drawing.SizeF)");
             }
 
             {
@@ -8313,7 +8766,7 @@ namespace Test
                     _ = new Com.PointD(comp);
                 };
 
-                ExecuteTest(method, "Com.PointD.PointD(Com.Complex)");
+                ExecuteTest(method, "PointD(Com.Complex)");
             }
         }
 
@@ -8330,7 +8783,7 @@ namespace Test
                     _ = pointD[index];
                 };
 
-                ExecuteTest(method, "Com.PointD.this[int].get()");
+                ExecuteTest(method, "this[int].get()");
             }
 
             {
@@ -8343,7 +8796,7 @@ namespace Test
                     pointD[index] = value;
                 };
 
-                ExecuteTest(method, "Com.PointD.this[int].set(double)");
+                ExecuteTest(method, "this[int].set(double)");
             }
 
             // 分量
@@ -8356,7 +8809,7 @@ namespace Test
                     _ = pointD.X;
                 };
 
-                ExecuteTest(method, "Com.PointD.X.get()");
+                ExecuteTest(method, "X.get()");
             }
 
             {
@@ -8368,7 +8821,7 @@ namespace Test
                     pointD.X = value;
                 };
 
-                ExecuteTest(method, "Com.PointD.X.set(double)");
+                ExecuteTest(method, "X.set(double)");
             }
 
             {
@@ -8379,7 +8832,7 @@ namespace Test
                     _ = pointD.Y;
                 };
 
-                ExecuteTest(method, "Com.PointD.Y.get()");
+                ExecuteTest(method, "Y.get()");
             }
 
             {
@@ -8391,7 +8844,7 @@ namespace Test
                     pointD.Y = value;
                 };
 
-                ExecuteTest(method, "Com.PointD.Y.set(double)");
+                ExecuteTest(method, "Y.set(double)");
             }
 
             // Dimension
@@ -8405,10 +8858,10 @@ namespace Test
                     _ = pointD.Dimension;
                 };
 
-                ExecuteTest(method, "Com.PointD.Dimension.get()");
+                ExecuteTest(method, "Dimension.get()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // Is
@@ -8422,10 +8875,10 @@ namespace Test
                     _ = pointD.IsEmpty;
                 };
 
-                ExecuteTest(method, "Com.PointD.IsEmpty.get()");
+                ExecuteTest(method, "IsEmpty.get()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -8437,7 +8890,7 @@ namespace Test
                     _ = pointD.IsZero;
                 };
 
-                ExecuteTest(method, "Com.PointD.IsZero.get()");
+                ExecuteTest(method, "IsZero.get()");
             }
 #else
             {
@@ -8448,7 +8901,7 @@ namespace Test
                     _ = pointD.IsEmpty;
                 };
 
-                ExecuteTest(method, "Com.PointD.IsEmpty.get()");
+                ExecuteTest(method, "IsEmpty.get()");
             }
 #endif
 
@@ -8461,10 +8914,10 @@ namespace Test
                     _ = pointD.IsReadOnly;
                 };
 
-                ExecuteTest(method, "Com.PointD.IsReadOnly.get()");
+                ExecuteTest(method, "IsReadOnly.get()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -8476,10 +8929,10 @@ namespace Test
                     _ = pointD.IsFixedSize;
                 };
 
-                ExecuteTest(method, "Com.PointD.IsFixedSize.get()");
+                ExecuteTest(method, "IsFixedSize.get()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             {
@@ -8490,7 +8943,7 @@ namespace Test
                     _ = pointD.IsNaN;
                 };
 
-                ExecuteTest(method, "Com.PointD.IsNaN.get()");
+                ExecuteTest(method, "IsNaN.get()");
             }
 
             {
@@ -8501,7 +8954,7 @@ namespace Test
                     _ = pointD.IsInfinity;
                 };
 
-                ExecuteTest(method, "Com.PointD.IsInfinity.get()");
+                ExecuteTest(method, "IsInfinity.get()");
             }
 
             {
@@ -8512,7 +8965,7 @@ namespace Test
                     _ = pointD.IsNaNOrInfinity;
                 };
 
-                ExecuteTest(method, "Com.PointD.IsNaNOrInfinity.get()");
+                ExecuteTest(method, "IsNaNOrInfinity.get()");
             }
 
             // 模
@@ -8526,7 +8979,7 @@ namespace Test
                     _ = pointD.Module;
                 };
 
-                ExecuteTest(method, "Com.PointD.Module.get()");
+                ExecuteTest(method, "Module.get()");
             }
 #else
             {
@@ -8537,7 +8990,7 @@ namespace Test
                     _ = pointD.VectorModule;
                 };
 
-                ExecuteTest(method, "Com.PointD.VectorModule.get()");
+                ExecuteTest(method, "VectorModule.get()");
             }
 #endif
 
@@ -8550,7 +9003,7 @@ namespace Test
                     _ = pointD.ModuleSquared;
                 };
 
-                ExecuteTest(method, "Com.PointD.ModuleSquared.get()");
+                ExecuteTest(method, "ModuleSquared.get()");
             }
 #else
             {
@@ -8561,7 +9014,7 @@ namespace Test
                     _ = pointD.VectorModuleSquared;
                 };
 
-                ExecuteTest(method, "Com.PointD.VectorModuleSquared.get()");
+                ExecuteTest(method, "VectorModuleSquared.get()");
             }
 #endif
 
@@ -8576,7 +9029,7 @@ namespace Test
                     _ = pointD.Opposite;
                 };
 
-                ExecuteTest(method, "Com.PointD.Opposite.get()");
+                ExecuteTest(method, "Opposite.get()");
             }
 #else
             {
@@ -8587,7 +9040,7 @@ namespace Test
                     _ = pointD.VectorNegate;
                 };
 
-                ExecuteTest(method, "Com.PointD.VectorNegate.get()");
+                ExecuteTest(method, "VectorNegate.get()");
             }
 #endif
 
@@ -8600,7 +9053,7 @@ namespace Test
                     _ = pointD.Normalize;
                 };
 
-                ExecuteTest(method, "Com.PointD.Normalize.get()");
+                ExecuteTest(method, "Normalize.get()");
             }
 #else
             {
@@ -8611,7 +9064,7 @@ namespace Test
                     _ = pointD.VectorNormalize;
                 };
 
-                ExecuteTest(method, "Com.PointD.VectorNormalize.get()");
+                ExecuteTest(method, "VectorNormalize.get()");
             }
 #endif
 
@@ -8626,7 +9079,7 @@ namespace Test
                     _ = pointD.AngleFromX;
                 };
 
-                ExecuteTest(method, "Com.PointD.AngleFromX.get()");
+                ExecuteTest(method, "AngleFromX.get()");
             }
 #else
             {
@@ -8637,7 +9090,7 @@ namespace Test
                     _ = pointD.AngleX;
                 };
 
-                ExecuteTest(method, "Com.PointD.AngleX.get()");
+                ExecuteTest(method, "AngleX.get()");
             }
 #endif
 
@@ -8650,7 +9103,7 @@ namespace Test
                     _ = pointD.AngleFromY;
                 };
 
-                ExecuteTest(method, "Com.PointD.AngleFromY.get()");
+                ExecuteTest(method, "AngleFromY.get()");
             }
 #else
             {
@@ -8661,7 +9114,7 @@ namespace Test
                     _ = pointD.AngleY;
                 };
 
-                ExecuteTest(method, "Com.PointD.AngleY.get()");
+                ExecuteTest(method, "AngleY.get()");
             }
 #endif
 
@@ -8674,7 +9127,7 @@ namespace Test
                     _ = pointD.Azimuth;
                 };
 
-                ExecuteTest(method, "Com.PointD.Azimuth.get()");
+                ExecuteTest(method, "Azimuth.get()");
             }
 #else
             {
@@ -8685,7 +9138,7 @@ namespace Test
                     _ = pointD.VectorAngle;
                 };
 
-                ExecuteTest(method, "Com.PointD.VectorAngle.get()");
+                ExecuteTest(method, "VectorAngle.get()");
             }
 #endif
         }
@@ -8708,7 +9161,7 @@ namespace Test
                     _ = pointD.Equals(obj);
                 };
 
-                ExecuteTest(method, "Com.PointD.Equals(object)");
+                ExecuteTest(method, "Equals(object)");
             }
 
             {
@@ -8719,7 +9172,7 @@ namespace Test
                     _ = pointD.GetHashCode();
                 };
 
-                ExecuteTest(method, "Com.PointD.GetHashCode()");
+                ExecuteTest(method, "GetHashCode()");
             }
 
             {
@@ -8730,7 +9183,7 @@ namespace Test
                     _ = pointD.ToString();
                 };
 
-                ExecuteTest(method, "Com.PointD.ToString()");
+                ExecuteTest(method, "ToString()");
             }
 
             // Equals
@@ -8744,7 +9197,7 @@ namespace Test
                     _ = left.Equals(right);
                 };
 
-                ExecuteTest(method, "Com.PointD.Equals(Com.PointD)");
+                ExecuteTest(method, "Equals(Com.PointD)");
             }
 
             // CompareTo
@@ -8759,10 +9212,10 @@ namespace Test
                     _ = pointD.CompareTo(obj);
                 };
 
-                ExecuteTest(method, "Com.PointD.CompareTo(object)");
+                ExecuteTest(method, "CompareTo(object)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -8775,10 +9228,10 @@ namespace Test
                     _ = left.CompareTo(right);
                 };
 
-                ExecuteTest(method, "Com.PointD.CompareTo(Com.PointD)");
+                ExecuteTest(method, "CompareTo(Com.PointD)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // 检索
@@ -8793,10 +9246,10 @@ namespace Test
                     _ = pointD.IndexOf(item);
                 };
 
-                ExecuteTest(method, "Com.PointD.IndexOf(double)");
+                ExecuteTest(method, "IndexOf(double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -8810,10 +9263,10 @@ namespace Test
                     _ = pointD.IndexOf(item, startIndex);
                 };
 
-                ExecuteTest(method, "Com.PointD.IndexOf(double, int)");
+                ExecuteTest(method, "IndexOf(double, int)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -8828,10 +9281,10 @@ namespace Test
                     _ = pointD.IndexOf(item, startIndex, count);
                 };
 
-                ExecuteTest(method, "Com.PointD.IndexOf(double, int, int)");
+                ExecuteTest(method, "IndexOf(double, int, int)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -8844,10 +9297,10 @@ namespace Test
                     _ = pointD.LastIndexOf(item);
                 };
 
-                ExecuteTest(method, "Com.PointD.LastIndexOf(double)");
+                ExecuteTest(method, "LastIndexOf(double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -8861,10 +9314,10 @@ namespace Test
                     _ = pointD.LastIndexOf(item, startIndex);
                 };
 
-                ExecuteTest(method, "Com.PointD.LastIndexOf(double, int)");
+                ExecuteTest(method, "LastIndexOf(double, int)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -8879,10 +9332,10 @@ namespace Test
                     _ = pointD.LastIndexOf(item, startIndex, count);
                 };
 
-                ExecuteTest(method, "Com.PointD.LastIndexOf(double, int, int)");
+                ExecuteTest(method, "LastIndexOf(double, int, int)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -8895,10 +9348,10 @@ namespace Test
                     _ = pointD.Contains(item);
                 };
 
-                ExecuteTest(method, "Com.PointD.Contains(double)");
+                ExecuteTest(method, "Contains(double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // ToArray，ToList
@@ -8911,7 +9364,7 @@ namespace Test
                     _ = pointD.ToArray();
                 };
 
-                ExecuteTest(method, "Com.PointD.ToArray()");
+                ExecuteTest(method, "ToArray()");
             }
 
 #if ComVer1905
@@ -8923,10 +9376,10 @@ namespace Test
                     _ = pointD.ToList();
                 };
 
-                ExecuteTest(method, "Com.PointD.ToList()");
+                ExecuteTest(method, "ToList()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // 坐标系转换
@@ -8940,7 +9393,7 @@ namespace Test
                     _ = pointD.ToSpherical();
                 };
 
-                ExecuteTest(method, "Com.PointD.ToSpherical()");
+                ExecuteTest(method, "ToSpherical()");
             }
 #else
             {
@@ -8951,7 +9404,7 @@ namespace Test
                     _ = pointD.ToPolar();
                 };
 
-                ExecuteTest(method, "Com.PointD.ToPolar()");
+                ExecuteTest(method, "ToPolar()");
             }
 #endif
 
@@ -8963,7 +9416,7 @@ namespace Test
                     _ = pointD.ToCartesian();
                 };
 
-                ExecuteTest(method, "Com.PointD.ToCartesian()");
+                ExecuteTest(method, "ToCartesian()");
             }
 
             // 距离与夹角
@@ -8977,7 +9430,7 @@ namespace Test
                     _ = pointD.DistanceFrom(pt);
                 };
 
-                ExecuteTest(method, "Com.PointD.DistanceFrom(Com.PointD)");
+                ExecuteTest(method, "DistanceFrom(Com.PointD)");
             }
 
             {
@@ -8989,7 +9442,7 @@ namespace Test
                     _ = pointD.AngleFrom(pt);
                 };
 
-                ExecuteTest(method, "Com.PointD.AngleFrom(Com.PointD)");
+                ExecuteTest(method, "AngleFrom(Com.PointD)");
             }
 
             // Offset
@@ -9003,7 +9456,7 @@ namespace Test
                     pointD.Offset(d);
                 };
 
-                ExecuteTest(method, "Com.PointD.Offset(double)");
+                ExecuteTest(method, "Offset(double)");
             }
 
             {
@@ -9016,7 +9469,7 @@ namespace Test
                     pointD.Offset(dx, dy);
                 };
 
-                ExecuteTest(method, "Com.PointD.Offset(double, double)");
+                ExecuteTest(method, "Offset(double, double)");
             }
 
             {
@@ -9028,7 +9481,7 @@ namespace Test
                     pointD.Offset(pt);
                 };
 
-                ExecuteTest(method, "Com.PointD.Offset(Com.PointD)");
+                ExecuteTest(method, "Offset(Com.PointD)");
             }
 
             {
@@ -9040,7 +9493,7 @@ namespace Test
                     pointD.Offset(pt);
                 };
 
-                ExecuteTest(method, "Com.PointD.Offset(System.Drawing.Point)");
+                ExecuteTest(method, "Offset(System.Drawing.Point)");
             }
 
             {
@@ -9052,7 +9505,7 @@ namespace Test
                     pointD.Offset(pt);
                 };
 
-                ExecuteTest(method, "Com.PointD.Offset(System.Drawing.PointF)");
+                ExecuteTest(method, "Offset(System.Drawing.PointF)");
             }
 
             {
@@ -9064,7 +9517,7 @@ namespace Test
                     pointD.Offset(sz);
                 };
 
-                ExecuteTest(method, "Com.PointD.Offset(System.Drawing.Size)");
+                ExecuteTest(method, "Offset(System.Drawing.Size)");
             }
 
             {
@@ -9076,7 +9529,7 @@ namespace Test
                     pointD.Offset(sz);
                 };
 
-                ExecuteTest(method, "Com.PointD.Offset(System.Drawing.SizeF)");
+                ExecuteTest(method, "Offset(System.Drawing.SizeF)");
             }
 
             {
@@ -9088,7 +9541,7 @@ namespace Test
                     _ = pointD.OffsetCopy(d);
                 };
 
-                ExecuteTest(method, "Com.PointD.OffsetCopy(double)");
+                ExecuteTest(method, "OffsetCopy(double)");
             }
 
             {
@@ -9101,7 +9554,7 @@ namespace Test
                     _ = pointD.OffsetCopy(dx, dy);
                 };
 
-                ExecuteTest(method, "Com.PointD.OffsetCopy(double, double)");
+                ExecuteTest(method, "OffsetCopy(double, double)");
             }
 
             {
@@ -9113,7 +9566,7 @@ namespace Test
                     _ = pointD.OffsetCopy(pt);
                 };
 
-                ExecuteTest(method, "Com.PointD.OffsetCopy(Com.PointD)");
+                ExecuteTest(method, "OffsetCopy(Com.PointD)");
             }
 
             {
@@ -9125,7 +9578,7 @@ namespace Test
                     _ = pointD.OffsetCopy(pt);
                 };
 
-                ExecuteTest(method, "Com.PointD.OffsetCopy(System.Drawing.Point)");
+                ExecuteTest(method, "OffsetCopy(System.Drawing.Point)");
             }
 
             {
@@ -9137,7 +9590,7 @@ namespace Test
                     _ = pointD.OffsetCopy(pt);
                 };
 
-                ExecuteTest(method, "Com.PointD.OffsetCopy(System.Drawing.PointF)");
+                ExecuteTest(method, "OffsetCopy(System.Drawing.PointF)");
             }
 
             {
@@ -9149,7 +9602,7 @@ namespace Test
                     _ = pointD.OffsetCopy(sz);
                 };
 
-                ExecuteTest(method, "Com.PointD.OffsetCopy(System.Drawing.Size)");
+                ExecuteTest(method, "OffsetCopy(System.Drawing.Size)");
             }
 
             {
@@ -9161,7 +9614,7 @@ namespace Test
                     _ = pointD.OffsetCopy(sz);
                 };
 
-                ExecuteTest(method, "Com.PointD.OffsetCopy(System.Drawing.SizeF)");
+                ExecuteTest(method, "OffsetCopy(System.Drawing.SizeF)");
             }
 
             // Scale
@@ -9175,7 +9628,7 @@ namespace Test
                     pointD.Scale(s);
                 };
 
-                ExecuteTest(method, "Com.PointD.Scale(double)");
+                ExecuteTest(method, "Scale(double)");
             }
 
             {
@@ -9188,7 +9641,7 @@ namespace Test
                     pointD.Scale(sx, sy);
                 };
 
-                ExecuteTest(method, "Com.PointD.Scale(double, double)");
+                ExecuteTest(method, "Scale(double, double)");
             }
 
             {
@@ -9200,7 +9653,7 @@ namespace Test
                     pointD.Scale(pt);
                 };
 
-                ExecuteTest(method, "Com.PointD.Scale(Com.PointD)");
+                ExecuteTest(method, "Scale(Com.PointD)");
             }
 
             {
@@ -9212,7 +9665,7 @@ namespace Test
                     pointD.Scale(pt);
                 };
 
-                ExecuteTest(method, "Com.PointD.Scale(System.Drawing.Point)");
+                ExecuteTest(method, "Scale(System.Drawing.Point)");
             }
 
             {
@@ -9224,7 +9677,7 @@ namespace Test
                     pointD.Scale(pt);
                 };
 
-                ExecuteTest(method, "Com.PointD.Scale(System.Drawing.PointF)");
+                ExecuteTest(method, "Scale(System.Drawing.PointF)");
             }
 
             {
@@ -9236,7 +9689,7 @@ namespace Test
                     pointD.Scale(sz);
                 };
 
-                ExecuteTest(method, "Com.PointD.Scale(System.Drawing.Size)");
+                ExecuteTest(method, "Scale(System.Drawing.Size)");
             }
 
             {
@@ -9248,7 +9701,7 @@ namespace Test
                     pointD.Scale(sz);
                 };
 
-                ExecuteTest(method, "Com.PointD.Scale(System.Drawing.SizeF)");
+                ExecuteTest(method, "Scale(System.Drawing.SizeF)");
             }
 
             {
@@ -9260,7 +9713,7 @@ namespace Test
                     _ = pointD.ScaleCopy(s);
                 };
 
-                ExecuteTest(method, "Com.PointD.ScaleCopy(double)");
+                ExecuteTest(method, "ScaleCopy(double)");
             }
 
             {
@@ -9273,7 +9726,7 @@ namespace Test
                     _ = pointD.ScaleCopy(sx, sy);
                 };
 
-                ExecuteTest(method, "Com.PointD.ScaleCopy(double, double)");
+                ExecuteTest(method, "ScaleCopy(double, double)");
             }
 
             {
@@ -9285,7 +9738,7 @@ namespace Test
                     _ = pointD.ScaleCopy(pt);
                 };
 
-                ExecuteTest(method, "Com.PointD.ScaleCopy(Com.PointD)");
+                ExecuteTest(method, "ScaleCopy(Com.PointD)");
             }
 
             {
@@ -9297,7 +9750,7 @@ namespace Test
                     _ = pointD.ScaleCopy(pt);
                 };
 
-                ExecuteTest(method, "Com.PointD.ScaleCopy(System.Drawing.Point)");
+                ExecuteTest(method, "ScaleCopy(System.Drawing.Point)");
             }
 
             {
@@ -9309,7 +9762,7 @@ namespace Test
                     _ = pointD.ScaleCopy(pt);
                 };
 
-                ExecuteTest(method, "Com.PointD.ScaleCopy(System.Drawing.PointF)");
+                ExecuteTest(method, "ScaleCopy(System.Drawing.PointF)");
             }
 
             {
@@ -9321,7 +9774,7 @@ namespace Test
                     _ = pointD.ScaleCopy(sz);
                 };
 
-                ExecuteTest(method, "Com.PointD.ScaleCopy(System.Drawing.Size)");
+                ExecuteTest(method, "ScaleCopy(System.Drawing.Size)");
             }
 
             {
@@ -9333,7 +9786,7 @@ namespace Test
                     _ = pointD.ScaleCopy(sz);
                 };
 
-                ExecuteTest(method, "Com.PointD.ScaleCopy(System.Drawing.SizeF)");
+                ExecuteTest(method, "ScaleCopy(System.Drawing.SizeF)");
             }
 
             // Reflect
@@ -9348,10 +9801,10 @@ namespace Test
                     pointD.Reflect(index);
                 };
 
-                ExecuteTest(method, "Com.PointD.Reflect(int)");
+                ExecuteTest(method, "Reflect(int)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -9363,10 +9816,10 @@ namespace Test
                     pointD.ReflectX();
                 };
 
-                ExecuteTest(method, "Com.PointD.ReflectX()");
+                ExecuteTest(method, "ReflectX()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -9378,10 +9831,10 @@ namespace Test
                     pointD.ReflectY();
                 };
 
-                ExecuteTest(method, "Com.PointD.ReflectY()");
+                ExecuteTest(method, "ReflectY()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -9394,10 +9847,10 @@ namespace Test
                     _ = pointD.ReflectCopy(index);
                 };
 
-                ExecuteTest(method, "Com.PointD.ReflectCopy(int)");
+                ExecuteTest(method, "ReflectCopy(int)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -9409,10 +9862,10 @@ namespace Test
                     _ = pointD.ReflectXCopy();
                 };
 
-                ExecuteTest(method, "Com.PointD.ReflectXCopy()");
+                ExecuteTest(method, "ReflectXCopy()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -9424,10 +9877,10 @@ namespace Test
                     _ = pointD.ReflectYCopy();
                 };
 
-                ExecuteTest(method, "Com.PointD.ReflectYCopy()");
+                ExecuteTest(method, "ReflectYCopy()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // Shear
@@ -9444,10 +9897,10 @@ namespace Test
                     pointD.Shear(index1, index2, angle);
                 };
 
-                ExecuteTest(method, "Com.PointD.Shear(int, int, double)");
+                ExecuteTest(method, "Shear(int, int, double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -9460,10 +9913,10 @@ namespace Test
                     pointD.ShearX(angle);
                 };
 
-                ExecuteTest(method, "Com.PointD.ShearX(double)");
+                ExecuteTest(method, "ShearX(double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -9476,10 +9929,10 @@ namespace Test
                     pointD.ShearY(angle);
                 };
 
-                ExecuteTest(method, "Com.PointD.ShearY(double)");
+                ExecuteTest(method, "ShearY(double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -9494,10 +9947,10 @@ namespace Test
                     _ = pointD.ShearCopy(index1, index2, angle);
                 };
 
-                ExecuteTest(method, "Com.PointD.ShearCopy(int, int, double)");
+                ExecuteTest(method, "ShearCopy(int, int, double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -9510,10 +9963,10 @@ namespace Test
                     _ = pointD.ShearXCopy(angle);
                 };
 
-                ExecuteTest(method, "Com.PointD.ShearXCopy(double)");
+                ExecuteTest(method, "ShearXCopy(double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -9526,10 +9979,10 @@ namespace Test
                     _ = pointD.ShearYCopy(angle);
                 };
 
-                ExecuteTest(method, "Com.PointD.ShearYCopy(double)");
+                ExecuteTest(method, "ShearYCopy(double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // Rotate
@@ -9546,10 +9999,10 @@ namespace Test
                     pointD.Rotate(index1, index2, angle);
                 };
 
-                ExecuteTest(method, "Com.PointD.Rotate(int, int, double)");
+                ExecuteTest(method, "Rotate(int, int, double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             {
@@ -9561,7 +10014,7 @@ namespace Test
                     pointD.Rotate(angle);
                 };
 
-                ExecuteTest(method, "Com.PointD.Rotate(double)");
+                ExecuteTest(method, "Rotate(double)");
             }
 
             {
@@ -9574,7 +10027,7 @@ namespace Test
                     pointD.Rotate(angle, pt);
                 };
 
-                ExecuteTest(method, "Com.PointD.Rotate(double, Com.PointD)");
+                ExecuteTest(method, "Rotate(double, Com.PointD)");
             }
 
 #if ComVer1905
@@ -9589,10 +10042,10 @@ namespace Test
                     _ = pointD.RotateCopy(index1, index2, angle);
                 };
 
-                ExecuteTest(method, "Com.PointD.RotateCopy(int, int, double)");
+                ExecuteTest(method, "RotateCopy(int, int, double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             {
@@ -9604,7 +10057,7 @@ namespace Test
                     _ = pointD.RotateCopy(angle);
                 };
 
-                ExecuteTest(method, "Com.PointD.RotateCopy(double)");
+                ExecuteTest(method, "RotateCopy(double)");
             }
 
             {
@@ -9617,7 +10070,7 @@ namespace Test
                     _ = pointD.RotateCopy(angle, pt);
                 };
 
-                ExecuteTest(method, "Com.PointD.RotateCopy(double, Com.PointD)");
+                ExecuteTest(method, "RotateCopy(double, Com.PointD)");
             }
 
             // Affine
@@ -9633,7 +10086,7 @@ namespace Test
                     pointD.AffineTransform(ex, ey, offset);
                 };
 
-                ExecuteTest(method, "Com.PointD.AffineTransform(Com.PointD, Com.PointD, Com.PointD)");
+                ExecuteTest(method, "AffineTransform(Com.PointD, Com.PointD, Com.PointD)");
             }
 
             {
@@ -9645,7 +10098,7 @@ namespace Test
                     pointD.AffineTransform(matrixLeft);
                 };
 
-                ExecuteTest(method, "Com.PointD.AffineTransform(Com.Matrix)");
+                ExecuteTest(method, "AffineTransform(Com.Matrix)");
             }
 
 #if ComVer1910
@@ -9665,10 +10118,10 @@ namespace Test
                     pointD.AffineTransform(matricesLeft);
                 };
 
-                ExecuteTest(method, "Com.PointD.AffineTransform(param Com.Matrix[])", "total 8 matrices");
+                ExecuteTest(method, "AffineTransform(param Com.Matrix[])", "total 8 matrices");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
 
             {
@@ -9685,7 +10138,7 @@ namespace Test
                     pointD.AffineTransform(matrixLeftList);
                 };
 
-                ExecuteTest(method, "Com.PointD.AffineTransform(System.Collections.Generic.List<Com.Matrix>)", "total 8 matrices");
+                ExecuteTest(method, "AffineTransform(System.Collections.Generic.List<Com.Matrix>)", "total 8 matrices");
             }
 
             {
@@ -9699,7 +10152,7 @@ namespace Test
                     _ = pointD.AffineTransformCopy(ex, ey, offset);
                 };
 
-                ExecuteTest(method, "Com.PointD.AffineTransformCopy(Com.PointD, Com.PointD, Com.PointD)");
+                ExecuteTest(method, "AffineTransformCopy(Com.PointD, Com.PointD, Com.PointD)");
             }
 
             {
@@ -9711,7 +10164,7 @@ namespace Test
                     _ = pointD.AffineTransformCopy(matrixLeft);
                 };
 
-                ExecuteTest(method, "Com.PointD.AffineTransformCopy(Com.Matrix)");
+                ExecuteTest(method, "AffineTransformCopy(Com.Matrix)");
             }
 
 #if ComVer1910
@@ -9731,10 +10184,10 @@ namespace Test
                     _ = pointD.AffineTransformCopy(matricesLeft);
                 };
 
-                ExecuteTest(method, "Com.PointD.AffineTransformCopy(param Com.Matrix[])", "total 8 matrices");
+                ExecuteTest(method, "AffineTransformCopy(param Com.Matrix[])", "total 8 matrices");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
 
             {
@@ -9751,7 +10204,7 @@ namespace Test
                     _ = pointD.AffineTransformCopy(matrixLeftList);
                 };
 
-                ExecuteTest(method, "Com.PointD.AffineTransformCopy(System.Collections.Generic.List<Com.Matrix>)", "total 8 matrices");
+                ExecuteTest(method, "AffineTransformCopy(System.Collections.Generic.List<Com.Matrix>)", "total 8 matrices");
             }
 
             {
@@ -9765,7 +10218,7 @@ namespace Test
                     pointD.InverseAffineTransform(ex, ey, offset);
                 };
 
-                ExecuteTest(method, "Com.PointD.InverseAffineTransform(Com.PointD, Com.PointD, Com.PointD)");
+                ExecuteTest(method, "InverseAffineTransform(Com.PointD, Com.PointD, Com.PointD)");
             }
 
             {
@@ -9777,7 +10230,7 @@ namespace Test
                     pointD.InverseAffineTransform(matrixLeft);
                 };
 
-                ExecuteTest(method, "Com.PointD.InverseAffineTransform(Com.Matrix)");
+                ExecuteTest(method, "InverseAffineTransform(Com.Matrix)");
             }
 
 #if ComVer1910
@@ -9797,10 +10250,10 @@ namespace Test
                     pointD.InverseAffineTransform(matricesLeft);
                 };
 
-                ExecuteTest(method, "Com.PointD.InverseAffineTransform(param Com.Matrix[])", "total 8 matrices");
+                ExecuteTest(method, "InverseAffineTransform(param Com.Matrix[])", "total 8 matrices");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
 
             {
@@ -9817,7 +10270,7 @@ namespace Test
                     pointD.InverseAffineTransform(matrixLeftList);
                 };
 
-                ExecuteTest(method, "Com.PointD.InverseAffineTransform(System.Collections.Generic.List<Com.Matrix>)", "total 8 matrices");
+                ExecuteTest(method, "InverseAffineTransform(System.Collections.Generic.List<Com.Matrix>)", "total 8 matrices");
             }
 
             {
@@ -9831,7 +10284,7 @@ namespace Test
                     _ = pointD.InverseAffineTransformCopy(ex, ey, offset);
                 };
 
-                ExecuteTest(method, "Com.PointD.InverseAffineTransformCopy(Com.PointD, Com.PointD, Com.PointD)");
+                ExecuteTest(method, "InverseAffineTransformCopy(Com.PointD, Com.PointD, Com.PointD)");
             }
 
             {
@@ -9843,7 +10296,7 @@ namespace Test
                     _ = pointD.InverseAffineTransformCopy(matrixLeft);
                 };
 
-                ExecuteTest(method, "Com.PointD.InverseAffineTransformCopy(Com.Matrix)");
+                ExecuteTest(method, "InverseAffineTransformCopy(Com.Matrix)");
             }
 
 #if ComVer1910
@@ -9863,10 +10316,10 @@ namespace Test
                     _ = pointD.InverseAffineTransformCopy(matricesLeft);
                 };
 
-                ExecuteTest(method, "Com.PointD.InverseAffineTransformCopy(param Com.Matrix[])", "total 8 matrices");
+                ExecuteTest(method, "InverseAffineTransformCopy(param Com.Matrix[])", "total 8 matrices");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
 
             {
@@ -9883,7 +10336,7 @@ namespace Test
                     _ = pointD.InverseAffineTransformCopy(matrixLeftList);
                 };
 
-                ExecuteTest(method, "Com.PointD.InverseAffineTransformCopy(System.Collections.Generic.List<Com.Matrix>)", "total 8 matrices");
+                ExecuteTest(method, "InverseAffineTransformCopy(System.Collections.Generic.List<Com.Matrix>)", "total 8 matrices");
             }
 
             // ToVector
@@ -9897,7 +10350,7 @@ namespace Test
                     _ = pointD.ToColumnVector();
                 };
 
-                ExecuteTest(method, "Com.PointD.ToColumnVector()");
+                ExecuteTest(method, "ToColumnVector()");
             }
 #else
             {
@@ -9908,7 +10361,7 @@ namespace Test
                     _ = pointD.ToVectorColumn();
                 };
 
-                ExecuteTest(method, "Com.PointD.ToVectorColumn()");
+                ExecuteTest(method, "ToVectorColumn()");
             }
 #endif
 
@@ -9921,7 +10374,7 @@ namespace Test
                     _ = pointD.ToRowVector();
                 };
 
-                ExecuteTest(method, "Com.PointD.ToRowVector()");
+                ExecuteTest(method, "ToRowVector()");
             }
 #else
             {
@@ -9932,7 +10385,7 @@ namespace Test
                     _ = pointD.ToVectorRow();
                 };
 
-                ExecuteTest(method, "Com.PointD.ToVectorRow()");
+                ExecuteTest(method, "ToVectorRow()");
             }
 #endif
 
@@ -9946,7 +10399,7 @@ namespace Test
                     _ = pointD.ToPoint();
                 };
 
-                ExecuteTest(method, "Com.PointD.ToPoint()");
+                ExecuteTest(method, "ToPoint()");
             }
 
             {
@@ -9957,7 +10410,7 @@ namespace Test
                     _ = pointD.ToPointF();
                 };
 
-                ExecuteTest(method, "Com.PointD.ToPointF()");
+                ExecuteTest(method, "ToPointF()");
             }
 
             {
@@ -9968,7 +10421,7 @@ namespace Test
                     _ = pointD.ToSize();
                 };
 
-                ExecuteTest(method, "Com.PointD.ToSize()");
+                ExecuteTest(method, "ToSize()");
             }
 
             {
@@ -9979,7 +10432,7 @@ namespace Test
                     _ = pointD.ToSizeF();
                 };
 
-                ExecuteTest(method, "Com.PointD.ToSizeF()");
+                ExecuteTest(method, "ToSizeF()");
             }
 
             {
@@ -9990,7 +10443,7 @@ namespace Test
                     _ = pointD.ToComplex();
                 };
 
-                ExecuteTest(method, "Com.PointD.ToComplex()");
+                ExecuteTest(method, "ToComplex()");
             }
         }
 
@@ -10007,7 +10460,7 @@ namespace Test
                     _ = Com.PointD.Equals(left, right);
                 };
 
-                ExecuteTest(method, "Com.PointD.Equals(Com.PointD, Com.PointD)");
+                ExecuteTest(method, "Equals(Com.PointD, Com.PointD)");
             }
 
             // Compare
@@ -10022,10 +10475,10 @@ namespace Test
                     _ = Com.PointD.Compare(left, right);
                 };
 
-                ExecuteTest(method, "Com.PointD.Compare(Com.PointD, Com.PointD)");
+                ExecuteTest(method, "Compare(Com.PointD, Com.PointD)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // From
@@ -10039,10 +10492,10 @@ namespace Test
                     _ = Com.PointD.FromVector(vector);
                 };
 
-                ExecuteTest(method, "Com.PointD.FromVector(Com.Vector)");
+                ExecuteTest(method, "FromVector(Com.Vector)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
 
             {
@@ -10053,7 +10506,7 @@ namespace Test
                     _ = Com.PointD.FromPoint(pt);
                 };
 
-                ExecuteTest(method, "Com.PointD.FromPoint(System.Drawing.Point)");
+                ExecuteTest(method, "FromPoint(System.Drawing.Point)");
             }
 
             {
@@ -10064,7 +10517,7 @@ namespace Test
                     _ = Com.PointD.FromPointF(pt);
                 };
 
-                ExecuteTest(method, "Com.PointD.FromPointF(System.Drawing.PointF)");
+                ExecuteTest(method, "FromPointF(System.Drawing.PointF)");
             }
 
             {
@@ -10075,7 +10528,7 @@ namespace Test
                     _ = Com.PointD.FromSize(sz);
                 };
 
-                ExecuteTest(method, "Com.PointD.FromSize(System.Drawing.Size)");
+                ExecuteTest(method, "FromSize(System.Drawing.Size)");
             }
 
             {
@@ -10086,7 +10539,7 @@ namespace Test
                     _ = Com.PointD.FromSizeF(sz);
                 };
 
-                ExecuteTest(method, "Com.PointD.FromSizeF(System.Drawing.SizeF)");
+                ExecuteTest(method, "FromSizeF(System.Drawing.SizeF)");
             }
 
             {
@@ -10097,7 +10550,7 @@ namespace Test
                     _ = Com.PointD.FromComplex(comp);
                 };
 
-                ExecuteTest(method, "Com.PointD.FromComplex(Com.Complex)");
+                ExecuteTest(method, "FromComplex(Com.Complex)");
             }
 
             // Matrix
@@ -10108,7 +10561,7 @@ namespace Test
                     _ = Com.PointD.IdentityMatrix();
                 };
 
-                ExecuteTest(method, "Com.PointD.IdentityMatrix()");
+                ExecuteTest(method, "IdentityMatrix()");
             }
 
             {
@@ -10119,7 +10572,7 @@ namespace Test
                     _ = Com.PointD.OffsetMatrix(d);
                 };
 
-                ExecuteTest(method, "Com.PointD.OffsetMatrix(double)");
+                ExecuteTest(method, "OffsetMatrix(double)");
             }
 
             {
@@ -10131,7 +10584,7 @@ namespace Test
                     _ = Com.PointD.OffsetMatrix(dx, dy);
                 };
 
-                ExecuteTest(method, "Com.PointD.OffsetMatrix(double, double)");
+                ExecuteTest(method, "OffsetMatrix(double, double)");
             }
 
             {
@@ -10142,7 +10595,7 @@ namespace Test
                     _ = Com.PointD.OffsetMatrix(pt);
                 };
 
-                ExecuteTest(method, "Com.PointD.OffsetMatrix(Com.PointD)");
+                ExecuteTest(method, "OffsetMatrix(Com.PointD)");
             }
 
             {
@@ -10153,7 +10606,7 @@ namespace Test
                     _ = Com.PointD.OffsetMatrix(pt);
                 };
 
-                ExecuteTest(method, "Com.PointD.OffsetMatrix(System.Drawing.Point)");
+                ExecuteTest(method, "OffsetMatrix(System.Drawing.Point)");
             }
 
             {
@@ -10164,7 +10617,7 @@ namespace Test
                     _ = Com.PointD.OffsetMatrix(pt);
                 };
 
-                ExecuteTest(method, "Com.PointD.OffsetMatrix(System.Drawing.PointF)");
+                ExecuteTest(method, "OffsetMatrix(System.Drawing.PointF)");
             }
 
             {
@@ -10175,7 +10628,7 @@ namespace Test
                     _ = Com.PointD.OffsetMatrix(sz);
                 };
 
-                ExecuteTest(method, "Com.PointD.OffsetMatrix(System.Drawing.Size)");
+                ExecuteTest(method, "OffsetMatrix(System.Drawing.Size)");
             }
 
             {
@@ -10186,7 +10639,7 @@ namespace Test
                     _ = Com.PointD.OffsetMatrix(sz);
                 };
 
-                ExecuteTest(method, "Com.PointD.OffsetMatrix(System.Drawing.SizeF)");
+                ExecuteTest(method, "OffsetMatrix(System.Drawing.SizeF)");
             }
 
             {
@@ -10197,7 +10650,7 @@ namespace Test
                     _ = Com.PointD.ScaleMatrix(s);
                 };
 
-                ExecuteTest(method, "Com.PointD.ScaleMatrix(double)");
+                ExecuteTest(method, "ScaleMatrix(double)");
             }
 
             {
@@ -10209,7 +10662,7 @@ namespace Test
                     _ = Com.PointD.ScaleMatrix(sx, sy);
                 };
 
-                ExecuteTest(method, "Com.PointD.ScaleMatrix(double, double)");
+                ExecuteTest(method, "ScaleMatrix(double, double)");
             }
 
             {
@@ -10220,7 +10673,7 @@ namespace Test
                     _ = Com.PointD.ScaleMatrix(pt);
                 };
 
-                ExecuteTest(method, "Com.PointD.ScaleMatrix(Com.PointD)");
+                ExecuteTest(method, "ScaleMatrix(Com.PointD)");
             }
 
             {
@@ -10231,7 +10684,7 @@ namespace Test
                     _ = Com.PointD.ScaleMatrix(pt);
                 };
 
-                ExecuteTest(method, "Com.PointD.ScaleMatrix(System.Drawing.Point)");
+                ExecuteTest(method, "ScaleMatrix(System.Drawing.Point)");
             }
 
             {
@@ -10242,7 +10695,7 @@ namespace Test
                     _ = Com.PointD.ScaleMatrix(pt);
                 };
 
-                ExecuteTest(method, "Com.PointD.ScaleMatrix(System.Drawing.PointF)");
+                ExecuteTest(method, "ScaleMatrix(System.Drawing.PointF)");
             }
 
             {
@@ -10253,7 +10706,7 @@ namespace Test
                     _ = Com.PointD.ScaleMatrix(sz);
                 };
 
-                ExecuteTest(method, "Com.PointD.ScaleMatrix(System.Drawing.Size)");
+                ExecuteTest(method, "ScaleMatrix(System.Drawing.Size)");
             }
 
             {
@@ -10264,7 +10717,7 @@ namespace Test
                     _ = Com.PointD.ScaleMatrix(sz);
                 };
 
-                ExecuteTest(method, "Com.PointD.ScaleMatrix(System.Drawing.SizeF)");
+                ExecuteTest(method, "ScaleMatrix(System.Drawing.SizeF)");
             }
 
 #if ComVer1905
@@ -10276,10 +10729,10 @@ namespace Test
                     _ = Com.PointD.ReflectMatrix(index);
                 };
 
-                ExecuteTest(method, "Com.PointD.ReflectMatrix(int)");
+                ExecuteTest(method, "ReflectMatrix(int)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -10289,10 +10742,10 @@ namespace Test
                     _ = Com.PointD.ReflectXMatrix();
                 };
 
-                ExecuteTest(method, "Com.PointD.ReflectXMatrix()");
+                ExecuteTest(method, "ReflectXMatrix()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -10302,10 +10755,10 @@ namespace Test
                     _ = Com.PointD.ReflectYMatrix();
                 };
 
-                ExecuteTest(method, "Com.PointD.ReflectYMatrix()");
+                ExecuteTest(method, "ReflectYMatrix()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -10319,10 +10772,10 @@ namespace Test
                     _ = Com.PointD.ShearMatrix(index1, index2, angle);
                 };
 
-                ExecuteTest(method, "Com.PointD.ShearMatrix(int, int, double)");
+                ExecuteTest(method, "ShearMatrix(int, int, double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -10334,10 +10787,10 @@ namespace Test
                     _ = Com.PointD.ShearXMatrix(angle);
                 };
 
-                ExecuteTest(method, "Com.PointD.ShearXMatrix(double)");
+                ExecuteTest(method, "ShearXMatrix(double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -10349,10 +10802,10 @@ namespace Test
                     _ = Com.PointD.ShearYMatrix(angle);
                 };
 
-                ExecuteTest(method, "Com.PointD.ShearYMatrix(double)");
+                ExecuteTest(method, "ShearYMatrix(double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -10366,10 +10819,10 @@ namespace Test
                     _ = Com.PointD.RotateMatrix(index1, index2, angle);
                 };
 
-                ExecuteTest(method, "Com.PointD.RotateMatrix(int, int, double)");
+                ExecuteTest(method, "RotateMatrix(int, int, double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             {
@@ -10380,7 +10833,7 @@ namespace Test
                     _ = Com.PointD.RotateMatrix(angle);
                 };
 
-                ExecuteTest(method, "Com.PointD.RotateMatrix(double)");
+                ExecuteTest(method, "RotateMatrix(double)");
             }
 
             {
@@ -10392,7 +10845,7 @@ namespace Test
                     _ = Com.PointD.RotateMatrix(angle, pt);
                 };
 
-                ExecuteTest(method, "Com.PointD.RotateMatrix(double, Com.PointD)");
+                ExecuteTest(method, "RotateMatrix(double, Com.PointD)");
             }
 
             // 距离与夹角
@@ -10406,7 +10859,7 @@ namespace Test
                     _ = Com.PointD.DistanceBetween(left, right);
                 };
 
-                ExecuteTest(method, "Com.PointD.DistanceBetween(Com.PointD, Com.PointD)");
+                ExecuteTest(method, "DistanceBetween(Com.PointD, Com.PointD)");
             }
 
             {
@@ -10418,7 +10871,7 @@ namespace Test
                     _ = Com.PointD.AngleBetween(left, right);
                 };
 
-                ExecuteTest(method, "Com.PointD.AngleBetween(Com.PointD, Com.PointD)");
+                ExecuteTest(method, "AngleBetween(Com.PointD, Com.PointD)");
             }
 
             // 向量乘积
@@ -10432,7 +10885,7 @@ namespace Test
                     _ = Com.PointD.DotProduct(left, right);
                 };
 
-                ExecuteTest(method, "Com.PointD.DotProduct(Com.PointD, Com.PointD)");
+                ExecuteTest(method, "DotProduct(Com.PointD, Com.PointD)");
             }
 
             {
@@ -10444,7 +10897,7 @@ namespace Test
                     _ = Com.PointD.CrossProduct(left, right);
                 };
 
-                ExecuteTest(method, "Com.PointD.CrossProduct(Com.PointD, Com.PointD)");
+                ExecuteTest(method, "CrossProduct(Com.PointD, Com.PointD)");
             }
 
             // 初等函数
@@ -10457,7 +10910,7 @@ namespace Test
                     _ = Com.PointD.Abs(pointD);
                 };
 
-                ExecuteTest(method, "Com.PointD.Abs(Com.PointD)");
+                ExecuteTest(method, "Abs(Com.PointD)");
             }
 
             {
@@ -10468,7 +10921,7 @@ namespace Test
                     _ = Com.PointD.Sign(pointD);
                 };
 
-                ExecuteTest(method, "Com.PointD.Sign(Com.PointD)");
+                ExecuteTest(method, "Sign(Com.PointD)");
             }
 
             {
@@ -10479,7 +10932,7 @@ namespace Test
                     _ = Com.PointD.Ceiling(pointD);
                 };
 
-                ExecuteTest(method, "Com.PointD.Ceiling(Com.PointD)");
+                ExecuteTest(method, "Ceiling(Com.PointD)");
             }
 
             {
@@ -10490,7 +10943,7 @@ namespace Test
                     _ = Com.PointD.Floor(pointD);
                 };
 
-                ExecuteTest(method, "Com.PointD.Floor(Com.PointD)");
+                ExecuteTest(method, "Floor(Com.PointD)");
             }
 
             {
@@ -10501,7 +10954,7 @@ namespace Test
                     _ = Com.PointD.Round(pointD);
                 };
 
-                ExecuteTest(method, "Com.PointD.Round(Com.PointD)");
+                ExecuteTest(method, "Round(Com.PointD)");
             }
 
             {
@@ -10512,7 +10965,7 @@ namespace Test
                     _ = Com.PointD.Truncate(pointD);
                 };
 
-                ExecuteTest(method, "Com.PointD.Truncate(Com.PointD)");
+                ExecuteTest(method, "Truncate(Com.PointD)");
             }
 
             {
@@ -10524,7 +10977,7 @@ namespace Test
                     _ = Com.PointD.Max(left, right);
                 };
 
-                ExecuteTest(method, "Com.PointD.Max(Com.PointD, Com.PointD)");
+                ExecuteTest(method, "Max(Com.PointD, Com.PointD)");
             }
 
             {
@@ -10536,7 +10989,7 @@ namespace Test
                     _ = Com.PointD.Min(left, right);
                 };
 
-                ExecuteTest(method, "Com.PointD.Min(Com.PointD, Com.PointD)");
+                ExecuteTest(method, "Min(Com.PointD, Com.PointD)");
             }
         }
 
@@ -10553,7 +11006,7 @@ namespace Test
                     _ = (left == right);
                 };
 
-                ExecuteTest(method, "Com.PointD.operator ==(Com.PointD, Com.PointD)");
+                ExecuteTest(method, "operator ==(Com.PointD, Com.PointD)");
             }
 
             {
@@ -10565,7 +11018,7 @@ namespace Test
                     _ = (left != right);
                 };
 
-                ExecuteTest(method, "Com.PointD.operator !=(Com.PointD, Com.PointD)");
+                ExecuteTest(method, "operator !=(Com.PointD, Com.PointD)");
             }
 
             {
@@ -10577,7 +11030,7 @@ namespace Test
                     _ = (left < right);
                 };
 
-                ExecuteTest(method, "Com.PointD.operator <(Com.PointD, Com.PointD)");
+                ExecuteTest(method, "operator <(Com.PointD, Com.PointD)");
             }
 
             {
@@ -10589,7 +11042,7 @@ namespace Test
                     _ = (left > right);
                 };
 
-                ExecuteTest(method, "Com.PointD.operator >(Com.PointD, Com.PointD)");
+                ExecuteTest(method, "operator >(Com.PointD, Com.PointD)");
             }
 
             {
@@ -10601,7 +11054,7 @@ namespace Test
                     _ = (left <= right);
                 };
 
-                ExecuteTest(method, "Com.PointD.operator <=(Com.PointD, Com.PointD)");
+                ExecuteTest(method, "operator <=(Com.PointD, Com.PointD)");
             }
 
             {
@@ -10613,7 +11066,7 @@ namespace Test
                     _ = (left >= right);
                 };
 
-                ExecuteTest(method, "Com.PointD.operator >=(Com.PointD, Com.PointD)");
+                ExecuteTest(method, "operator >=(Com.PointD, Com.PointD)");
             }
 
             // 运算
@@ -10626,7 +11079,7 @@ namespace Test
                     _ = +pointD;
                 };
 
-                ExecuteTest(method, "Com.PointD.operator +(Com.PointD)");
+                ExecuteTest(method, "operator +(Com.PointD)");
             }
 
             {
@@ -10637,7 +11090,7 @@ namespace Test
                     _ = -pointD;
                 };
 
-                ExecuteTest(method, "Com.PointD.operator -(Com.PointD)");
+                ExecuteTest(method, "operator -(Com.PointD)");
             }
 
             {
@@ -10649,7 +11102,7 @@ namespace Test
                     _ = pt + n;
                 };
 
-                ExecuteTest(method, "Com.PointD.operator +(Com.PointD, double)");
+                ExecuteTest(method, "operator +(Com.PointD, double)");
             }
 
             {
@@ -10661,7 +11114,7 @@ namespace Test
                     _ = n + pt;
                 };
 
-                ExecuteTest(method, "Com.PointD.operator +(double, Com.PointD)");
+                ExecuteTest(method, "operator +(double, Com.PointD)");
             }
 
             {
@@ -10673,7 +11126,7 @@ namespace Test
                     _ = left + right;
                 };
 
-                ExecuteTest(method, "Com.PointD.operator +(Com.PointD, Com.PointD)");
+                ExecuteTest(method, "operator +(Com.PointD, Com.PointD)");
             }
 
             {
@@ -10685,7 +11138,7 @@ namespace Test
                     _ = left + right;
                 };
 
-                ExecuteTest(method, "Com.PointD.operator +(Com.PointD, System.Drawing.Point)");
+                ExecuteTest(method, "operator +(Com.PointD, System.Drawing.Point)");
             }
 
             {
@@ -10697,7 +11150,7 @@ namespace Test
                     _ = left + right;
                 };
 
-                ExecuteTest(method, "Com.PointD.operator +(System.Drawing.Point, Com.PointD)");
+                ExecuteTest(method, "operator +(System.Drawing.Point, Com.PointD)");
             }
 
             {
@@ -10709,7 +11162,7 @@ namespace Test
                     _ = left + right;
                 };
 
-                ExecuteTest(method, "Com.PointD.operator +(Com.PointD, System.Drawing.PointF)");
+                ExecuteTest(method, "operator +(Com.PointD, System.Drawing.PointF)");
             }
 
             {
@@ -10721,7 +11174,7 @@ namespace Test
                     _ = left + right;
                 };
 
-                ExecuteTest(method, "Com.PointD.operator +(System.Drawing.PointF, Com.PointD)");
+                ExecuteTest(method, "operator +(System.Drawing.PointF, Com.PointD)");
             }
 
             {
@@ -10733,7 +11186,7 @@ namespace Test
                     _ = pt + sz;
                 };
 
-                ExecuteTest(method, "Com.PointD.operator +(Com.PointD, System.Drawing.Size)");
+                ExecuteTest(method, "operator +(Com.PointD, System.Drawing.Size)");
             }
 
             {
@@ -10745,7 +11198,7 @@ namespace Test
                     _ = sz + pt;
                 };
 
-                ExecuteTest(method, "Com.PointD.operator +(System.Drawing.Size, Com.PointD)");
+                ExecuteTest(method, "operator +(System.Drawing.Size, Com.PointD)");
             }
 
             {
@@ -10757,7 +11210,7 @@ namespace Test
                     _ = pt + sz;
                 };
 
-                ExecuteTest(method, "Com.PointD.operator +(Com.PointD, System.Drawing.SizeF)");
+                ExecuteTest(method, "operator +(Com.PointD, System.Drawing.SizeF)");
             }
 
             {
@@ -10769,7 +11222,7 @@ namespace Test
                     _ = sz + pt;
                 };
 
-                ExecuteTest(method, "Com.PointD.operator +(System.Drawing.SizeF, Com.PointD)");
+                ExecuteTest(method, "operator +(System.Drawing.SizeF, Com.PointD)");
             }
 
             {
@@ -10781,7 +11234,7 @@ namespace Test
                     _ = pt - n;
                 };
 
-                ExecuteTest(method, "Com.PointD.operator -(Com.PointD, double)");
+                ExecuteTest(method, "operator -(Com.PointD, double)");
             }
 
             {
@@ -10793,7 +11246,7 @@ namespace Test
                     _ = n - pt;
                 };
 
-                ExecuteTest(method, "Com.PointD.operator -(double, Com.PointD)");
+                ExecuteTest(method, "operator -(double, Com.PointD)");
             }
 
             {
@@ -10805,7 +11258,7 @@ namespace Test
                     _ = left - right;
                 };
 
-                ExecuteTest(method, "Com.PointD.operator -(Com.PointD, Com.PointD)");
+                ExecuteTest(method, "operator -(Com.PointD, Com.PointD)");
             }
 
             {
@@ -10817,7 +11270,7 @@ namespace Test
                     _ = left - right;
                 };
 
-                ExecuteTest(method, "Com.PointD.operator -(Com.PointD, System.Drawing.Point)");
+                ExecuteTest(method, "operator -(Com.PointD, System.Drawing.Point)");
             }
 
             {
@@ -10829,7 +11282,7 @@ namespace Test
                     _ = left - right;
                 };
 
-                ExecuteTest(method, "Com.PointD.operator -(System.Drawing.Point, Com.PointD)");
+                ExecuteTest(method, "operator -(System.Drawing.Point, Com.PointD)");
             }
 
             {
@@ -10841,7 +11294,7 @@ namespace Test
                     _ = left - right;
                 };
 
-                ExecuteTest(method, "Com.PointD.operator -(Com.PointD, System.Drawing.PointF)");
+                ExecuteTest(method, "operator -(Com.PointD, System.Drawing.PointF)");
             }
 
             {
@@ -10853,7 +11306,7 @@ namespace Test
                     _ = left - right;
                 };
 
-                ExecuteTest(method, "Com.PointD.operator -(System.Drawing.PointF, Com.PointD)");
+                ExecuteTest(method, "operator -(System.Drawing.PointF, Com.PointD)");
             }
 
             {
@@ -10865,7 +11318,7 @@ namespace Test
                     _ = pt - sz;
                 };
 
-                ExecuteTest(method, "Com.PointD.operator -(Com.PointD, System.Drawing.Size)");
+                ExecuteTest(method, "operator -(Com.PointD, System.Drawing.Size)");
             }
 
             {
@@ -10877,7 +11330,7 @@ namespace Test
                     _ = sz - pt;
                 };
 
-                ExecuteTest(method, "Com.PointD.operator -(System.Drawing.Size, Com.PointD)");
+                ExecuteTest(method, "operator -(System.Drawing.Size, Com.PointD)");
             }
 
             {
@@ -10889,7 +11342,7 @@ namespace Test
                     _ = pt - sz;
                 };
 
-                ExecuteTest(method, "Com.PointD.operator -(Com.PointD, System.Drawing.SizeF)");
+                ExecuteTest(method, "operator -(Com.PointD, System.Drawing.SizeF)");
             }
 
             {
@@ -10901,7 +11354,7 @@ namespace Test
                     _ = sz - pt;
                 };
 
-                ExecuteTest(method, "Com.PointD.operator -(System.Drawing.SizeF, Com.PointD)");
+                ExecuteTest(method, "operator -(System.Drawing.SizeF, Com.PointD)");
             }
 
             {
@@ -10913,7 +11366,7 @@ namespace Test
                     _ = pt * n;
                 };
 
-                ExecuteTest(method, "Com.PointD.operator *(Com.PointD, double)");
+                ExecuteTest(method, "operator *(Com.PointD, double)");
             }
 
             {
@@ -10925,7 +11378,7 @@ namespace Test
                     _ = n * pt;
                 };
 
-                ExecuteTest(method, "Com.PointD.operator *(double, Com.PointD)");
+                ExecuteTest(method, "operator *(double, Com.PointD)");
             }
 
             {
@@ -10937,7 +11390,7 @@ namespace Test
                     _ = left * right;
                 };
 
-                ExecuteTest(method, "Com.PointD.operator *(Com.PointD, Com.PointD)");
+                ExecuteTest(method, "operator *(Com.PointD, Com.PointD)");
             }
 
             {
@@ -10949,7 +11402,7 @@ namespace Test
                     _ = left * right;
                 };
 
-                ExecuteTest(method, "Com.PointD.operator *(Com.PointD, System.Drawing.Point)");
+                ExecuteTest(method, "operator *(Com.PointD, System.Drawing.Point)");
             }
 
             {
@@ -10961,7 +11414,7 @@ namespace Test
                     _ = left * right;
                 };
 
-                ExecuteTest(method, "Com.PointD.operator *(System.Drawing.Point, Com.PointD)");
+                ExecuteTest(method, "operator *(System.Drawing.Point, Com.PointD)");
             }
 
             {
@@ -10973,7 +11426,7 @@ namespace Test
                     _ = left * right;
                 };
 
-                ExecuteTest(method, "Com.PointD.operator *(Com.PointD, System.Drawing.PointF)");
+                ExecuteTest(method, "operator *(Com.PointD, System.Drawing.PointF)");
             }
 
             {
@@ -10985,7 +11438,7 @@ namespace Test
                     _ = left * right;
                 };
 
-                ExecuteTest(method, "Com.PointD.operator *(System.Drawing.PointF, Com.PointD)");
+                ExecuteTest(method, "operator *(System.Drawing.PointF, Com.PointD)");
             }
 
             {
@@ -10997,7 +11450,7 @@ namespace Test
                     _ = pt * sz;
                 };
 
-                ExecuteTest(method, "Com.PointD.operator *(Com.PointD, System.Drawing.Size)");
+                ExecuteTest(method, "operator *(Com.PointD, System.Drawing.Size)");
             }
 
             {
@@ -11009,7 +11462,7 @@ namespace Test
                     _ = sz * pt;
                 };
 
-                ExecuteTest(method, "Com.PointD.operator *(System.Drawing.Size, Com.PointD)");
+                ExecuteTest(method, "operator *(System.Drawing.Size, Com.PointD)");
             }
 
             {
@@ -11021,7 +11474,7 @@ namespace Test
                     _ = pt * sz;
                 };
 
-                ExecuteTest(method, "Com.PointD.operator *(Com.PointD, System.Drawing.SizeF)");
+                ExecuteTest(method, "operator *(Com.PointD, System.Drawing.SizeF)");
             }
 
             {
@@ -11033,7 +11486,7 @@ namespace Test
                     _ = sz * pt;
                 };
 
-                ExecuteTest(method, "Com.PointD.operator *(System.Drawing.SizeF, Com.PointD)");
+                ExecuteTest(method, "operator *(System.Drawing.SizeF, Com.PointD)");
             }
 
             {
@@ -11045,7 +11498,7 @@ namespace Test
                     _ = pt / n;
                 };
 
-                ExecuteTest(method, "Com.PointD.operator /(Com.PointD, double)");
+                ExecuteTest(method, "operator /(Com.PointD, double)");
             }
 
             {
@@ -11057,7 +11510,7 @@ namespace Test
                     _ = n / pt;
                 };
 
-                ExecuteTest(method, "Com.PointD.operator /(double, Com.PointD)");
+                ExecuteTest(method, "operator /(double, Com.PointD)");
             }
 
             {
@@ -11069,7 +11522,7 @@ namespace Test
                     _ = left / right;
                 };
 
-                ExecuteTest(method, "Com.PointD.operator /(Com.PointD, Com.PointD)");
+                ExecuteTest(method, "operator /(Com.PointD, Com.PointD)");
             }
 
             {
@@ -11081,7 +11534,7 @@ namespace Test
                     _ = left / right;
                 };
 
-                ExecuteTest(method, "Com.PointD.operator /(Com.PointD, System.Drawing.Point)");
+                ExecuteTest(method, "operator /(Com.PointD, System.Drawing.Point)");
             }
 
             {
@@ -11093,7 +11546,7 @@ namespace Test
                     _ = left / right;
                 };
 
-                ExecuteTest(method, "Com.PointD.operator /(System.Drawing.Point, Com.PointD)");
+                ExecuteTest(method, "operator /(System.Drawing.Point, Com.PointD)");
             }
 
             {
@@ -11105,7 +11558,7 @@ namespace Test
                     _ = left / right;
                 };
 
-                ExecuteTest(method, "Com.PointD.operator /(Com.PointD, System.Drawing.PointF)");
+                ExecuteTest(method, "operator /(Com.PointD, System.Drawing.PointF)");
             }
 
             {
@@ -11117,7 +11570,7 @@ namespace Test
                     _ = left / right;
                 };
 
-                ExecuteTest(method, "Com.PointD.operator /(System.Drawing.PointF, Com.PointD)");
+                ExecuteTest(method, "operator /(System.Drawing.PointF, Com.PointD)");
             }
 
             {
@@ -11129,7 +11582,7 @@ namespace Test
                     _ = pt / sz;
                 };
 
-                ExecuteTest(method, "Com.PointD.operator /(Com.PointD, System.Drawing.Size)");
+                ExecuteTest(method, "operator /(Com.PointD, System.Drawing.Size)");
             }
 
             {
@@ -11141,7 +11594,7 @@ namespace Test
                     _ = sz / pt;
                 };
 
-                ExecuteTest(method, "Com.PointD.operator /(System.Drawing.Size, Com.PointD)");
+                ExecuteTest(method, "operator /(System.Drawing.Size, Com.PointD)");
             }
 
             {
@@ -11153,7 +11606,7 @@ namespace Test
                     _ = pt / sz;
                 };
 
-                ExecuteTest(method, "Com.PointD.operator /(Com.PointD, System.Drawing.SizeF)");
+                ExecuteTest(method, "operator /(Com.PointD, System.Drawing.SizeF)");
             }
 
             {
@@ -11165,7 +11618,7 @@ namespace Test
                     _ = sz / pt;
                 };
 
-                ExecuteTest(method, "Com.PointD.operator /(System.Drawing.SizeF, Com.PointD)");
+                ExecuteTest(method, "operator /(System.Drawing.SizeF, Com.PointD)");
             }
 
             // 类型转换
@@ -11179,10 +11632,10 @@ namespace Test
                     _ = (Point)pt;
                 };
 
-                ExecuteTest(method, "Com.PointD.explicit operator System.Drawing.Point(Com.PointD)");
+                ExecuteTest(method, "explicit operator System.Drawing.Point(Com.PointD)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -11194,10 +11647,10 @@ namespace Test
                     _ = (PointF)pt;
                 };
 
-                ExecuteTest(method, "Com.PointD.explicit operator System.Drawing.PointF(Com.PointD)");
+                ExecuteTest(method, "explicit operator System.Drawing.PointF(Com.PointD)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -11209,10 +11662,10 @@ namespace Test
                     _ = (Size)pt;
                 };
 
-                ExecuteTest(method, "Com.PointD.explicit operator System.Drawing.Size(Com.PointD)");
+                ExecuteTest(method, "explicit operator System.Drawing.Size(Com.PointD)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -11224,10 +11677,10 @@ namespace Test
                     _ = (SizeF)pt;
                 };
 
-                ExecuteTest(method, "Com.PointD.explicit operator System.Drawing.SizeF(Com.PointD)");
+                ExecuteTest(method, "explicit operator System.Drawing.SizeF(Com.PointD)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -11239,10 +11692,10 @@ namespace Test
                     _ = (Com.Complex)pt;
                 };
 
-                ExecuteTest(method, "Com.PointD.explicit operator Com.Complex(Com.PointD)");
+                ExecuteTest(method, "explicit operator Com.Complex(Com.PointD)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -11254,10 +11707,10 @@ namespace Test
                     _ = (Com.PointD)pt;
                 };
 
-                ExecuteTest(method, "Com.PointD.implicit operator Com.PointD(System.Drawing.Point)");
+                ExecuteTest(method, "implicit operator Com.PointD(System.Drawing.Point)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -11269,10 +11722,10 @@ namespace Test
                     _ = (Com.PointD)pt;
                 };
 
-                ExecuteTest(method, "Com.PointD.implicit operator Com.PointD(System.Drawing.PointF)");
+                ExecuteTest(method, "implicit operator Com.PointD(System.Drawing.PointF)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -11284,10 +11737,10 @@ namespace Test
                     _ = (Com.PointD)sz;
                 };
 
-                ExecuteTest(method, "Com.PointD.explicit operator Com.PointD(System.Drawing.Size)");
+                ExecuteTest(method, "explicit operator Com.PointD(System.Drawing.Size)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -11299,16 +11752,46 @@ namespace Test
                     _ = (Com.PointD)sz;
                 };
 
-                ExecuteTest(method, "Com.PointD.explicit operator Com.PointD(System.Drawing.SizeF)");
+                ExecuteTest(method, "explicit operator Com.PointD(System.Drawing.SizeF)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
         }
     }
 
     sealed class PointD3DTest : ClassPerfTestBase
     {
+        private const string _NamespaceName = "Com";
+        private const string _ClassName = "PointD3D";
+
+        private void ExecuteTest(Action method, string methodName, string comment)
+        {
+            base.ExecuteTest(method, _NamespaceName, _ClassName, methodName, comment);
+        }
+
+        private void ExecuteTest(Action method, string methodName)
+        {
+            base.ExecuteTest(method, _NamespaceName, _ClassName, methodName);
+        }
+
+        private void ExecuteTest(string methodName, UnsupportedReason unsupportedReason)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, methodName, unsupportedReason);
+        }
+
+        private void ExecuteTest(string methodName)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, methodName);
+        }
+
+        private void ExecuteTest(UnsupportedReason unsupportedReason)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, string.Empty, unsupportedReason);
+        }
+
+        //
+
         private static Com.PointD3D _GetRandomPointD3D()
         {
             return new Com.PointD3D(Com.Statistics.RandomDouble(-1E18, 1E18), Com.Statistics.RandomDouble(-1E18, 1E18), Com.Statistics.RandomDouble(-1E18, 1E18));
@@ -11368,7 +11851,7 @@ namespace Test
                     _ = new Com.PointD3D(x, y, z);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.PointD3D(double, double, double)");
+                ExecuteTest(method, "PointD3D(double, double, double)");
             }
         }
 
@@ -11385,7 +11868,7 @@ namespace Test
                     _ = pointD3D[index];
                 };
 
-                ExecuteTest(method, "Com.PointD3D.this[int].get()");
+                ExecuteTest(method, "this[int].get()");
             }
 
             {
@@ -11398,7 +11881,7 @@ namespace Test
                     pointD3D[index] = value;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.this[int].set(double)");
+                ExecuteTest(method, "this[int].set(double)");
             }
 
             // 分量
@@ -11411,7 +11894,7 @@ namespace Test
                     _ = pointD3D.X;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.X.get()");
+                ExecuteTest(method, "X.get()");
             }
 
             {
@@ -11423,7 +11906,7 @@ namespace Test
                     pointD3D.X = value;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.X.set(double)");
+                ExecuteTest(method, "X.set(double)");
             }
 
             {
@@ -11434,7 +11917,7 @@ namespace Test
                     _ = pointD3D.Y;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.Y.get()");
+                ExecuteTest(method, "Y.get()");
             }
 
             {
@@ -11446,7 +11929,7 @@ namespace Test
                     pointD3D.Y = value;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.Y.set(double)");
+                ExecuteTest(method, "Y.set(double)");
             }
 
             {
@@ -11457,7 +11940,7 @@ namespace Test
                     _ = pointD3D.Z;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.Z.get()");
+                ExecuteTest(method, "Z.get()");
             }
 
             {
@@ -11469,7 +11952,7 @@ namespace Test
                     pointD3D.Z = value;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.Z.set(double)");
+                ExecuteTest(method, "Z.set(double)");
             }
 
             // Dimension
@@ -11483,10 +11966,10 @@ namespace Test
                     _ = pointD3D.Dimension;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.Dimension.get()");
+                ExecuteTest(method, "Dimension.get()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // Is
@@ -11500,10 +11983,10 @@ namespace Test
                     _ = pointD3D.IsEmpty;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.IsEmpty.get()");
+                ExecuteTest(method, "IsEmpty.get()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -11515,7 +11998,7 @@ namespace Test
                     _ = pointD3D.IsZero;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.IsZero.get()");
+                ExecuteTest(method, "IsZero.get()");
             }
 #else
             {
@@ -11526,7 +12009,7 @@ namespace Test
                     _ = pointD3D.IsEmpty;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.IsEmpty.get()");
+                ExecuteTest(method, "IsEmpty.get()");
             }
 #endif
 
@@ -11539,10 +12022,10 @@ namespace Test
                     _ = pointD3D.IsReadOnly;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.IsReadOnly.get()");
+                ExecuteTest(method, "IsReadOnly.get()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -11554,10 +12037,10 @@ namespace Test
                     _ = pointD3D.IsFixedSize;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.IsFixedSize.get()");
+                ExecuteTest(method, "IsFixedSize.get()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             {
@@ -11568,7 +12051,7 @@ namespace Test
                     _ = pointD3D.IsNaN;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.IsNaN.get()");
+                ExecuteTest(method, "IsNaN.get()");
             }
 
             {
@@ -11579,7 +12062,7 @@ namespace Test
                     _ = pointD3D.IsInfinity;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.IsInfinity.get()");
+                ExecuteTest(method, "IsInfinity.get()");
             }
 
             {
@@ -11590,7 +12073,7 @@ namespace Test
                     _ = pointD3D.IsNaNOrInfinity;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.IsNaNOrInfinity.get()");
+                ExecuteTest(method, "IsNaNOrInfinity.get()");
             }
 
             // 模
@@ -11604,7 +12087,7 @@ namespace Test
                     _ = pointD3D.Module;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.Module.get()");
+                ExecuteTest(method, "Module.get()");
             }
 #else
             {
@@ -11615,7 +12098,7 @@ namespace Test
                     _ = pointD3D.VectorModule;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.VectorModule.get()");
+                ExecuteTest(method, "VectorModule.get()");
             }
 #endif
 
@@ -11628,7 +12111,7 @@ namespace Test
                     _ = pointD3D.ModuleSquared;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.ModuleSquared.get()");
+                ExecuteTest(method, "ModuleSquared.get()");
             }
 #else
             {
@@ -11639,7 +12122,7 @@ namespace Test
                     _ = pointD3D.VectorModuleSquared;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.VectorModuleSquared.get()");
+                ExecuteTest(method, "VectorModuleSquared.get()");
             }
 #endif
 
@@ -11654,7 +12137,7 @@ namespace Test
                     _ = pointD3D.Opposite;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.Opposite.get()");
+                ExecuteTest(method, "Opposite.get()");
             }
 #else
             {
@@ -11665,7 +12148,7 @@ namespace Test
                     _ = pointD3D.VectorNegate;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.VectorNegate.get()");
+                ExecuteTest(method, "VectorNegate.get()");
             }
 #endif
 
@@ -11678,7 +12161,7 @@ namespace Test
                     _ = pointD3D.Normalize;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.Normalize.get()");
+                ExecuteTest(method, "Normalize.get()");
             }
 #else
             {
@@ -11689,7 +12172,7 @@ namespace Test
                     _ = pointD3D.VectorNormalize;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.VectorNormalize.get()");
+                ExecuteTest(method, "VectorNormalize.get()");
             }
 #endif
 
@@ -11703,7 +12186,7 @@ namespace Test
                     _ = pointD3D.XY;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.XY.get()");
+                ExecuteTest(method, "XY.get()");
             }
 
             {
@@ -11715,7 +12198,7 @@ namespace Test
                     pointD3D.XY = value;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.XY.set(Com.PointD)");
+                ExecuteTest(method, "XY.set(Com.PointD)");
             }
 
             {
@@ -11726,7 +12209,7 @@ namespace Test
                     _ = pointD3D.YZ;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.YZ.get()");
+                ExecuteTest(method, "YZ.get()");
             }
 
             {
@@ -11738,7 +12221,7 @@ namespace Test
                     pointD3D.YZ = value;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.YZ.set(Com.PointD)");
+                ExecuteTest(method, "YZ.set(Com.PointD)");
             }
 
             {
@@ -11749,7 +12232,7 @@ namespace Test
                     _ = pointD3D.ZX;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.ZX.get()");
+                ExecuteTest(method, "ZX.get()");
             }
 
             {
@@ -11761,7 +12244,7 @@ namespace Test
                     pointD3D.ZX = value;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.ZX.set(Com.PointD)");
+                ExecuteTest(method, "ZX.set(Com.PointD)");
             }
 
             // 角度
@@ -11775,7 +12258,7 @@ namespace Test
                     _ = pointD3D.AngleFromX;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.AngleFromX.get()");
+                ExecuteTest(method, "AngleFromX.get()");
             }
 #else
             {
@@ -11786,7 +12269,7 @@ namespace Test
                     _ = pointD3D.AngleX;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.AngleX.get()");
+                ExecuteTest(method, "AngleX.get()");
             }
 #endif
 
@@ -11799,7 +12282,7 @@ namespace Test
                     _ = pointD3D.AngleFromY;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.AngleFromY.get()");
+                ExecuteTest(method, "AngleFromY.get()");
             }
 #else
             {
@@ -11810,7 +12293,7 @@ namespace Test
                     _ = pointD3D.AngleY;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.AngleY.get()");
+                ExecuteTest(method, "AngleY.get()");
             }
 #endif
 
@@ -11823,7 +12306,7 @@ namespace Test
                     _ = pointD3D.AngleFromZ;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.AngleFromZ.get()");
+                ExecuteTest(method, "AngleFromZ.get()");
             }
 #else
             {
@@ -11834,7 +12317,7 @@ namespace Test
                     _ = pointD3D.AngleZ;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.AngleZ.get()");
+                ExecuteTest(method, "AngleZ.get()");
             }
 #endif
 
@@ -11847,7 +12330,7 @@ namespace Test
                     _ = pointD3D.AngleFromXY;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.AngleFromXY.get()");
+                ExecuteTest(method, "AngleFromXY.get()");
             }
 #else
             {
@@ -11858,7 +12341,7 @@ namespace Test
                     _ = pointD3D.AngleXY;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.AngleXY.get()");
+                ExecuteTest(method, "AngleXY.get()");
             }
 #endif
 
@@ -11871,7 +12354,7 @@ namespace Test
                     _ = pointD3D.AngleFromYZ;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.AngleFromYZ.get()");
+                ExecuteTest(method, "AngleFromYZ.get()");
             }
 #else
             {
@@ -11882,7 +12365,7 @@ namespace Test
                     _ = pointD3D.AngleYZ;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.AngleYZ.get()");
+                ExecuteTest(method, "AngleYZ.get()");
             }
 #endif
 
@@ -11895,7 +12378,7 @@ namespace Test
                     _ = pointD3D.AngleFromZX;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.AngleFromZX.get()");
+                ExecuteTest(method, "AngleFromZX.get()");
             }
 #else
             {
@@ -11906,7 +12389,7 @@ namespace Test
                     _ = pointD3D.AngleZX;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.AngleZX.get()");
+                ExecuteTest(method, "AngleZX.get()");
             }
 #endif
 
@@ -11919,7 +12402,7 @@ namespace Test
                     _ = pointD3D.Zenith;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.Zenith.get()");
+                ExecuteTest(method, "Zenith.get()");
             }
 #else
             {
@@ -11930,7 +12413,7 @@ namespace Test
                     _ = pointD3D.VectorAngleZ;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.VectorAngleZ.get()");
+                ExecuteTest(method, "VectorAngleZ.get()");
             }
 #endif
 
@@ -11943,7 +12426,7 @@ namespace Test
                     _ = pointD3D.Azimuth;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.Azimuth.get()");
+                ExecuteTest(method, "Azimuth.get()");
             }
 #else
             {
@@ -11954,7 +12437,7 @@ namespace Test
                     _ = pointD3D.VectorAngleXY;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.VectorAngleXY.get()");
+                ExecuteTest(method, "VectorAngleXY.get()");
             }
 #endif
         }
@@ -11977,7 +12460,7 @@ namespace Test
                     _ = pointD3D.Equals(obj);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.Equals(object)");
+                ExecuteTest(method, "Equals(object)");
             }
 
             {
@@ -11988,7 +12471,7 @@ namespace Test
                     _ = pointD3D.GetHashCode();
                 };
 
-                ExecuteTest(method, "Com.PointD3D.GetHashCode()");
+                ExecuteTest(method, "GetHashCode()");
             }
 
             {
@@ -11999,7 +12482,7 @@ namespace Test
                     _ = pointD3D.ToString();
                 };
 
-                ExecuteTest(method, "Com.PointD3D.ToString()");
+                ExecuteTest(method, "ToString()");
             }
 
             // Equals
@@ -12013,7 +12496,7 @@ namespace Test
                     _ = left.Equals(right);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.Equals(Com.PointD3D)");
+                ExecuteTest(method, "Equals(Com.PointD3D)");
             }
 
             // CompareTo
@@ -12028,10 +12511,10 @@ namespace Test
                     _ = pointD3D.CompareTo(obj);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.CompareTo(object)");
+                ExecuteTest(method, "CompareTo(object)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -12044,10 +12527,10 @@ namespace Test
                     _ = left.CompareTo(right);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.CompareTo(Com.PointD3D)");
+                ExecuteTest(method, "CompareTo(Com.PointD3D)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // 检索
@@ -12062,10 +12545,10 @@ namespace Test
                     _ = pointD3D.IndexOf(item);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.IndexOf(double)");
+                ExecuteTest(method, "IndexOf(double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -12079,10 +12562,10 @@ namespace Test
                     _ = pointD3D.IndexOf(item, startIndex);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.IndexOf(double, int)");
+                ExecuteTest(method, "IndexOf(double, int)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -12097,10 +12580,10 @@ namespace Test
                     _ = pointD3D.IndexOf(item, startIndex, count);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.IndexOf(double, int, int)");
+                ExecuteTest(method, "IndexOf(double, int, int)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -12113,10 +12596,10 @@ namespace Test
                     _ = pointD3D.LastIndexOf(item);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.LastIndexOf(double)");
+                ExecuteTest(method, "LastIndexOf(double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -12130,10 +12613,10 @@ namespace Test
                     _ = pointD3D.LastIndexOf(item, startIndex);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.LastIndexOf(double, int)");
+                ExecuteTest(method, "LastIndexOf(double, int)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -12148,10 +12631,10 @@ namespace Test
                     _ = pointD3D.LastIndexOf(item, startIndex, count);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.LastIndexOf(double, int, int)");
+                ExecuteTest(method, "LastIndexOf(double, int, int)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -12164,10 +12647,10 @@ namespace Test
                     _ = pointD3D.Contains(item);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.Contains(double)");
+                ExecuteTest(method, "Contains(double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // ToArray，ToList
@@ -12180,7 +12663,7 @@ namespace Test
                     _ = pointD3D.ToArray();
                 };
 
-                ExecuteTest(method, "Com.PointD3D.ToArray()");
+                ExecuteTest(method, "ToArray()");
             }
 
 #if ComVer1905
@@ -12192,10 +12675,10 @@ namespace Test
                     _ = pointD3D.ToList();
                 };
 
-                ExecuteTest(method, "Com.PointD3D.ToList()");
+                ExecuteTest(method, "ToList()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // 坐标系转换
@@ -12208,7 +12691,7 @@ namespace Test
                     _ = pointD3D.ToSpherical();
                 };
 
-                ExecuteTest(method, "Com.PointD3D.ToSpherical()");
+                ExecuteTest(method, "ToSpherical()");
             }
 
             {
@@ -12219,7 +12702,7 @@ namespace Test
                     _ = pointD3D.ToCartesian();
                 };
 
-                ExecuteTest(method, "Com.PointD3D.ToCartesian()");
+                ExecuteTest(method, "ToCartesian()");
             }
 
             // 距离与夹角
@@ -12233,7 +12716,7 @@ namespace Test
                     _ = pointD3D.DistanceFrom(pt);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.DistanceFrom(Com.PointD3D)");
+                ExecuteTest(method, "DistanceFrom(Com.PointD3D)");
             }
 
             {
@@ -12245,7 +12728,7 @@ namespace Test
                     _ = pointD3D.AngleFrom(pt);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.AngleFrom(Com.PointD3D)");
+                ExecuteTest(method, "AngleFrom(Com.PointD3D)");
             }
 
             // Offset
@@ -12259,7 +12742,7 @@ namespace Test
                     pointD3D.Offset(d);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.Offset(double)");
+                ExecuteTest(method, "Offset(double)");
             }
 
             {
@@ -12273,7 +12756,7 @@ namespace Test
                     pointD3D.Offset(dx, dy, dz);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.Offset(double, double, double)");
+                ExecuteTest(method, "Offset(double, double, double)");
             }
 
             {
@@ -12285,7 +12768,7 @@ namespace Test
                     pointD3D.Offset(pt);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.Offset(Com.PointD3D)");
+                ExecuteTest(method, "Offset(Com.PointD3D)");
             }
 
             {
@@ -12297,7 +12780,7 @@ namespace Test
                     _ = pointD3D.OffsetCopy(d);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.OffsetCopy(double)");
+                ExecuteTest(method, "OffsetCopy(double)");
             }
 
             {
@@ -12311,7 +12794,7 @@ namespace Test
                     _ = pointD3D.OffsetCopy(dx, dy, dz);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.OffsetCopy(double, double, double)");
+                ExecuteTest(method, "OffsetCopy(double, double, double)");
             }
 
             {
@@ -12323,7 +12806,7 @@ namespace Test
                     _ = pointD3D.OffsetCopy(pt);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.OffsetCopy(Com.PointD3D)");
+                ExecuteTest(method, "OffsetCopy(Com.PointD3D)");
             }
 
             // Scale
@@ -12337,7 +12820,7 @@ namespace Test
                     pointD3D.Scale(s);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.Scale(double)");
+                ExecuteTest(method, "Scale(double)");
             }
 
             {
@@ -12351,7 +12834,7 @@ namespace Test
                     pointD3D.Scale(sx, sy, sz);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.Scale(double, double, double)");
+                ExecuteTest(method, "Scale(double, double, double)");
             }
 
             {
@@ -12363,7 +12846,7 @@ namespace Test
                     pointD3D.Scale(pt);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.Scale(Com.PointD3D)");
+                ExecuteTest(method, "Scale(Com.PointD3D)");
             }
 
             {
@@ -12375,7 +12858,7 @@ namespace Test
                     _ = pointD3D.ScaleCopy(s);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.ScaleCopy(double)");
+                ExecuteTest(method, "ScaleCopy(double)");
             }
 
             {
@@ -12389,7 +12872,7 @@ namespace Test
                     _ = pointD3D.ScaleCopy(sx, sy, sz);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.ScaleCopy(double, double, double)");
+                ExecuteTest(method, "ScaleCopy(double, double, double)");
             }
 
             {
@@ -12401,7 +12884,7 @@ namespace Test
                     _ = pointD3D.ScaleCopy(pt);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.ScaleCopy(Com.PointD3D)");
+                ExecuteTest(method, "ScaleCopy(Com.PointD3D)");
             }
 
             // Reflect
@@ -12416,10 +12899,10 @@ namespace Test
                     pointD3D.Reflect(index);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.Reflect(int)");
+                ExecuteTest(method, "Reflect(int)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -12431,10 +12914,10 @@ namespace Test
                     pointD3D.ReflectX();
                 };
 
-                ExecuteTest(method, "Com.PointD3D.ReflectX()");
+                ExecuteTest(method, "ReflectX()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -12446,10 +12929,10 @@ namespace Test
                     pointD3D.ReflectY();
                 };
 
-                ExecuteTest(method, "Com.PointD3D.ReflectY()");
+                ExecuteTest(method, "ReflectY()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -12461,10 +12944,10 @@ namespace Test
                     pointD3D.ReflectZ();
                 };
 
-                ExecuteTest(method, "Com.PointD3D.ReflectZ()");
+                ExecuteTest(method, "ReflectZ()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -12477,10 +12960,10 @@ namespace Test
                     _ = pointD3D.ReflectCopy(index);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.ReflectCopy(int)");
+                ExecuteTest(method, "ReflectCopy(int)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -12492,10 +12975,10 @@ namespace Test
                     _ = pointD3D.ReflectXCopy();
                 };
 
-                ExecuteTest(method, "Com.PointD3D.ReflectXCopy()");
+                ExecuteTest(method, "ReflectXCopy()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -12507,10 +12990,10 @@ namespace Test
                     _ = pointD3D.ReflectYCopy();
                 };
 
-                ExecuteTest(method, "Com.PointD3D.ReflectYCopy()");
+                ExecuteTest(method, "ReflectYCopy()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -12522,10 +13005,10 @@ namespace Test
                     _ = pointD3D.ReflectZCopy();
                 };
 
-                ExecuteTest(method, "Com.PointD3D.ReflectZCopy()");
+                ExecuteTest(method, "ReflectZCopy()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // Shear
@@ -12543,10 +13026,10 @@ namespace Test
                     pointD3D.Shear(index1, index2, angle);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.Shear(int, int, double)");
+                ExecuteTest(method, "Shear(int, int, double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -12559,10 +13042,10 @@ namespace Test
                     pointD3D.ShearXY(angle);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.ShearXY(double)");
+                ExecuteTest(method, "ShearXY(double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -12575,10 +13058,10 @@ namespace Test
                     pointD3D.ShearYX(angle);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.ShearYX(double)");
+                ExecuteTest(method, "ShearYX(double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -12591,10 +13074,10 @@ namespace Test
                     pointD3D.ShearYZ(angle);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.ShearYZ(double)");
+                ExecuteTest(method, "ShearYZ(double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -12607,10 +13090,10 @@ namespace Test
                     pointD3D.ShearZY(angle);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.ShearZY(double)");
+                ExecuteTest(method, "ShearZY(double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -12623,10 +13106,10 @@ namespace Test
                     pointD3D.ShearZX(angle);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.ShearZX(double)");
+                ExecuteTest(method, "ShearZX(double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -12639,10 +13122,10 @@ namespace Test
                     pointD3D.ShearXZ(angle);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.ShearXZ(double)");
+                ExecuteTest(method, "ShearXZ(double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -12658,10 +13141,10 @@ namespace Test
                     _ = pointD3D.ShearCopy(index1, index2, angle);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.ShearCopy(int, int, double)");
+                ExecuteTest(method, "ShearCopy(int, int, double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -12674,10 +13157,10 @@ namespace Test
                     _ = pointD3D.ShearXYCopy(angle);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.ShearXYCopy(double)");
+                ExecuteTest(method, "ShearXYCopy(double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -12690,10 +13173,10 @@ namespace Test
                     _ = pointD3D.ShearYXCopy(angle);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.ShearYXCopy(double)");
+                ExecuteTest(method, "ShearYXCopy(double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -12706,10 +13189,10 @@ namespace Test
                     _ = pointD3D.ShearYZCopy(angle);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.ShearYZCopy(double)");
+                ExecuteTest(method, "ShearYZCopy(double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -12722,10 +13205,10 @@ namespace Test
                     _ = pointD3D.ShearZYCopy(angle);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.ShearZYCopy(double)");
+                ExecuteTest(method, "ShearZYCopy(double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -12738,10 +13221,10 @@ namespace Test
                     _ = pointD3D.ShearZXCopy(angle);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.ShearZXCopy(double)");
+                ExecuteTest(method, "ShearZXCopy(double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -12754,10 +13237,10 @@ namespace Test
                     _ = pointD3D.ShearXZCopy(angle);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.ShearXZCopy(double)");
+                ExecuteTest(method, "ShearXZCopy(double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // Rotate
@@ -12775,10 +13258,10 @@ namespace Test
                     pointD3D.Rotate(index1, index2, angle);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.Rotate(int, int, double)");
+                ExecuteTest(method, "Rotate(int, int, double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             {
@@ -12790,7 +13273,7 @@ namespace Test
                     pointD3D.RotateX(angle);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.RotateX(double)");
+                ExecuteTest(method, "RotateX(double)");
             }
 
             {
@@ -12802,7 +13285,7 @@ namespace Test
                     pointD3D.RotateY(angle);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.RotateY(double)");
+                ExecuteTest(method, "RotateY(double)");
             }
 
             {
@@ -12814,7 +13297,7 @@ namespace Test
                     pointD3D.RotateZ(angle);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.RotateZ(double)");
+                ExecuteTest(method, "RotateZ(double)");
             }
 
 #if ComVer1905
@@ -12830,10 +13313,10 @@ namespace Test
                     _ = pointD3D.RotateCopy(index1, index2, angle);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.RotateCopy(int, int, double)");
+                ExecuteTest(method, "RotateCopy(int, int, double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             {
@@ -12845,7 +13328,7 @@ namespace Test
                     _ = pointD3D.RotateXCopy(angle);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.RotateXCopy(double)");
+                ExecuteTest(method, "RotateXCopy(double)");
             }
 
             {
@@ -12857,7 +13340,7 @@ namespace Test
                     _ = pointD3D.RotateYCopy(angle);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.RotateYCopy(double)");
+                ExecuteTest(method, "RotateYCopy(double)");
             }
 
             {
@@ -12869,7 +13352,7 @@ namespace Test
                     _ = pointD3D.RotateZCopy(angle);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.RotateZCopy(double)");
+                ExecuteTest(method, "RotateZCopy(double)");
             }
 
             // Affine
@@ -12886,7 +13369,7 @@ namespace Test
                     pointD3D.AffineTransform(ex, ey, ez, offset);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.AffineTransform(Com.PointD3D, Com.PointD3D, Com.PointD3D, Com.PointD3D)");
+                ExecuteTest(method, "AffineTransform(Com.PointD3D, Com.PointD3D, Com.PointD3D, Com.PointD3D)");
             }
 
             {
@@ -12898,7 +13381,7 @@ namespace Test
                     pointD3D.AffineTransform(matrixLeft);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.AffineTransform(Com.Matrix)");
+                ExecuteTest(method, "AffineTransform(Com.Matrix)");
             }
 
 #if ComVer1910
@@ -12918,10 +13401,10 @@ namespace Test
                     pointD3D.AffineTransform(matricesLeft);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.AffineTransform(param Com.Matrix[])", "total 8 matrices");
+                ExecuteTest(method, "AffineTransform(param Com.Matrix[])", "total 8 matrices");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
 
             {
@@ -12938,7 +13421,7 @@ namespace Test
                     pointD3D.AffineTransform(matrixLeftList);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.AffineTransform(System.Collections.Generic.List<Com.Matrix>)", "total 8 matrices");
+                ExecuteTest(method, "AffineTransform(System.Collections.Generic.List<Com.Matrix>)", "total 8 matrices");
             }
 
             {
@@ -12953,7 +13436,7 @@ namespace Test
                     _ = pointD3D.AffineTransformCopy(ex, ey, ez, offset);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.AffineTransformCopy(Com.PointD3D, Com.PointD3D, Com.PointD3D, Com.PointD3D)");
+                ExecuteTest(method, "AffineTransformCopy(Com.PointD3D, Com.PointD3D, Com.PointD3D, Com.PointD3D)");
             }
 
             {
@@ -12965,7 +13448,7 @@ namespace Test
                     _ = pointD3D.AffineTransformCopy(matrixLeft);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.AffineTransformCopy(Com.Matrix)");
+                ExecuteTest(method, "AffineTransformCopy(Com.Matrix)");
             }
 
 #if ComVer1910
@@ -12985,10 +13468,10 @@ namespace Test
                     _ = pointD3D.AffineTransformCopy(matricesLeft);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.AffineTransformCopy(param Com.Matrix[])", "total 8 matrices");
+                ExecuteTest(method, "AffineTransformCopy(param Com.Matrix[])", "total 8 matrices");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
 
             {
@@ -13005,7 +13488,7 @@ namespace Test
                     _ = pointD3D.AffineTransformCopy(matrixLeftList);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.AffineTransformCopy(System.Collections.Generic.List<Com.Matrix>)", "total 8 matrices");
+                ExecuteTest(method, "AffineTransformCopy(System.Collections.Generic.List<Com.Matrix>)", "total 8 matrices");
             }
 
             {
@@ -13020,7 +13503,7 @@ namespace Test
                     pointD3D.InverseAffineTransform(ex, ey, ez, offset);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.InverseAffineTransform(Com.PointD3D, Com.PointD3D, Com.PointD3D, Com.PointD3D)");
+                ExecuteTest(method, "InverseAffineTransform(Com.PointD3D, Com.PointD3D, Com.PointD3D, Com.PointD3D)");
             }
 
             {
@@ -13032,7 +13515,7 @@ namespace Test
                     pointD3D.InverseAffineTransform(matrixLeft);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.InverseAffineTransform(Com.Matrix)");
+                ExecuteTest(method, "InverseAffineTransform(Com.Matrix)");
             }
 
 #if ComVer1910
@@ -13052,10 +13535,10 @@ namespace Test
                     pointD3D.InverseAffineTransform(matricesLeft);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.InverseAffineTransform(param Com.Matrix[])", "total 8 matrices");
+                ExecuteTest(method, "InverseAffineTransform(param Com.Matrix[])", "total 8 matrices");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
 
             {
@@ -13072,7 +13555,7 @@ namespace Test
                     pointD3D.InverseAffineTransform(matrixLeftList);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.InverseAffineTransform(System.Collections.Generic.List<Com.Matrix>)", "total 8 matrices");
+                ExecuteTest(method, "InverseAffineTransform(System.Collections.Generic.List<Com.Matrix>)", "total 8 matrices");
             }
 
             {
@@ -13087,7 +13570,7 @@ namespace Test
                     _ = pointD3D.InverseAffineTransformCopy(ex, ey, ez, offset);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.InverseAffineTransformCopy(Com.PointD3D, Com.PointD3D, Com.PointD3D, Com.PointD3D)");
+                ExecuteTest(method, "InverseAffineTransformCopy(Com.PointD3D, Com.PointD3D, Com.PointD3D, Com.PointD3D)");
             }
 
             {
@@ -13099,7 +13582,7 @@ namespace Test
                     _ = pointD3D.InverseAffineTransformCopy(matrixLeft);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.InverseAffineTransformCopy(Com.Matrix)");
+                ExecuteTest(method, "InverseAffineTransformCopy(Com.Matrix)");
             }
 
 #if ComVer1910
@@ -13119,10 +13602,10 @@ namespace Test
                     _ = pointD3D.InverseAffineTransformCopy(matricesLeft);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.InverseAffineTransformCopy(param Com.Matrix[])", "total 8 matrices");
+                ExecuteTest(method, "InverseAffineTransformCopy(param Com.Matrix[])", "total 8 matrices");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
 
             {
@@ -13139,7 +13622,7 @@ namespace Test
                     _ = pointD3D.InverseAffineTransformCopy(matrixLeftList);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.InverseAffineTransformCopy(System.Collections.Generic.List<Com.Matrix>)", "total 8 matrices");
+                ExecuteTest(method, "InverseAffineTransformCopy(System.Collections.Generic.List<Com.Matrix>)", "total 8 matrices");
             }
 
             // Project
@@ -13155,7 +13638,7 @@ namespace Test
                     _ = pointD3D.ProjectToXY(prjCenter, focalLength);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.ProjectToXY(Com.PointD3D, double)");
+                ExecuteTest(method, "ProjectToXY(Com.PointD3D, double)");
             }
 
             {
@@ -13168,7 +13651,7 @@ namespace Test
                     _ = pointD3D.ProjectToYZ(prjCenter, focalLength);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.ProjectToYZ(Com.PointD3D, double)");
+                ExecuteTest(method, "ProjectToYZ(Com.PointD3D, double)");
             }
 
             {
@@ -13181,7 +13664,7 @@ namespace Test
                     _ = pointD3D.ProjectToZX(prjCenter, focalLength);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.ProjectToZX(Com.PointD3D, double)");
+                ExecuteTest(method, "ProjectToZX(Com.PointD3D, double)");
             }
 
             // ToVector
@@ -13195,7 +13678,7 @@ namespace Test
                     _ = pointD3D.ToColumnVector();
                 };
 
-                ExecuteTest(method, "Com.PointD3D.ToColumnVector()");
+                ExecuteTest(method, "ToColumnVector()");
             }
 #else
             {
@@ -13206,7 +13689,7 @@ namespace Test
                     _ = pointD3D.ToVectorColumn();
                 };
 
-                ExecuteTest(method, "Com.PointD3D.ToVectorColumn()");
+                ExecuteTest(method, "ToVectorColumn()");
             }
 #endif
 
@@ -13219,7 +13702,7 @@ namespace Test
                     _ = pointD3D.ToRowVector();
                 };
 
-                ExecuteTest(method, "Com.PointD3D.ToRowVector()");
+                ExecuteTest(method, "ToRowVector()");
             }
 #else
             {
@@ -13230,7 +13713,7 @@ namespace Test
                     _ = pointD3D.ToVectorRow();
                 };
 
-                ExecuteTest(method, "Com.PointD3D.ToVectorRow()");
+                ExecuteTest(method, "ToVectorRow()");
             }
 #endif
         }
@@ -13248,7 +13731,7 @@ namespace Test
                     _ = Com.PointD3D.Equals(left, right);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.Equals(Com.PointD3D, Com.PointD3D)");
+                ExecuteTest(method, "Equals(Com.PointD3D, Com.PointD3D)");
             }
 
             // Compare
@@ -13263,10 +13746,10 @@ namespace Test
                     _ = Com.PointD3D.Compare(left, right);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.Compare(Com.PointD3D, Com.PointD3D)");
+                ExecuteTest(method, "Compare(Com.PointD3D, Com.PointD3D)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // From
@@ -13280,10 +13763,10 @@ namespace Test
                     _ = Com.PointD3D.FromVector(vector);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.FromVector(Com.Vector)");
+                ExecuteTest(method, "FromVector(Com.Vector)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
 
             // Matrix
@@ -13294,7 +13777,7 @@ namespace Test
                     _ = Com.PointD3D.IdentityMatrix();
                 };
 
-                ExecuteTest(method, "Com.PointD3D.IdentityMatrix()");
+                ExecuteTest(method, "IdentityMatrix()");
             }
 
             {
@@ -13305,7 +13788,7 @@ namespace Test
                     _ = Com.PointD3D.OffsetMatrix(d);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.OffsetMatrix(double)");
+                ExecuteTest(method, "OffsetMatrix(double)");
             }
 
             {
@@ -13318,7 +13801,7 @@ namespace Test
                     _ = Com.PointD3D.OffsetMatrix(dx, dy, dz);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.OffsetMatrix(double, double, double)");
+                ExecuteTest(method, "OffsetMatrix(double, double, double)");
             }
 
             {
@@ -13329,7 +13812,7 @@ namespace Test
                     _ = Com.PointD3D.OffsetMatrix(pt);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.OffsetMatrix(Com.PointD3D)");
+                ExecuteTest(method, "OffsetMatrix(Com.PointD3D)");
             }
 
             {
@@ -13340,7 +13823,7 @@ namespace Test
                     _ = Com.PointD3D.ScaleMatrix(s);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.ScaleMatrix(double)");
+                ExecuteTest(method, "ScaleMatrix(double)");
             }
 
             {
@@ -13353,7 +13836,7 @@ namespace Test
                     _ = Com.PointD3D.ScaleMatrix(sx, sy, sz);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.ScaleMatrix(double, double, double)");
+                ExecuteTest(method, "ScaleMatrix(double, double, double)");
             }
 
             {
@@ -13364,7 +13847,7 @@ namespace Test
                     _ = Com.PointD3D.ScaleMatrix(pt);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.ScaleMatrix(Com.PointD3D)");
+                ExecuteTest(method, "ScaleMatrix(Com.PointD3D)");
             }
 
 #if ComVer1905
@@ -13376,10 +13859,10 @@ namespace Test
                     _ = Com.PointD3D.ReflectMatrix(index);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.ReflectMatrix(int)");
+                ExecuteTest(method, "ReflectMatrix(int)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -13389,10 +13872,10 @@ namespace Test
                     _ = Com.PointD3D.ReflectXMatrix();
                 };
 
-                ExecuteTest(method, "Com.PointD3D.ReflectXMatrix()");
+                ExecuteTest(method, "ReflectXMatrix()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -13402,10 +13885,10 @@ namespace Test
                     _ = Com.PointD3D.ReflectYMatrix();
                 };
 
-                ExecuteTest(method, "Com.PointD3D.ReflectYMatrix()");
+                ExecuteTest(method, "ReflectYMatrix()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -13415,10 +13898,10 @@ namespace Test
                     _ = Com.PointD3D.ReflectZMatrix();
                 };
 
-                ExecuteTest(method, "Com.PointD3D.ReflectZMatrix()");
+                ExecuteTest(method, "ReflectZMatrix()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -13433,10 +13916,10 @@ namespace Test
                     _ = Com.PointD3D.ShearMatrix(index1, index2, angle);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.ShearMatrix(int, int, double)");
+                ExecuteTest(method, "ShearMatrix(int, int, double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -13448,10 +13931,10 @@ namespace Test
                     _ = Com.PointD3D.ShearXYMatrix(angle);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.ShearXYMatrix(double)");
+                ExecuteTest(method, "ShearXYMatrix(double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -13463,10 +13946,10 @@ namespace Test
                     _ = Com.PointD3D.ShearYXMatrix(angle);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.ShearYXMatrix(double)");
+                ExecuteTest(method, "ShearYXMatrix(double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -13478,10 +13961,10 @@ namespace Test
                     _ = Com.PointD3D.ShearYZMatrix(angle);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.ShearYZMatrix(double)");
+                ExecuteTest(method, "ShearYZMatrix(double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -13493,10 +13976,10 @@ namespace Test
                     _ = Com.PointD3D.ShearZYMatrix(angle);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.ShearZYMatrix(double)");
+                ExecuteTest(method, "ShearZYMatrix(double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -13508,10 +13991,10 @@ namespace Test
                     _ = Com.PointD3D.ShearZXMatrix(angle);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.ShearZXMatrix(double)");
+                ExecuteTest(method, "ShearZXMatrix(double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -13523,10 +14006,10 @@ namespace Test
                     _ = Com.PointD3D.ShearXZMatrix(angle);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.ShearXZMatrix(double)");
+                ExecuteTest(method, "ShearXZMatrix(double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -13541,10 +14024,10 @@ namespace Test
                     _ = Com.PointD3D.RotateMatrix(index1, index2, angle);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.RotateMatrix(int, int, double)");
+                ExecuteTest(method, "RotateMatrix(int, int, double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             {
@@ -13555,7 +14038,7 @@ namespace Test
                     _ = Com.PointD3D.RotateXMatrix(angle);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.RotateXMatrix(double)");
+                ExecuteTest(method, "RotateXMatrix(double)");
             }
 
             {
@@ -13566,7 +14049,7 @@ namespace Test
                     _ = Com.PointD3D.RotateYMatrix(angle);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.RotateYMatrix(double)");
+                ExecuteTest(method, "RotateYMatrix(double)");
             }
 
             {
@@ -13577,7 +14060,7 @@ namespace Test
                     _ = Com.PointD3D.RotateZMatrix(angle);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.RotateZMatrix(double)");
+                ExecuteTest(method, "RotateZMatrix(double)");
             }
 
             // 距离与夹角
@@ -13591,7 +14074,7 @@ namespace Test
                     _ = Com.PointD3D.DistanceBetween(left, right);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.DistanceBetween(Com.PointD3D, Com.PointD3D)");
+                ExecuteTest(method, "DistanceBetween(Com.PointD3D, Com.PointD3D)");
             }
 
             {
@@ -13603,7 +14086,7 @@ namespace Test
                     _ = Com.PointD3D.AngleBetween(left, right);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.AngleBetween(Com.PointD3D, Com.PointD3D)");
+                ExecuteTest(method, "AngleBetween(Com.PointD3D, Com.PointD3D)");
             }
 
             // 向量乘积
@@ -13617,7 +14100,7 @@ namespace Test
                     _ = Com.PointD3D.DotProduct(left, right);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.DotProduct(Com.PointD3D, Com.PointD3D)");
+                ExecuteTest(method, "DotProduct(Com.PointD3D, Com.PointD3D)");
             }
 
             {
@@ -13629,7 +14112,7 @@ namespace Test
                     _ = Com.PointD3D.CrossProduct(left, right);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.CrossProduct(Com.PointD3D, Com.PointD3D)");
+                ExecuteTest(method, "CrossProduct(Com.PointD3D, Com.PointD3D)");
             }
 
             // 初等函数
@@ -13642,7 +14125,7 @@ namespace Test
                     _ = Com.PointD3D.Abs(pointD3D);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.Abs(Com.PointD3D)");
+                ExecuteTest(method, "Abs(Com.PointD3D)");
             }
 
             {
@@ -13653,7 +14136,7 @@ namespace Test
                     _ = Com.PointD3D.Sign(pointD3D);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.Sign(Com.PointD3D)");
+                ExecuteTest(method, "Sign(Com.PointD3D)");
             }
 
             {
@@ -13664,7 +14147,7 @@ namespace Test
                     _ = Com.PointD3D.Ceiling(pointD3D);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.Ceiling(Com.PointD3D)");
+                ExecuteTest(method, "Ceiling(Com.PointD3D)");
             }
 
             {
@@ -13675,7 +14158,7 @@ namespace Test
                     _ = Com.PointD3D.Floor(pointD3D);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.Floor(Com.PointD3D)");
+                ExecuteTest(method, "Floor(Com.PointD3D)");
             }
 
             {
@@ -13686,7 +14169,7 @@ namespace Test
                     _ = Com.PointD3D.Round(pointD3D);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.Round(Com.PointD3D)");
+                ExecuteTest(method, "Round(Com.PointD3D)");
             }
 
             {
@@ -13697,7 +14180,7 @@ namespace Test
                     _ = Com.PointD3D.Truncate(pointD3D);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.Truncate(Com.PointD3D)");
+                ExecuteTest(method, "Truncate(Com.PointD3D)");
             }
 
             {
@@ -13709,7 +14192,7 @@ namespace Test
                     _ = Com.PointD3D.Max(left, right);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.Max(Com.PointD3D, Com.PointD3D)");
+                ExecuteTest(method, "Max(Com.PointD3D, Com.PointD3D)");
             }
 
             {
@@ -13721,7 +14204,7 @@ namespace Test
                     _ = Com.PointD3D.Min(left, right);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.Min(Com.PointD3D, Com.PointD3D)");
+                ExecuteTest(method, "Min(Com.PointD3D, Com.PointD3D)");
             }
         }
 
@@ -13738,7 +14221,7 @@ namespace Test
                     _ = (left == right);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.operator ==(Com.PointD3D, Com.PointD3D)");
+                ExecuteTest(method, "operator ==(Com.PointD3D, Com.PointD3D)");
             }
 
             {
@@ -13750,7 +14233,7 @@ namespace Test
                     _ = (left != right);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.operator !=(Com.PointD3D, Com.PointD3D)");
+                ExecuteTest(method, "operator !=(Com.PointD3D, Com.PointD3D)");
             }
 
             {
@@ -13762,7 +14245,7 @@ namespace Test
                     _ = (left < right);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.operator <(Com.PointD3D, Com.PointD3D)");
+                ExecuteTest(method, "operator <(Com.PointD3D, Com.PointD3D)");
             }
 
             {
@@ -13774,7 +14257,7 @@ namespace Test
                     _ = (left > right);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.operator >(Com.PointD3D, Com.PointD3D)");
+                ExecuteTest(method, "operator >(Com.PointD3D, Com.PointD3D)");
             }
 
             {
@@ -13786,7 +14269,7 @@ namespace Test
                     _ = (left <= right);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.operator <=(Com.PointD3D, Com.PointD3D)");
+                ExecuteTest(method, "operator <=(Com.PointD3D, Com.PointD3D)");
             }
 
             {
@@ -13798,7 +14281,7 @@ namespace Test
                     _ = (left >= right);
                 };
 
-                ExecuteTest(method, "Com.PointD3D.operator >=(Com.PointD3D, Com.PointD3D)");
+                ExecuteTest(method, "operator >=(Com.PointD3D, Com.PointD3D)");
             }
 
             // 运算
@@ -13811,7 +14294,7 @@ namespace Test
                     _ = +pointD3D;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.operator +(Com.PointD3D)");
+                ExecuteTest(method, "operator +(Com.PointD3D)");
             }
 
             {
@@ -13822,7 +14305,7 @@ namespace Test
                     _ = -pointD3D;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.operator -(Com.PointD3D)");
+                ExecuteTest(method, "operator -(Com.PointD3D)");
             }
 
             {
@@ -13834,7 +14317,7 @@ namespace Test
                     _ = pt + n;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.operator +(Com.PointD3D, double)");
+                ExecuteTest(method, "operator +(Com.PointD3D, double)");
             }
 
             {
@@ -13846,7 +14329,7 @@ namespace Test
                     _ = n + pt;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.operator +(double, Com.PointD3D)");
+                ExecuteTest(method, "operator +(double, Com.PointD3D)");
             }
 
             {
@@ -13858,7 +14341,7 @@ namespace Test
                     _ = left + right;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.operator +(Com.PointD3D, Com.PointD3D)");
+                ExecuteTest(method, "operator +(Com.PointD3D, Com.PointD3D)");
             }
 
             {
@@ -13870,7 +14353,7 @@ namespace Test
                     _ = pt - n;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.operator -(Com.PointD3D, double)");
+                ExecuteTest(method, "operator -(Com.PointD3D, double)");
             }
 
             {
@@ -13882,7 +14365,7 @@ namespace Test
                     _ = n - pt;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.operator -(double, Com.PointD3D)");
+                ExecuteTest(method, "operator -(double, Com.PointD3D)");
             }
 
             {
@@ -13894,7 +14377,7 @@ namespace Test
                     _ = left - right;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.operator -(Com.PointD3D, Com.PointD3D)");
+                ExecuteTest(method, "operator -(Com.PointD3D, Com.PointD3D)");
             }
 
             {
@@ -13906,7 +14389,7 @@ namespace Test
                     _ = pt * n;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.operator *(Com.PointD3D, double)");
+                ExecuteTest(method, "operator *(Com.PointD3D, double)");
             }
 
             {
@@ -13918,7 +14401,7 @@ namespace Test
                     _ = n * pt;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.operator *(double, Com.PointD3D)");
+                ExecuteTest(method, "operator *(double, Com.PointD3D)");
             }
 
             {
@@ -13930,7 +14413,7 @@ namespace Test
                     _ = left * right;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.operator *(Com.PointD3D, Com.PointD3D)");
+                ExecuteTest(method, "operator *(Com.PointD3D, Com.PointD3D)");
             }
 
             {
@@ -13942,7 +14425,7 @@ namespace Test
                     _ = pt / n;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.operator /(Com.PointD3D, double)");
+                ExecuteTest(method, "operator /(Com.PointD3D, double)");
             }
 
             {
@@ -13954,7 +14437,7 @@ namespace Test
                     _ = n / pt;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.operator /(double, Com.PointD3D)");
+                ExecuteTest(method, "operator /(double, Com.PointD3D)");
             }
 
             {
@@ -13966,13 +14449,43 @@ namespace Test
                     _ = left / right;
                 };
 
-                ExecuteTest(method, "Com.PointD3D.operator /(Com.PointD3D, Com.PointD3D)");
+                ExecuteTest(method, "operator /(Com.PointD3D, Com.PointD3D)");
             }
         }
     }
 
     sealed class PointD4DTest : ClassPerfTestBase
     {
+        private const string _NamespaceName = "Com";
+        private const string _ClassName = "PointD4D";
+
+        private void ExecuteTest(Action method, string methodName, string comment)
+        {
+            base.ExecuteTest(method, _NamespaceName, _ClassName, methodName, comment);
+        }
+
+        private void ExecuteTest(Action method, string methodName)
+        {
+            base.ExecuteTest(method, _NamespaceName, _ClassName, methodName);
+        }
+
+        private void ExecuteTest(string methodName, UnsupportedReason unsupportedReason)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, methodName, unsupportedReason);
+        }
+
+        private void ExecuteTest(string methodName)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, methodName);
+        }
+
+        private void ExecuteTest(UnsupportedReason unsupportedReason)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, string.Empty, unsupportedReason);
+        }
+
+        //
+
         private static Com.PointD4D _GetRandomPointD4D()
         {
             return new Com.PointD4D(Com.Statistics.RandomDouble(-1E18, 1E18), Com.Statistics.RandomDouble(-1E18, 1E18), Com.Statistics.RandomDouble(-1E18, 1E18), Com.Statistics.RandomDouble(-1E18, 1E18));
@@ -14033,7 +14546,7 @@ namespace Test
                     _ = new Com.PointD4D(x, y, z, u);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.PointD4D(double, double, double, double)");
+                ExecuteTest(method, "PointD4D(double, double, double, double)");
             }
         }
 
@@ -14050,7 +14563,7 @@ namespace Test
                     _ = pointD4D[index];
                 };
 
-                ExecuteTest(method, "Com.PointD4D.this[int].get()");
+                ExecuteTest(method, "this[int].get()");
             }
 
             {
@@ -14063,7 +14576,7 @@ namespace Test
                     pointD4D[index] = value;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.this[int].set(double)");
+                ExecuteTest(method, "this[int].set(double)");
             }
 
             // 分量
@@ -14076,7 +14589,7 @@ namespace Test
                     _ = pointD4D.X;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.X.get()");
+                ExecuteTest(method, "X.get()");
             }
 
             {
@@ -14088,7 +14601,7 @@ namespace Test
                     pointD4D.X = value;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.X.set(double)");
+                ExecuteTest(method, "X.set(double)");
             }
 
             {
@@ -14099,7 +14612,7 @@ namespace Test
                     _ = pointD4D.Y;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.Y.get()");
+                ExecuteTest(method, "Y.get()");
             }
 
             {
@@ -14111,7 +14624,7 @@ namespace Test
                     pointD4D.Y = value;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.Y.set(double)");
+                ExecuteTest(method, "Y.set(double)");
             }
 
             {
@@ -14122,7 +14635,7 @@ namespace Test
                     _ = pointD4D.Z;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.Z.get()");
+                ExecuteTest(method, "Z.get()");
             }
 
             {
@@ -14134,7 +14647,7 @@ namespace Test
                     pointD4D.Z = value;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.Z.set(double)");
+                ExecuteTest(method, "Z.set(double)");
             }
 
             {
@@ -14145,7 +14658,7 @@ namespace Test
                     _ = pointD4D.U;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.U.get()");
+                ExecuteTest(method, "U.get()");
             }
 
             {
@@ -14157,7 +14670,7 @@ namespace Test
                     pointD4D.U = value;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.U.set(double)");
+                ExecuteTest(method, "U.set(double)");
             }
 
             // Dimension
@@ -14171,10 +14684,10 @@ namespace Test
                     _ = pointD4D.Dimension;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.Dimension.get()");
+                ExecuteTest(method, "Dimension.get()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // Is
@@ -14188,10 +14701,10 @@ namespace Test
                     _ = pointD4D.IsEmpty;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.IsEmpty.get()");
+                ExecuteTest(method, "IsEmpty.get()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -14203,7 +14716,7 @@ namespace Test
                     _ = pointD4D.IsZero;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.IsZero.get()");
+                ExecuteTest(method, "IsZero.get()");
             }
 #else
             {
@@ -14214,7 +14727,7 @@ namespace Test
                     _ = pointD4D.IsEmpty;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.IsEmpty.get()");
+                ExecuteTest(method, "IsEmpty.get()");
             }
 #endif
 
@@ -14227,10 +14740,10 @@ namespace Test
                     _ = pointD4D.IsReadOnly;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.IsReadOnly.get()");
+                ExecuteTest(method, "IsReadOnly.get()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -14242,10 +14755,10 @@ namespace Test
                     _ = pointD4D.IsFixedSize;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.IsFixedSize.get()");
+                ExecuteTest(method, "IsFixedSize.get()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             {
@@ -14256,7 +14769,7 @@ namespace Test
                     _ = pointD4D.IsNaN;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.IsNaN.get()");
+                ExecuteTest(method, "IsNaN.get()");
             }
 
             {
@@ -14267,7 +14780,7 @@ namespace Test
                     _ = pointD4D.IsInfinity;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.IsInfinity.get()");
+                ExecuteTest(method, "IsInfinity.get()");
             }
 
             {
@@ -14278,7 +14791,7 @@ namespace Test
                     _ = pointD4D.IsNaNOrInfinity;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.IsNaNOrInfinity.get()");
+                ExecuteTest(method, "IsNaNOrInfinity.get()");
             }
 
             // 模
@@ -14292,7 +14805,7 @@ namespace Test
                     _ = pointD4D.Module;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.Module.get()");
+                ExecuteTest(method, "Module.get()");
             }
 #else
             {
@@ -14303,7 +14816,7 @@ namespace Test
                     _ = pointD4D.VectorModule;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.VectorModule.get()");
+                ExecuteTest(method, "VectorModule.get()");
             }
 #endif
 
@@ -14316,7 +14829,7 @@ namespace Test
                     _ = pointD4D.ModuleSquared;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.ModuleSquared.get()");
+                ExecuteTest(method, "ModuleSquared.get()");
             }
 #else
             {
@@ -14327,7 +14840,7 @@ namespace Test
                     _ = pointD4D.VectorModuleSquared;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.VectorModuleSquared.get()");
+                ExecuteTest(method, "VectorModuleSquared.get()");
             }
 #endif
 
@@ -14342,7 +14855,7 @@ namespace Test
                     _ = pointD4D.Opposite;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.Opposite.get()");
+                ExecuteTest(method, "Opposite.get()");
             }
 #else
             {
@@ -14353,7 +14866,7 @@ namespace Test
                     _ = pointD4D.VectorNegate;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.VectorNegate.get()");
+                ExecuteTest(method, "VectorNegate.get()");
             }
 #endif
 
@@ -14366,7 +14879,7 @@ namespace Test
                     _ = pointD4D.Normalize;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.Normalize.get()");
+                ExecuteTest(method, "Normalize.get()");
             }
 #else
             {
@@ -14377,7 +14890,7 @@ namespace Test
                     _ = pointD4D.VectorNormalize;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.VectorNormalize.get()");
+                ExecuteTest(method, "VectorNormalize.get()");
             }
 #endif
 
@@ -14391,7 +14904,7 @@ namespace Test
                     _ = pointD4D.XYZ;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.XYZ.get()");
+                ExecuteTest(method, "XYZ.get()");
             }
 
             {
@@ -14403,7 +14916,7 @@ namespace Test
                     pointD4D.XYZ = value;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.XYZ.set(Com.PointD3D)");
+                ExecuteTest(method, "XYZ.set(Com.PointD3D)");
             }
 
             {
@@ -14414,7 +14927,7 @@ namespace Test
                     _ = pointD4D.YZU;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.YZU.get()");
+                ExecuteTest(method, "YZU.get()");
             }
 
             {
@@ -14426,7 +14939,7 @@ namespace Test
                     pointD4D.YZU = value;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.YZU.set(Com.PointD3D)");
+                ExecuteTest(method, "YZU.set(Com.PointD3D)");
             }
 
             {
@@ -14437,7 +14950,7 @@ namespace Test
                     _ = pointD4D.ZUX;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.ZUX.get()");
+                ExecuteTest(method, "ZUX.get()");
             }
 
             {
@@ -14449,7 +14962,7 @@ namespace Test
                     pointD4D.ZUX = value;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.ZUX.set(Com.PointD3D)");
+                ExecuteTest(method, "ZUX.set(Com.PointD3D)");
             }
 
             {
@@ -14460,7 +14973,7 @@ namespace Test
                     _ = pointD4D.UXY;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.UXY.get()");
+                ExecuteTest(method, "UXY.get()");
             }
 
             {
@@ -14472,7 +14985,7 @@ namespace Test
                     pointD4D.UXY = value;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.UXY.set(Com.PointD3D)");
+                ExecuteTest(method, "UXY.set(Com.PointD3D)");
             }
 
             // 角度
@@ -14486,7 +14999,7 @@ namespace Test
                     _ = pointD4D.AngleFromX;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.AngleFromX.get()");
+                ExecuteTest(method, "AngleFromX.get()");
             }
 #else
             {
@@ -14497,7 +15010,7 @@ namespace Test
                     _ = pointD4D.AngleX;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.AngleX.get()");
+                ExecuteTest(method, "AngleX.get()");
             }
 #endif
 
@@ -14510,7 +15023,7 @@ namespace Test
                     _ = pointD4D.AngleFromY;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.AngleFromY.get()");
+                ExecuteTest(method, "AngleFromY.get()");
             }
 #else
             {
@@ -14521,7 +15034,7 @@ namespace Test
                     _ = pointD4D.AngleY;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.AngleY.get()");
+                ExecuteTest(method, "AngleY.get()");
             }
 #endif
 
@@ -14534,7 +15047,7 @@ namespace Test
                     _ = pointD4D.AngleFromZ;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.AngleFromZ.get()");
+                ExecuteTest(method, "AngleFromZ.get()");
             }
 #else
             {
@@ -14545,7 +15058,7 @@ namespace Test
                     _ = pointD4D.AngleZ;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.AngleZ.get()");
+                ExecuteTest(method, "AngleZ.get()");
             }
 #endif
 
@@ -14558,7 +15071,7 @@ namespace Test
                     _ = pointD4D.AngleFromU;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.AngleFromU.get()");
+                ExecuteTest(method, "AngleFromU.get()");
             }
 #else
             {
@@ -14569,7 +15082,7 @@ namespace Test
                     _ = pointD4D.AngleU;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.AngleU.get()");
+                ExecuteTest(method, "AngleU.get()");
             }
 #endif
 
@@ -14582,7 +15095,7 @@ namespace Test
                     _ = pointD4D.AngleFromXYZ;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.AngleFromXYZ.get()");
+                ExecuteTest(method, "AngleFromXYZ.get()");
             }
 #else
             {
@@ -14593,7 +15106,7 @@ namespace Test
                     _ = pointD4D.AngleXYZ;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.AngleXYZ.get()");
+                ExecuteTest(method, "AngleXYZ.get()");
             }
 #endif
 
@@ -14606,7 +15119,7 @@ namespace Test
                     _ = pointD4D.AngleFromYZU;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.AngleFromYZU.get()");
+                ExecuteTest(method, "AngleFromYZU.get()");
             }
 #else
             {
@@ -14617,7 +15130,7 @@ namespace Test
                     _ = pointD4D.AngleYZU;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.AngleYZU.get()");
+                ExecuteTest(method, "AngleYZU.get()");
             }
 #endif
 
@@ -14630,7 +15143,7 @@ namespace Test
                     _ = pointD4D.AngleFromZUX;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.AngleFromZUX.get()");
+                ExecuteTest(method, "AngleFromZUX.get()");
             }
 #else
             {
@@ -14641,7 +15154,7 @@ namespace Test
                     _ = pointD4D.AngleZUX;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.AngleZUX.get()");
+                ExecuteTest(method, "AngleZUX.get()");
             }
 #endif
 
@@ -14654,7 +15167,7 @@ namespace Test
                     _ = pointD4D.AngleFromUXY;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.AngleFromUXY.get()");
+                ExecuteTest(method, "AngleFromUXY.get()");
             }
 #else
             {
@@ -14665,7 +15178,7 @@ namespace Test
                     _ = pointD4D.AngleUXY;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.AngleUXY.get()");
+                ExecuteTest(method, "AngleUXY.get()");
             }
 #endif
         }
@@ -14688,7 +15201,7 @@ namespace Test
                     _ = pointD4D.Equals(obj);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.Equals(object)");
+                ExecuteTest(method, "Equals(object)");
             }
 
             {
@@ -14699,7 +15212,7 @@ namespace Test
                     _ = pointD4D.GetHashCode();
                 };
 
-                ExecuteTest(method, "Com.PointD4D.GetHashCode()");
+                ExecuteTest(method, "GetHashCode()");
             }
 
             {
@@ -14710,7 +15223,7 @@ namespace Test
                     _ = pointD4D.ToString();
                 };
 
-                ExecuteTest(method, "Com.PointD4D.ToString()");
+                ExecuteTest(method, "ToString()");
             }
 
             // Equals
@@ -14724,7 +15237,7 @@ namespace Test
                     _ = left.Equals(right);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.Equals(Com.PointD4D)");
+                ExecuteTest(method, "Equals(Com.PointD4D)");
             }
 
             // CompareTo
@@ -14739,10 +15252,10 @@ namespace Test
                     _ = pointD4D.CompareTo(obj);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.CompareTo(object)");
+                ExecuteTest(method, "CompareTo(object)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -14755,10 +15268,10 @@ namespace Test
                     _ = left.CompareTo(right);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.CompareTo(Com.PointD4D)");
+                ExecuteTest(method, "CompareTo(Com.PointD4D)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // 检索
@@ -14773,10 +15286,10 @@ namespace Test
                     _ = pointD4D.IndexOf(item);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.IndexOf(double)");
+                ExecuteTest(method, "IndexOf(double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -14790,10 +15303,10 @@ namespace Test
                     _ = pointD4D.IndexOf(item, startIndex);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.IndexOf(double, int)");
+                ExecuteTest(method, "IndexOf(double, int)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -14808,10 +15321,10 @@ namespace Test
                     _ = pointD4D.IndexOf(item, startIndex, count);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.IndexOf(double, int, int)");
+                ExecuteTest(method, "IndexOf(double, int, int)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -14824,10 +15337,10 @@ namespace Test
                     _ = pointD4D.LastIndexOf(item);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.LastIndexOf(double)");
+                ExecuteTest(method, "LastIndexOf(double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -14841,10 +15354,10 @@ namespace Test
                     _ = pointD4D.LastIndexOf(item, startIndex);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.LastIndexOf(double, int)");
+                ExecuteTest(method, "LastIndexOf(double, int)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -14859,10 +15372,10 @@ namespace Test
                     _ = pointD4D.LastIndexOf(item, startIndex, count);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.LastIndexOf(double, int, int)");
+                ExecuteTest(method, "LastIndexOf(double, int, int)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -14875,10 +15388,10 @@ namespace Test
                     _ = pointD4D.Contains(item);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.Contains(double)");
+                ExecuteTest(method, "Contains(double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // ToArray，ToList
@@ -14891,7 +15404,7 @@ namespace Test
                     _ = pointD4D.ToArray();
                 };
 
-                ExecuteTest(method, "Com.PointD4D.ToArray()");
+                ExecuteTest(method, "ToArray()");
             }
 
 #if ComVer1905
@@ -14903,10 +15416,10 @@ namespace Test
                     _ = pointD4D.ToList();
                 };
 
-                ExecuteTest(method, "Com.PointD4D.ToList()");
+                ExecuteTest(method, "ToList()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // 坐标系转换
@@ -14919,7 +15432,7 @@ namespace Test
                     _ = pointD4D.ToSpherical();
                 };
 
-                ExecuteTest(method, "Com.PointD4D.ToSpherical()");
+                ExecuteTest(method, "ToSpherical()");
             }
 
             {
@@ -14930,7 +15443,7 @@ namespace Test
                     _ = pointD4D.ToCartesian();
                 };
 
-                ExecuteTest(method, "Com.PointD4D.ToCartesian()");
+                ExecuteTest(method, "ToCartesian()");
             }
 
             // 距离与夹角
@@ -14944,7 +15457,7 @@ namespace Test
                     _ = pointD4D.DistanceFrom(pt);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.DistanceFrom(Com.PointD4D)");
+                ExecuteTest(method, "DistanceFrom(Com.PointD4D)");
             }
 
             {
@@ -14956,7 +15469,7 @@ namespace Test
                     _ = pointD4D.AngleFrom(pt);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.AngleFrom(Com.PointD4D)");
+                ExecuteTest(method, "AngleFrom(Com.PointD4D)");
             }
 
             // Offset
@@ -14970,7 +15483,7 @@ namespace Test
                     pointD4D.Offset(d);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.Offset(double)");
+                ExecuteTest(method, "Offset(double)");
             }
 
             {
@@ -14985,7 +15498,7 @@ namespace Test
                     pointD4D.Offset(dx, dy, dz, du);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.Offset(double, double, double, double)");
+                ExecuteTest(method, "Offset(double, double, double, double)");
             }
 
             {
@@ -14997,7 +15510,7 @@ namespace Test
                     pointD4D.Offset(pt);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.Offset(Com.PointD4D)");
+                ExecuteTest(method, "Offset(Com.PointD4D)");
             }
 
             {
@@ -15009,7 +15522,7 @@ namespace Test
                     _ = pointD4D.OffsetCopy(d);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.OffsetCopy(double)");
+                ExecuteTest(method, "OffsetCopy(double)");
             }
 
             {
@@ -15024,7 +15537,7 @@ namespace Test
                     _ = pointD4D.OffsetCopy(dx, dy, dz, du);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.OffsetCopy(double, double, double, double)");
+                ExecuteTest(method, "OffsetCopy(double, double, double, double)");
             }
 
             {
@@ -15036,7 +15549,7 @@ namespace Test
                     _ = pointD4D.OffsetCopy(pt);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.OffsetCopy(Com.PointD4D)");
+                ExecuteTest(method, "OffsetCopy(Com.PointD4D)");
             }
 
             // Scale
@@ -15050,7 +15563,7 @@ namespace Test
                     pointD4D.Scale(s);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.Scale(double)");
+                ExecuteTest(method, "Scale(double)");
             }
 
             {
@@ -15065,7 +15578,7 @@ namespace Test
                     pointD4D.Scale(sx, sy, sz, su);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.Scale(double, double, double, double)");
+                ExecuteTest(method, "Scale(double, double, double, double)");
             }
 
             {
@@ -15077,7 +15590,7 @@ namespace Test
                     pointD4D.Scale(pt);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.Scale(Com.PointD4D)");
+                ExecuteTest(method, "Scale(Com.PointD4D)");
             }
 
             {
@@ -15089,7 +15602,7 @@ namespace Test
                     _ = pointD4D.ScaleCopy(s);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.ScaleCopy(double)");
+                ExecuteTest(method, "ScaleCopy(double)");
             }
 
             {
@@ -15104,7 +15617,7 @@ namespace Test
                     _ = pointD4D.ScaleCopy(sx, sy, sz, su);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.ScaleCopy(double, double, double, double)");
+                ExecuteTest(method, "ScaleCopy(double, double, double, double)");
             }
 
             {
@@ -15116,7 +15629,7 @@ namespace Test
                     _ = pointD4D.ScaleCopy(pt);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.ScaleCopy(Com.PointD4D)");
+                ExecuteTest(method, "ScaleCopy(Com.PointD4D)");
             }
 
             // Reflect
@@ -15131,10 +15644,10 @@ namespace Test
                     pointD4D.Reflect(index);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.Reflect(int)");
+                ExecuteTest(method, "Reflect(int)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -15147,10 +15660,10 @@ namespace Test
                     _ = pointD4D.ReflectCopy(index);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.ReflectCopy(int)");
+                ExecuteTest(method, "ReflectCopy(int)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // Shear
@@ -15168,10 +15681,10 @@ namespace Test
                     pointD4D.Shear(index1, index2, angle);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.Shear(int, int, double)");
+                ExecuteTest(method, "Shear(int, int, double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -15187,10 +15700,10 @@ namespace Test
                     _ = pointD4D.ShearCopy(index1, index2, angle);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.ShearCopy(int, int, double)");
+                ExecuteTest(method, "ShearCopy(int, int, double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // Rotate
@@ -15208,10 +15721,10 @@ namespace Test
                     pointD4D.Rotate(index1, index2, angle);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.Rotate(int, int, double)");
+                ExecuteTest(method, "Rotate(int, int, double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -15227,10 +15740,10 @@ namespace Test
                     _ = pointD4D.RotateCopy(index1, index2, angle);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.RotateCopy(int, int, double)");
+                ExecuteTest(method, "RotateCopy(int, int, double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // Affine
@@ -15248,7 +15761,7 @@ namespace Test
                     pointD4D.AffineTransform(ex, ey, ez, eu, offset);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.AffineTransform(Com.PointD4D, Com.PointD4D, Com.PointD4D, Com.PointD4D, Com.PointD4D)");
+                ExecuteTest(method, "AffineTransform(Com.PointD4D, Com.PointD4D, Com.PointD4D, Com.PointD4D, Com.PointD4D)");
             }
 
             {
@@ -15260,7 +15773,7 @@ namespace Test
                     pointD4D.AffineTransform(matrixLeft);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.AffineTransform(Com.Matrix)");
+                ExecuteTest(method, "AffineTransform(Com.Matrix)");
             }
 
 #if ComVer1910
@@ -15280,10 +15793,10 @@ namespace Test
                     pointD4D.AffineTransform(matricesLeft);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.AffineTransform(param Com.Matrix[])", "total 8 matrices");
+                ExecuteTest(method, "AffineTransform(param Com.Matrix[])", "total 8 matrices");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
 
             {
@@ -15300,7 +15813,7 @@ namespace Test
                     pointD4D.AffineTransform(matrixLeftList);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.AffineTransform(System.Collections.Generic.List<Com.Matrix>)", "total 8 matrices");
+                ExecuteTest(method, "AffineTransform(System.Collections.Generic.List<Com.Matrix>)", "total 8 matrices");
             }
 
             {
@@ -15316,7 +15829,7 @@ namespace Test
                     _ = pointD4D.AffineTransformCopy(ex, ey, ez, eu, offset);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.AffineTransformCopy(Com.PointD4D, Com.PointD4D, Com.PointD4D, Com.PointD4D, Com.PointD4D)");
+                ExecuteTest(method, "AffineTransformCopy(Com.PointD4D, Com.PointD4D, Com.PointD4D, Com.PointD4D, Com.PointD4D)");
             }
 
             {
@@ -15328,7 +15841,7 @@ namespace Test
                     _ = pointD4D.AffineTransformCopy(matrixLeft);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.AffineTransformCopy(Com.Matrix)");
+                ExecuteTest(method, "AffineTransformCopy(Com.Matrix)");
             }
 
 #if ComVer1910
@@ -15348,10 +15861,10 @@ namespace Test
                     _ = pointD4D.AffineTransformCopy(matricesLeft);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.AffineTransformCopy(param Com.Matrix[])", "total 8 matrices");
+                ExecuteTest(method, "AffineTransformCopy(param Com.Matrix[])", "total 8 matrices");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
 
             {
@@ -15368,7 +15881,7 @@ namespace Test
                     _ = pointD4D.AffineTransformCopy(matrixLeftList);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.AffineTransformCopy(System.Collections.Generic.List<Com.Matrix>)", "total 8 matrices");
+                ExecuteTest(method, "AffineTransformCopy(System.Collections.Generic.List<Com.Matrix>)", "total 8 matrices");
             }
 
             {
@@ -15384,7 +15897,7 @@ namespace Test
                     pointD4D.InverseAffineTransform(ex, ey, ez, eu, offset);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.InverseAffineTransform(Com.PointD4D, Com.PointD4D, Com.PointD4D, Com.PointD4D, Com.PointD4D)");
+                ExecuteTest(method, "InverseAffineTransform(Com.PointD4D, Com.PointD4D, Com.PointD4D, Com.PointD4D, Com.PointD4D)");
             }
 
             {
@@ -15396,7 +15909,7 @@ namespace Test
                     pointD4D.InverseAffineTransform(matrixLeft);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.InverseAffineTransform(Com.Matrix)");
+                ExecuteTest(method, "InverseAffineTransform(Com.Matrix)");
             }
 
 #if ComVer1910
@@ -15416,10 +15929,10 @@ namespace Test
                     pointD4D.InverseAffineTransform(matricesLeft);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.InverseAffineTransform(param Com.Matrix[])", "total 8 matrices");
+                ExecuteTest(method, "InverseAffineTransform(param Com.Matrix[])", "total 8 matrices");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
 
             {
@@ -15436,7 +15949,7 @@ namespace Test
                     pointD4D.InverseAffineTransform(matrixLeftList);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.InverseAffineTransform(System.Collections.Generic.List<Com.Matrix>)", "total 8 matrices");
+                ExecuteTest(method, "InverseAffineTransform(System.Collections.Generic.List<Com.Matrix>)", "total 8 matrices");
             }
 
             {
@@ -15452,7 +15965,7 @@ namespace Test
                     _ = pointD4D.InverseAffineTransformCopy(ex, ey, ez, eu, offset);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.InverseAffineTransformCopy(Com.PointD4D, Com.PointD4D, Com.PointD4D, Com.PointD4D, Com.PointD4D)");
+                ExecuteTest(method, "InverseAffineTransformCopy(Com.PointD4D, Com.PointD4D, Com.PointD4D, Com.PointD4D, Com.PointD4D)");
             }
 
             {
@@ -15464,7 +15977,7 @@ namespace Test
                     _ = pointD4D.InverseAffineTransformCopy(matrixLeft);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.InverseAffineTransformCopy(Com.Matrix)");
+                ExecuteTest(method, "InverseAffineTransformCopy(Com.Matrix)");
             }
 
 #if ComVer1910
@@ -15484,10 +15997,10 @@ namespace Test
                     _ = pointD4D.InverseAffineTransformCopy(matricesLeft);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.InverseAffineTransformCopy(param Com.Matrix[])", "total 8 matrices");
+                ExecuteTest(method, "InverseAffineTransformCopy(param Com.Matrix[])", "total 8 matrices");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
 
             {
@@ -15504,7 +16017,7 @@ namespace Test
                     _ = pointD4D.InverseAffineTransformCopy(matrixLeftList);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.InverseAffineTransformCopy(System.Collections.Generic.List<Com.Matrix>)", "total 8 matrices");
+                ExecuteTest(method, "InverseAffineTransformCopy(System.Collections.Generic.List<Com.Matrix>)", "total 8 matrices");
             }
 
             // Project
@@ -15519,7 +16032,7 @@ namespace Test
                     _ = pointD4D.ProjectToXYZ(prjCenter, focalLength);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.ProjectToXYZ(Com.PointD4D, double)");
+                ExecuteTest(method, "ProjectToXYZ(Com.PointD4D, double)");
             }
 
             {
@@ -15532,7 +16045,7 @@ namespace Test
                     _ = pointD4D.ProjectToYZU(prjCenter, focalLength);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.ProjectToYZU(Com.PointD4D, double)");
+                ExecuteTest(method, "ProjectToYZU(Com.PointD4D, double)");
             }
 
             {
@@ -15545,7 +16058,7 @@ namespace Test
                     _ = pointD4D.ProjectToZUX(prjCenter, focalLength);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.ProjectToZUX(Com.PointD4D, double)");
+                ExecuteTest(method, "ProjectToZUX(Com.PointD4D, double)");
             }
 
             {
@@ -15558,7 +16071,7 @@ namespace Test
                     _ = pointD4D.ProjectToUXY(prjCenter, focalLength);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.ProjectToUXY(Com.PointD4D, double)");
+                ExecuteTest(method, "ProjectToUXY(Com.PointD4D, double)");
             }
 
             // ToVector
@@ -15572,7 +16085,7 @@ namespace Test
                     _ = pointD4D.ToColumnVector();
                 };
 
-                ExecuteTest(method, "Com.PointD4D.ToColumnVector()");
+                ExecuteTest(method, "ToColumnVector()");
             }
 #else
             {
@@ -15583,7 +16096,7 @@ namespace Test
                     _ = pointD4D.ToVectorColumn();
                 };
 
-                ExecuteTest(method, "Com.PointD4D.ToVectorColumn()");
+                ExecuteTest(method, "ToVectorColumn()");
             }
 #endif
 
@@ -15596,7 +16109,7 @@ namespace Test
                     _ = pointD4D.ToRowVector();
                 };
 
-                ExecuteTest(method, "Com.PointD4D.ToRowVector()");
+                ExecuteTest(method, "ToRowVector()");
             }
 #else
             {
@@ -15607,7 +16120,7 @@ namespace Test
                     _ = pointD4D.ToVectorRow();
                 };
 
-                ExecuteTest(method, "Com.PointD4D.ToVectorRow()");
+                ExecuteTest(method, "ToVectorRow()");
             }
 #endif
         }
@@ -15625,7 +16138,7 @@ namespace Test
                     _ = Com.PointD4D.Equals(left, right);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.Equals(Com.PointD4D, Com.PointD4D)");
+                ExecuteTest(method, "Equals(Com.PointD4D, Com.PointD4D)");
             }
 
             // Compare
@@ -15640,10 +16153,10 @@ namespace Test
                     _ = Com.PointD4D.Compare(left, right);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.Compare(Com.PointD4D, Com.PointD4D)");
+                ExecuteTest(method, "Compare(Com.PointD4D, Com.PointD4D)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // From
@@ -15657,10 +16170,10 @@ namespace Test
                     _ = Com.PointD4D.FromVector(vector);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.FromVector(Com.Vector)");
+                ExecuteTest(method, "FromVector(Com.Vector)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
 
             // Matrix
@@ -15671,7 +16184,7 @@ namespace Test
                     _ = Com.PointD4D.IdentityMatrix();
                 };
 
-                ExecuteTest(method, "Com.PointD4D.IdentityMatrix()");
+                ExecuteTest(method, "IdentityMatrix()");
             }
 
             {
@@ -15682,7 +16195,7 @@ namespace Test
                     _ = Com.PointD4D.OffsetMatrix(d);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.OffsetMatrix(double)");
+                ExecuteTest(method, "OffsetMatrix(double)");
             }
 
             {
@@ -15696,7 +16209,7 @@ namespace Test
                     _ = Com.PointD4D.OffsetMatrix(dx, dy, dz, du);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.OffsetMatrix(double, double, double, double)");
+                ExecuteTest(method, "OffsetMatrix(double, double, double, double)");
             }
 
             {
@@ -15707,7 +16220,7 @@ namespace Test
                     _ = Com.PointD4D.OffsetMatrix(pt);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.OffsetMatrix(Com.PointD4D)");
+                ExecuteTest(method, "OffsetMatrix(Com.PointD4D)");
             }
 
             {
@@ -15718,7 +16231,7 @@ namespace Test
                     _ = Com.PointD4D.ScaleMatrix(s);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.ScaleMatrix(double)");
+                ExecuteTest(method, "ScaleMatrix(double)");
             }
 
             {
@@ -15732,7 +16245,7 @@ namespace Test
                     _ = Com.PointD4D.ScaleMatrix(sx, sy, sz, su);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.ScaleMatrix(double, double, double, double)");
+                ExecuteTest(method, "ScaleMatrix(double, double, double, double)");
             }
 
             {
@@ -15743,7 +16256,7 @@ namespace Test
                     _ = Com.PointD4D.ScaleMatrix(pt);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.ScaleMatrix(Com.PointD4D)");
+                ExecuteTest(method, "ScaleMatrix(Com.PointD4D)");
             }
 
 #if ComVer1905
@@ -15755,10 +16268,10 @@ namespace Test
                     _ = Com.PointD4D.ReflectMatrix(index);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.ReflectMatrix(int)");
+                ExecuteTest(method, "ReflectMatrix(int)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -15773,10 +16286,10 @@ namespace Test
                     _ = Com.PointD4D.ShearMatrix(index1, index2, angle);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.ShearMatrix(int, int, double)");
+                ExecuteTest(method, "ShearMatrix(int, int, double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -15791,10 +16304,10 @@ namespace Test
                     _ = Com.PointD4D.RotateMatrix(index1, index2, angle);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.RotateMatrix(int, int, double)");
+                ExecuteTest(method, "RotateMatrix(int, int, double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // 距离与夹角
@@ -15808,7 +16321,7 @@ namespace Test
                     _ = Com.PointD4D.DistanceBetween(left, right);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.DistanceBetween(Com.PointD4D, Com.PointD4D)");
+                ExecuteTest(method, "DistanceBetween(Com.PointD4D, Com.PointD4D)");
             }
 
             {
@@ -15820,7 +16333,7 @@ namespace Test
                     _ = Com.PointD4D.AngleBetween(left, right);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.AngleBetween(Com.PointD4D, Com.PointD4D)");
+                ExecuteTest(method, "AngleBetween(Com.PointD4D, Com.PointD4D)");
             }
 
             // 向量乘积
@@ -15834,7 +16347,7 @@ namespace Test
                     _ = Com.PointD4D.DotProduct(left, right);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.DotProduct(Com.PointD4D, Com.PointD4D)");
+                ExecuteTest(method, "DotProduct(Com.PointD4D, Com.PointD4D)");
             }
 
             {
@@ -15846,7 +16359,7 @@ namespace Test
                     _ = Com.PointD4D.CrossProduct(left, right);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.CrossProduct(Com.PointD4D, Com.PointD4D)");
+                ExecuteTest(method, "CrossProduct(Com.PointD4D, Com.PointD4D)");
             }
 
             // 初等函数
@@ -15859,7 +16372,7 @@ namespace Test
                     _ = Com.PointD4D.Abs(pointD4D);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.Abs(Com.PointD4D)");
+                ExecuteTest(method, "Abs(Com.PointD4D)");
             }
 
             {
@@ -15870,7 +16383,7 @@ namespace Test
                     _ = Com.PointD4D.Sign(pointD4D);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.Sign(Com.PointD4D)");
+                ExecuteTest(method, "Sign(Com.PointD4D)");
             }
 
             {
@@ -15881,7 +16394,7 @@ namespace Test
                     _ = Com.PointD4D.Ceiling(pointD4D);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.Ceiling(Com.PointD4D)");
+                ExecuteTest(method, "Ceiling(Com.PointD4D)");
             }
 
             {
@@ -15892,7 +16405,7 @@ namespace Test
                     _ = Com.PointD4D.Floor(pointD4D);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.Floor(Com.PointD4D)");
+                ExecuteTest(method, "Floor(Com.PointD4D)");
             }
 
             {
@@ -15903,7 +16416,7 @@ namespace Test
                     _ = Com.PointD4D.Round(pointD4D);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.Round(Com.PointD4D)");
+                ExecuteTest(method, "Round(Com.PointD4D)");
             }
 
             {
@@ -15914,7 +16427,7 @@ namespace Test
                     _ = Com.PointD4D.Truncate(pointD4D);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.Truncate(Com.PointD4D)");
+                ExecuteTest(method, "Truncate(Com.PointD4D)");
             }
 
             {
@@ -15926,7 +16439,7 @@ namespace Test
                     _ = Com.PointD4D.Max(left, right);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.Max(Com.PointD4D, Com.PointD4D)");
+                ExecuteTest(method, "Max(Com.PointD4D, Com.PointD4D)");
             }
 
             {
@@ -15938,7 +16451,7 @@ namespace Test
                     _ = Com.PointD4D.Min(left, right);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.Min(Com.PointD4D, Com.PointD4D)");
+                ExecuteTest(method, "Min(Com.PointD4D, Com.PointD4D)");
             }
         }
 
@@ -15955,7 +16468,7 @@ namespace Test
                     _ = (left == right);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.operator ==(Com.PointD4D, Com.PointD4D)");
+                ExecuteTest(method, "operator ==(Com.PointD4D, Com.PointD4D)");
             }
 
             {
@@ -15967,7 +16480,7 @@ namespace Test
                     _ = (left != right);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.operator !=(Com.PointD4D, Com.PointD4D)");
+                ExecuteTest(method, "operator !=(Com.PointD4D, Com.PointD4D)");
             }
 
             {
@@ -15979,7 +16492,7 @@ namespace Test
                     _ = (left < right);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.operator <(Com.PointD4D, Com.PointD4D)");
+                ExecuteTest(method, "operator <(Com.PointD4D, Com.PointD4D)");
             }
 
             {
@@ -15991,7 +16504,7 @@ namespace Test
                     _ = (left > right);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.operator >(Com.PointD4D, Com.PointD4D)");
+                ExecuteTest(method, "operator >(Com.PointD4D, Com.PointD4D)");
             }
 
             {
@@ -16003,7 +16516,7 @@ namespace Test
                     _ = (left <= right);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.operator <=(Com.PointD4D, Com.PointD4D)");
+                ExecuteTest(method, "operator <=(Com.PointD4D, Com.PointD4D)");
             }
 
             {
@@ -16015,7 +16528,7 @@ namespace Test
                     _ = (left >= right);
                 };
 
-                ExecuteTest(method, "Com.PointD4D.operator >=(Com.PointD4D, Com.PointD4D)");
+                ExecuteTest(method, "operator >=(Com.PointD4D, Com.PointD4D)");
             }
 
             // 运算
@@ -16028,7 +16541,7 @@ namespace Test
                     _ = +pointD4D;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.operator +(Com.PointD4D)");
+                ExecuteTest(method, "operator +(Com.PointD4D)");
             }
 
             {
@@ -16039,7 +16552,7 @@ namespace Test
                     _ = -pointD4D;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.operator -(Com.PointD4D)");
+                ExecuteTest(method, "operator -(Com.PointD4D)");
             }
 
             {
@@ -16051,7 +16564,7 @@ namespace Test
                     _ = pt + n;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.operator +(Com.PointD4D, double)");
+                ExecuteTest(method, "operator +(Com.PointD4D, double)");
             }
 
             {
@@ -16063,7 +16576,7 @@ namespace Test
                     _ = n + pt;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.operator +(double, Com.PointD4D)");
+                ExecuteTest(method, "operator +(double, Com.PointD4D)");
             }
 
             {
@@ -16075,7 +16588,7 @@ namespace Test
                     _ = left + right;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.operator +(Com.PointD4D, Com.PointD4D)");
+                ExecuteTest(method, "operator +(Com.PointD4D, Com.PointD4D)");
             }
 
             {
@@ -16087,7 +16600,7 @@ namespace Test
                     _ = pt - n;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.operator -(Com.PointD4D, double)");
+                ExecuteTest(method, "operator -(Com.PointD4D, double)");
             }
 
             {
@@ -16099,7 +16612,7 @@ namespace Test
                     _ = n - pt;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.operator -(double, Com.PointD4D)");
+                ExecuteTest(method, "operator -(double, Com.PointD4D)");
             }
 
             {
@@ -16111,7 +16624,7 @@ namespace Test
                     _ = left - right;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.operator -(Com.PointD4D, Com.PointD4D)");
+                ExecuteTest(method, "operator -(Com.PointD4D, Com.PointD4D)");
             }
 
             {
@@ -16123,7 +16636,7 @@ namespace Test
                     _ = pt * n;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.operator *(Com.PointD4D, double)");
+                ExecuteTest(method, "operator *(Com.PointD4D, double)");
             }
 
             {
@@ -16135,7 +16648,7 @@ namespace Test
                     _ = n * pt;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.operator *(double, Com.PointD4D)");
+                ExecuteTest(method, "operator *(double, Com.PointD4D)");
             }
 
             {
@@ -16147,7 +16660,7 @@ namespace Test
                     _ = left * right;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.operator *(Com.PointD4D, Com.PointD4D)");
+                ExecuteTest(method, "operator *(Com.PointD4D, Com.PointD4D)");
             }
 
             {
@@ -16159,7 +16672,7 @@ namespace Test
                     _ = pt / n;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.operator /(Com.PointD4D, double)");
+                ExecuteTest(method, "operator /(Com.PointD4D, double)");
             }
 
             {
@@ -16171,7 +16684,7 @@ namespace Test
                     _ = n / pt;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.operator /(double, Com.PointD4D)");
+                ExecuteTest(method, "operator /(double, Com.PointD4D)");
             }
 
             {
@@ -16183,13 +16696,43 @@ namespace Test
                     _ = left / right;
                 };
 
-                ExecuteTest(method, "Com.PointD4D.operator /(Com.PointD4D, Com.PointD4D)");
+                ExecuteTest(method, "operator /(Com.PointD4D, Com.PointD4D)");
             }
         }
     }
 
     sealed class PointD5DTest : ClassPerfTestBase
     {
+        private const string _NamespaceName = "Com";
+        private const string _ClassName = "PointD5D";
+
+        private void ExecuteTest(Action method, string methodName, string comment)
+        {
+            base.ExecuteTest(method, _NamespaceName, _ClassName, methodName, comment);
+        }
+
+        private void ExecuteTest(Action method, string methodName)
+        {
+            base.ExecuteTest(method, _NamespaceName, _ClassName, methodName);
+        }
+
+        private void ExecuteTest(string methodName, UnsupportedReason unsupportedReason)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, methodName, unsupportedReason);
+        }
+
+        private void ExecuteTest(string methodName)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, methodName);
+        }
+
+        private void ExecuteTest(UnsupportedReason unsupportedReason)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, string.Empty, unsupportedReason);
+        }
+
+        //
+
         private static Com.PointD5D _GetRandomPointD5D()
         {
             return new Com.PointD5D(Com.Statistics.RandomDouble(-1E18, 1E18), Com.Statistics.RandomDouble(-1E18, 1E18), Com.Statistics.RandomDouble(-1E18, 1E18), Com.Statistics.RandomDouble(-1E18, 1E18), Com.Statistics.RandomDouble(-1E18, 1E18));
@@ -16251,7 +16794,7 @@ namespace Test
                     _ = new Com.PointD5D(x, y, z, u, v);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.PointD5D(double, double, double, double, double)");
+                ExecuteTest(method, "PointD5D(double, double, double, double, double)");
             }
         }
 
@@ -16268,7 +16811,7 @@ namespace Test
                     _ = pointD5D[index];
                 };
 
-                ExecuteTest(method, "Com.PointD5D.this[int].get()");
+                ExecuteTest(method, "this[int].get()");
             }
 
             {
@@ -16281,7 +16824,7 @@ namespace Test
                     pointD5D[index] = value;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.this[int].set(double)");
+                ExecuteTest(method, "this[int].set(double)");
             }
 
             // 分量
@@ -16294,7 +16837,7 @@ namespace Test
                     _ = pointD5D.X;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.X.get()");
+                ExecuteTest(method, "X.get()");
             }
 
             {
@@ -16306,7 +16849,7 @@ namespace Test
                     pointD5D.X = value;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.X.set(double)");
+                ExecuteTest(method, "X.set(double)");
             }
 
             {
@@ -16317,7 +16860,7 @@ namespace Test
                     _ = pointD5D.Y;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.Y.get()");
+                ExecuteTest(method, "Y.get()");
             }
 
             {
@@ -16329,7 +16872,7 @@ namespace Test
                     pointD5D.Y = value;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.Y.set(double)");
+                ExecuteTest(method, "Y.set(double)");
             }
 
             {
@@ -16340,7 +16883,7 @@ namespace Test
                     _ = pointD5D.Z;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.Z.get()");
+                ExecuteTest(method, "Z.get()");
             }
 
             {
@@ -16352,7 +16895,7 @@ namespace Test
                     pointD5D.Z = value;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.Z.set(double)");
+                ExecuteTest(method, "Z.set(double)");
             }
 
             {
@@ -16363,7 +16906,7 @@ namespace Test
                     _ = pointD5D.U;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.U.get()");
+                ExecuteTest(method, "U.get()");
             }
 
             {
@@ -16375,7 +16918,7 @@ namespace Test
                     pointD5D.U = value;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.U.set(double)");
+                ExecuteTest(method, "U.set(double)");
             }
 
             {
@@ -16386,7 +16929,7 @@ namespace Test
                     _ = pointD5D.V;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.V.get()");
+                ExecuteTest(method, "V.get()");
             }
 
             {
@@ -16398,7 +16941,7 @@ namespace Test
                     pointD5D.V = value;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.V.set(double)");
+                ExecuteTest(method, "V.set(double)");
             }
 
             // Dimension
@@ -16412,10 +16955,10 @@ namespace Test
                     _ = pointD5D.Dimension;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.Dimension.get()");
+                ExecuteTest(method, "Dimension.get()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // Is
@@ -16429,10 +16972,10 @@ namespace Test
                     _ = pointD5D.IsEmpty;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.IsEmpty.get()");
+                ExecuteTest(method, "IsEmpty.get()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -16444,7 +16987,7 @@ namespace Test
                     _ = pointD5D.IsZero;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.IsZero.get()");
+                ExecuteTest(method, "IsZero.get()");
             }
 #else
             {
@@ -16455,7 +16998,7 @@ namespace Test
                     _ = pointD5D.IsEmpty;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.IsEmpty.get()");
+                ExecuteTest(method, "IsEmpty.get()");
             }
 #endif
 
@@ -16468,10 +17011,10 @@ namespace Test
                     _ = pointD5D.IsReadOnly;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.IsReadOnly.get()");
+                ExecuteTest(method, "IsReadOnly.get()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -16483,10 +17026,10 @@ namespace Test
                     _ = pointD5D.IsFixedSize;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.IsFixedSize.get()");
+                ExecuteTest(method, "IsFixedSize.get()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             {
@@ -16497,7 +17040,7 @@ namespace Test
                     _ = pointD5D.IsNaN;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.IsNaN.get()");
+                ExecuteTest(method, "IsNaN.get()");
             }
 
             {
@@ -16508,7 +17051,7 @@ namespace Test
                     _ = pointD5D.IsInfinity;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.IsInfinity.get()");
+                ExecuteTest(method, "IsInfinity.get()");
             }
 
             {
@@ -16519,7 +17062,7 @@ namespace Test
                     _ = pointD5D.IsNaNOrInfinity;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.IsNaNOrInfinity.get()");
+                ExecuteTest(method, "IsNaNOrInfinity.get()");
             }
 
             // 模
@@ -16533,7 +17076,7 @@ namespace Test
                     _ = pointD5D.Module;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.Module.get()");
+                ExecuteTest(method, "Module.get()");
             }
 #else
             {
@@ -16544,7 +17087,7 @@ namespace Test
                     _ = pointD5D.VectorModule;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.VectorModule.get()");
+                ExecuteTest(method, "VectorModule.get()");
             }
 #endif
 
@@ -16557,7 +17100,7 @@ namespace Test
                     _ = pointD5D.ModuleSquared;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.ModuleSquared.get()");
+                ExecuteTest(method, "ModuleSquared.get()");
             }
 #else
             {
@@ -16568,7 +17111,7 @@ namespace Test
                     _ = pointD5D.VectorModuleSquared;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.VectorModuleSquared.get()");
+                ExecuteTest(method, "VectorModuleSquared.get()");
             }
 #endif
 
@@ -16583,7 +17126,7 @@ namespace Test
                     _ = pointD5D.Opposite;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.Opposite.get()");
+                ExecuteTest(method, "Opposite.get()");
             }
 #else
             {
@@ -16594,7 +17137,7 @@ namespace Test
                     _ = pointD5D.VectorNegate;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.VectorNegate.get()");
+                ExecuteTest(method, "VectorNegate.get()");
             }
 #endif
 
@@ -16607,7 +17150,7 @@ namespace Test
                     _ = pointD5D.Normalize;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.Normalize.get()");
+                ExecuteTest(method, "Normalize.get()");
             }
 #else
             {
@@ -16618,7 +17161,7 @@ namespace Test
                     _ = pointD5D.VectorNormalize;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.VectorNormalize.get()");
+                ExecuteTest(method, "VectorNormalize.get()");
             }
 #endif
 
@@ -16632,7 +17175,7 @@ namespace Test
                     _ = pointD5D.XYZU;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.XYZU.get()");
+                ExecuteTest(method, "XYZU.get()");
             }
 
             {
@@ -16644,7 +17187,7 @@ namespace Test
                     pointD5D.XYZU = value;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.XYZU.set(Com.PointD4D)");
+                ExecuteTest(method, "XYZU.set(Com.PointD4D)");
             }
 
             {
@@ -16655,7 +17198,7 @@ namespace Test
                     _ = pointD5D.YZUV;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.YZUV.get()");
+                ExecuteTest(method, "YZUV.get()");
             }
 
             {
@@ -16667,7 +17210,7 @@ namespace Test
                     pointD5D.YZUV = value;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.YZUV.set(Com.PointD4D)");
+                ExecuteTest(method, "YZUV.set(Com.PointD4D)");
             }
 
             {
@@ -16678,7 +17221,7 @@ namespace Test
                     _ = pointD5D.ZUVX;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.ZUVX.get()");
+                ExecuteTest(method, "ZUVX.get()");
             }
 
             {
@@ -16690,7 +17233,7 @@ namespace Test
                     pointD5D.ZUVX = value;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.ZUVX.set(Com.PointD4D)");
+                ExecuteTest(method, "ZUVX.set(Com.PointD4D)");
             }
 
             {
@@ -16701,7 +17244,7 @@ namespace Test
                     _ = pointD5D.UVXY;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.UVXY.get()");
+                ExecuteTest(method, "UVXY.get()");
             }
 
             {
@@ -16713,7 +17256,7 @@ namespace Test
                     pointD5D.UVXY = value;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.UVXY.set(Com.PointD4D)");
+                ExecuteTest(method, "UVXY.set(Com.PointD4D)");
             }
 
             {
@@ -16724,7 +17267,7 @@ namespace Test
                     _ = pointD5D.VXYZ;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.VXYZ.get()");
+                ExecuteTest(method, "VXYZ.get()");
             }
 
             {
@@ -16736,7 +17279,7 @@ namespace Test
                     pointD5D.VXYZ = value;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.VXYZ.set(Com.PointD4D)");
+                ExecuteTest(method, "VXYZ.set(Com.PointD4D)");
             }
 
             // 角度
@@ -16750,7 +17293,7 @@ namespace Test
                     _ = pointD5D.AngleFromX;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.AngleFromX.get()");
+                ExecuteTest(method, "AngleFromX.get()");
             }
 #else
             {
@@ -16761,7 +17304,7 @@ namespace Test
                     _ = pointD5D.AngleX;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.AngleX.get()");
+                ExecuteTest(method, "AngleX.get()");
             }
 #endif
 
@@ -16774,7 +17317,7 @@ namespace Test
                     _ = pointD5D.AngleFromY;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.AngleFromY.get()");
+                ExecuteTest(method, "AngleFromY.get()");
             }
 #else
             {
@@ -16785,7 +17328,7 @@ namespace Test
                     _ = pointD5D.AngleY;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.AngleY.get()");
+                ExecuteTest(method, "AngleY.get()");
             }
 #endif
 
@@ -16798,7 +17341,7 @@ namespace Test
                     _ = pointD5D.AngleFromZ;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.AngleFromZ.get()");
+                ExecuteTest(method, "AngleFromZ.get()");
             }
 #else
             {
@@ -16809,7 +17352,7 @@ namespace Test
                     _ = pointD5D.AngleZ;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.AngleZ.get()");
+                ExecuteTest(method, "AngleZ.get()");
             }
 #endif
 
@@ -16822,7 +17365,7 @@ namespace Test
                     _ = pointD5D.AngleFromU;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.AngleFromU.get()");
+                ExecuteTest(method, "AngleFromU.get()");
             }
 #else
             {
@@ -16833,7 +17376,7 @@ namespace Test
                     _ = pointD5D.AngleU;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.AngleU.get()");
+                ExecuteTest(method, "AngleU.get()");
             }
 #endif
 
@@ -16846,7 +17389,7 @@ namespace Test
                     _ = pointD5D.AngleFromV;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.AngleFromV.get()");
+                ExecuteTest(method, "AngleFromV.get()");
             }
 #else
             {
@@ -16857,7 +17400,7 @@ namespace Test
                     _ = pointD5D.AngleV;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.AngleV.get()");
+                ExecuteTest(method, "AngleV.get()");
             }
 #endif
 
@@ -16870,7 +17413,7 @@ namespace Test
                     _ = pointD5D.AngleFromXYZU;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.AngleFromXYZU.get()");
+                ExecuteTest(method, "AngleFromXYZU.get()");
             }
 #else
             {
@@ -16881,7 +17424,7 @@ namespace Test
                     _ = pointD5D.AngleXYZU;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.AngleXYZU.get()");
+                ExecuteTest(method, "AngleXYZU.get()");
             }
 #endif
 
@@ -16894,7 +17437,7 @@ namespace Test
                     _ = pointD5D.AngleFromYZUV;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.AngleFromYZUV.get()");
+                ExecuteTest(method, "AngleFromYZUV.get()");
             }
 #else
             {
@@ -16905,7 +17448,7 @@ namespace Test
                     _ = pointD5D.AngleYZUV;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.AngleYZUV.get()");
+                ExecuteTest(method, "AngleYZUV.get()");
             }
 #endif
 
@@ -16918,7 +17461,7 @@ namespace Test
                     _ = pointD5D.AngleFromZUVX;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.AngleFromZUVX.get()");
+                ExecuteTest(method, "AngleFromZUVX.get()");
             }
 #else
             {
@@ -16929,7 +17472,7 @@ namespace Test
                     _ = pointD5D.AngleZUVX;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.AngleZUVX.get()");
+                ExecuteTest(method, "AngleZUVX.get()");
             }
 #endif
 
@@ -16942,7 +17485,7 @@ namespace Test
                     _ = pointD5D.AngleFromUVXY;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.AngleFromUVXY.get()");
+                ExecuteTest(method, "AngleFromUVXY.get()");
             }
 #else
             {
@@ -16953,7 +17496,7 @@ namespace Test
                     _ = pointD5D.AngleUVXY;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.AngleUVXY.get()");
+                ExecuteTest(method, "AngleUVXY.get()");
             }
 #endif
 
@@ -16966,7 +17509,7 @@ namespace Test
                     _ = pointD5D.AngleFromVXYZ;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.AngleFromVXYZ.get()");
+                ExecuteTest(method, "AngleFromVXYZ.get()");
             }
 #else
             {
@@ -16977,7 +17520,7 @@ namespace Test
                     _ = pointD5D.AngleVXYZ;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.AngleVXYZ.get()");
+                ExecuteTest(method, "AngleVXYZ.get()");
             }
 #endif
         }
@@ -17000,7 +17543,7 @@ namespace Test
                     _ = pointD5D.Equals(obj);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.Equals(object)");
+                ExecuteTest(method, "Equals(object)");
             }
 
             {
@@ -17011,7 +17554,7 @@ namespace Test
                     _ = pointD5D.GetHashCode();
                 };
 
-                ExecuteTest(method, "Com.PointD5D.GetHashCode()");
+                ExecuteTest(method, "GetHashCode()");
             }
 
             {
@@ -17022,7 +17565,7 @@ namespace Test
                     _ = pointD5D.ToString();
                 };
 
-                ExecuteTest(method, "Com.PointD5D.ToString()");
+                ExecuteTest(method, "ToString()");
             }
 
             // Equals
@@ -17036,7 +17579,7 @@ namespace Test
                     _ = left.Equals(right);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.Equals(Com.PointD5D)");
+                ExecuteTest(method, "Equals(Com.PointD5D)");
             }
 
             // CompareTo
@@ -17051,10 +17594,10 @@ namespace Test
                     _ = pointD5D.CompareTo(obj);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.CompareTo(object)");
+                ExecuteTest(method, "CompareTo(object)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -17067,10 +17610,10 @@ namespace Test
                     _ = left.CompareTo(right);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.CompareTo(Com.PointD5D)");
+                ExecuteTest(method, "CompareTo(Com.PointD5D)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // 检索
@@ -17085,10 +17628,10 @@ namespace Test
                     _ = pointD5D.IndexOf(item);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.IndexOf(double)");
+                ExecuteTest(method, "IndexOf(double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -17102,10 +17645,10 @@ namespace Test
                     _ = pointD5D.IndexOf(item, startIndex);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.IndexOf(double, int)");
+                ExecuteTest(method, "IndexOf(double, int)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -17120,10 +17663,10 @@ namespace Test
                     _ = pointD5D.IndexOf(item, startIndex, count);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.IndexOf(double, int, int)");
+                ExecuteTest(method, "IndexOf(double, int, int)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -17136,10 +17679,10 @@ namespace Test
                     _ = pointD5D.LastIndexOf(item);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.LastIndexOf(double)");
+                ExecuteTest(method, "LastIndexOf(double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -17153,10 +17696,10 @@ namespace Test
                     _ = pointD5D.LastIndexOf(item, startIndex);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.LastIndexOf(double, int)");
+                ExecuteTest(method, "LastIndexOf(double, int)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -17171,10 +17714,10 @@ namespace Test
                     _ = pointD5D.LastIndexOf(item, startIndex, count);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.LastIndexOf(double, int, int)");
+                ExecuteTest(method, "LastIndexOf(double, int, int)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -17187,10 +17730,10 @@ namespace Test
                     _ = pointD5D.Contains(item);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.Contains(double)");
+                ExecuteTest(method, "Contains(double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // ToArray，ToList
@@ -17203,7 +17746,7 @@ namespace Test
                     _ = pointD5D.ToArray();
                 };
 
-                ExecuteTest(method, "Com.PointD5D.ToArray()");
+                ExecuteTest(method, "ToArray()");
             }
 
 #if ComVer1905
@@ -17215,10 +17758,10 @@ namespace Test
                     _ = pointD5D.ToList();
                 };
 
-                ExecuteTest(method, "Com.PointD5D.ToList()");
+                ExecuteTest(method, "ToList()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // 坐标系转换
@@ -17231,7 +17774,7 @@ namespace Test
                     _ = pointD5D.ToSpherical();
                 };
 
-                ExecuteTest(method, "Com.PointD5D.ToSpherical()");
+                ExecuteTest(method, "ToSpherical()");
             }
 
             {
@@ -17242,7 +17785,7 @@ namespace Test
                     _ = pointD5D.ToCartesian();
                 };
 
-                ExecuteTest(method, "Com.PointD5D.ToCartesian()");
+                ExecuteTest(method, "ToCartesian()");
             }
 
             // 距离与夹角
@@ -17256,7 +17799,7 @@ namespace Test
                     _ = pointD5D.DistanceFrom(pt);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.DistanceFrom(Com.PointD5D)");
+                ExecuteTest(method, "DistanceFrom(Com.PointD5D)");
             }
 
             {
@@ -17268,7 +17811,7 @@ namespace Test
                     _ = pointD5D.AngleFrom(pt);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.AngleFrom(Com.PointD5D)");
+                ExecuteTest(method, "AngleFrom(Com.PointD5D)");
             }
 
             // Offset
@@ -17282,7 +17825,7 @@ namespace Test
                     pointD5D.Offset(d);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.Offset(double)");
+                ExecuteTest(method, "Offset(double)");
             }
 
             {
@@ -17298,7 +17841,7 @@ namespace Test
                     pointD5D.Offset(dx, dy, dz, du, dv);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.Offset(double, double, double, double, double)");
+                ExecuteTest(method, "Offset(double, double, double, double, double)");
             }
 
             {
@@ -17310,7 +17853,7 @@ namespace Test
                     pointD5D.Offset(pt);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.Offset(Com.PointD5D)");
+                ExecuteTest(method, "Offset(Com.PointD5D)");
             }
 
             {
@@ -17322,7 +17865,7 @@ namespace Test
                     _ = pointD5D.OffsetCopy(d);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.OffsetCopy(double)");
+                ExecuteTest(method, "OffsetCopy(double)");
             }
 
             {
@@ -17338,7 +17881,7 @@ namespace Test
                     _ = pointD5D.OffsetCopy(dx, dy, dz, du, dv);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.OffsetCopy(double, double, double, double, double)");
+                ExecuteTest(method, "OffsetCopy(double, double, double, double, double)");
             }
 
             {
@@ -17350,7 +17893,7 @@ namespace Test
                     _ = pointD5D.OffsetCopy(pt);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.OffsetCopy(Com.PointD5D)");
+                ExecuteTest(method, "OffsetCopy(Com.PointD5D)");
             }
 
             // Scale
@@ -17364,7 +17907,7 @@ namespace Test
                     pointD5D.Scale(s);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.Scale(double)");
+                ExecuteTest(method, "Scale(double)");
             }
 
             {
@@ -17380,7 +17923,7 @@ namespace Test
                     pointD5D.Scale(sx, sy, sz, su, sv);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.Scale(double, double, double, double, double)");
+                ExecuteTest(method, "Scale(double, double, double, double, double)");
             }
 
             {
@@ -17392,7 +17935,7 @@ namespace Test
                     pointD5D.Scale(pt);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.Scale(Com.PointD5D)");
+                ExecuteTest(method, "Scale(Com.PointD5D)");
             }
 
             {
@@ -17404,7 +17947,7 @@ namespace Test
                     _ = pointD5D.ScaleCopy(s);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.ScaleCopy(double)");
+                ExecuteTest(method, "ScaleCopy(double)");
             }
 
             {
@@ -17420,7 +17963,7 @@ namespace Test
                     _ = pointD5D.ScaleCopy(sx, sy, sz, su, sv);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.ScaleCopy(double, double, double, double, double)");
+                ExecuteTest(method, "ScaleCopy(double, double, double, double, double)");
             }
 
             {
@@ -17432,7 +17975,7 @@ namespace Test
                     _ = pointD5D.ScaleCopy(pt);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.ScaleCopy(Com.PointD5D)");
+                ExecuteTest(method, "ScaleCopy(Com.PointD5D)");
             }
 
             // Reflect
@@ -17447,10 +17990,10 @@ namespace Test
                     pointD5D.Reflect(index);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.Reflect(int)");
+                ExecuteTest(method, "Reflect(int)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -17463,10 +18006,10 @@ namespace Test
                     _ = pointD5D.ReflectCopy(index);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.ReflectCopy(int)");
+                ExecuteTest(method, "ReflectCopy(int)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // Shear
@@ -17484,10 +18027,10 @@ namespace Test
                     pointD5D.Shear(index1, index2, angle);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.Shear(int, int, double)");
+                ExecuteTest(method, "Shear(int, int, double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -17503,10 +18046,10 @@ namespace Test
                     _ = pointD5D.ShearCopy(index1, index2, angle);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.ShearCopy(int, int, double)");
+                ExecuteTest(method, "ShearCopy(int, int, double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // Rotate
@@ -17524,10 +18067,10 @@ namespace Test
                     pointD5D.Rotate(index1, index2, angle);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.Rotate(int, int, double)");
+                ExecuteTest(method, "Rotate(int, int, double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -17543,10 +18086,10 @@ namespace Test
                     _ = pointD5D.RotateCopy(index1, index2, angle);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.RotateCopy(int, int, double)");
+                ExecuteTest(method, "RotateCopy(int, int, double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // Affine
@@ -17565,7 +18108,7 @@ namespace Test
                     pointD5D.AffineTransform(ex, ey, ez, eu, ev, offset);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.AffineTransform(Com.PointD5D, Com.PointD5D, Com.PointD5D, Com.PointD5D, Com.PointD5D, Com.PointD5D)");
+                ExecuteTest(method, "AffineTransform(Com.PointD5D, Com.PointD5D, Com.PointD5D, Com.PointD5D, Com.PointD5D, Com.PointD5D)");
             }
 
             {
@@ -17577,7 +18120,7 @@ namespace Test
                     pointD5D.AffineTransform(matrixLeft);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.AffineTransform(Com.Matrix)");
+                ExecuteTest(method, "AffineTransform(Com.Matrix)");
             }
 
 #if ComVer1910
@@ -17597,10 +18140,10 @@ namespace Test
                     pointD5D.AffineTransform(matricesLeft);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.AffineTransform(param Com.Matrix[])", "total 8 matrices");
+                ExecuteTest(method, "AffineTransform(param Com.Matrix[])", "total 8 matrices");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
 
             {
@@ -17617,7 +18160,7 @@ namespace Test
                     pointD5D.AffineTransform(matrixLeftList);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.AffineTransform(System.Collections.Generic.List<Com.Matrix>)", "total 8 matrices");
+                ExecuteTest(method, "AffineTransform(System.Collections.Generic.List<Com.Matrix>)", "total 8 matrices");
             }
 
             {
@@ -17634,7 +18177,7 @@ namespace Test
                     _ = pointD5D.AffineTransformCopy(ex, ey, ez, eu, ev, offset);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.AffineTransformCopy(Com.PointD5D, Com.PointD5D, Com.PointD5D, Com.PointD5D, Com.PointD5D, Com.PointD5D)");
+                ExecuteTest(method, "AffineTransformCopy(Com.PointD5D, Com.PointD5D, Com.PointD5D, Com.PointD5D, Com.PointD5D, Com.PointD5D)");
             }
 
             {
@@ -17646,7 +18189,7 @@ namespace Test
                     _ = pointD5D.AffineTransformCopy(matrixLeft);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.AffineTransformCopy(Com.Matrix)");
+                ExecuteTest(method, "AffineTransformCopy(Com.Matrix)");
             }
 
 #if ComVer1910
@@ -17666,10 +18209,10 @@ namespace Test
                     _ = pointD5D.AffineTransformCopy(matricesLeft);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.AffineTransformCopy(param Com.Matrix[])", "total 8 matrices");
+                ExecuteTest(method, "AffineTransformCopy(param Com.Matrix[])", "total 8 matrices");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
 
             {
@@ -17686,7 +18229,7 @@ namespace Test
                     _ = pointD5D.AffineTransformCopy(matrixLeftList);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.AffineTransformCopy(System.Collections.Generic.List<Com.Matrix>)", "total 8 matrices");
+                ExecuteTest(method, "AffineTransformCopy(System.Collections.Generic.List<Com.Matrix>)", "total 8 matrices");
             }
 
             {
@@ -17703,7 +18246,7 @@ namespace Test
                     pointD5D.InverseAffineTransform(ex, ey, ez, eu, ev, offset);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.InverseAffineTransform(Com.PointD5D, Com.PointD5D, Com.PointD5D, Com.PointD5D, Com.PointD5D, Com.PointD5D)");
+                ExecuteTest(method, "InverseAffineTransform(Com.PointD5D, Com.PointD5D, Com.PointD5D, Com.PointD5D, Com.PointD5D, Com.PointD5D)");
             }
 
             {
@@ -17715,7 +18258,7 @@ namespace Test
                     pointD5D.InverseAffineTransform(matrixLeft);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.InverseAffineTransform(Com.Matrix)");
+                ExecuteTest(method, "InverseAffineTransform(Com.Matrix)");
             }
 
 #if ComVer1910
@@ -17735,10 +18278,10 @@ namespace Test
                     pointD5D.InverseAffineTransform(matricesLeft);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.InverseAffineTransform(param Com.Matrix[])", "total 8 matrices");
+                ExecuteTest(method, "InverseAffineTransform(param Com.Matrix[])", "total 8 matrices");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
 
             {
@@ -17755,7 +18298,7 @@ namespace Test
                     pointD5D.InverseAffineTransform(matrixLeftList);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.InverseAffineTransform(System.Collections.Generic.List<Com.Matrix>)", "total 8 matrices");
+                ExecuteTest(method, "InverseAffineTransform(System.Collections.Generic.List<Com.Matrix>)", "total 8 matrices");
             }
 
             {
@@ -17772,7 +18315,7 @@ namespace Test
                     _ = pointD5D.InverseAffineTransformCopy(ex, ey, ez, eu, ev, offset);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.InverseAffineTransformCopy(Com.PointD5D, Com.PointD5D, Com.PointD5D, Com.PointD5D, Com.PointD5D, Com.PointD5D)");
+                ExecuteTest(method, "InverseAffineTransformCopy(Com.PointD5D, Com.PointD5D, Com.PointD5D, Com.PointD5D, Com.PointD5D, Com.PointD5D)");
             }
 
             {
@@ -17784,7 +18327,7 @@ namespace Test
                     _ = pointD5D.InverseAffineTransformCopy(matrixLeft);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.InverseAffineTransformCopy(Com.Matrix)");
+                ExecuteTest(method, "InverseAffineTransformCopy(Com.Matrix)");
             }
 
 #if ComVer1910
@@ -17804,10 +18347,10 @@ namespace Test
                     _ = pointD5D.InverseAffineTransformCopy(matricesLeft);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.InverseAffineTransformCopy(param Com.Matrix[])", "total 8 matrices");
+                ExecuteTest(method, "InverseAffineTransformCopy(param Com.Matrix[])", "total 8 matrices");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
 
             {
@@ -17824,7 +18367,7 @@ namespace Test
                     _ = pointD5D.InverseAffineTransformCopy(matrixLeftList);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.InverseAffineTransformCopy(System.Collections.Generic.List<Com.Matrix>)", "total 8 matrices");
+                ExecuteTest(method, "InverseAffineTransformCopy(System.Collections.Generic.List<Com.Matrix>)", "total 8 matrices");
             }
 
             // Project
@@ -17839,7 +18382,7 @@ namespace Test
                     _ = pointD5D.ProjectToXYZU(prjCenter, focalLength);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.ProjectToXYZU(Com.PointD5D, double)");
+                ExecuteTest(method, "ProjectToXYZU(Com.PointD5D, double)");
             }
 
             {
@@ -17852,7 +18395,7 @@ namespace Test
                     _ = pointD5D.ProjectToYZUV(prjCenter, focalLength);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.ProjectToYZUV(Com.PointD5D, double)");
+                ExecuteTest(method, "ProjectToYZUV(Com.PointD5D, double)");
             }
 
             {
@@ -17865,7 +18408,7 @@ namespace Test
                     _ = pointD5D.ProjectToZUVX(prjCenter, focalLength);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.ProjectToZUVX(Com.PointD5D, double)");
+                ExecuteTest(method, "ProjectToZUVX(Com.PointD5D, double)");
             }
 
             {
@@ -17878,7 +18421,7 @@ namespace Test
                     _ = pointD5D.ProjectToUVXY(prjCenter, focalLength);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.ProjectToUVXY(Com.PointD5D, double)");
+                ExecuteTest(method, "ProjectToUVXY(Com.PointD5D, double)");
             }
 
             {
@@ -17891,7 +18434,7 @@ namespace Test
                     _ = pointD5D.ProjectToVXYZ(prjCenter, focalLength);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.ProjectToVXYZ(Com.PointD5D, double)");
+                ExecuteTest(method, "ProjectToVXYZ(Com.PointD5D, double)");
             }
 
             // ToVector
@@ -17905,7 +18448,7 @@ namespace Test
                     _ = pointD5D.ToColumnVector();
                 };
 
-                ExecuteTest(method, "Com.PointD5D.ToColumnVector()");
+                ExecuteTest(method, "ToColumnVector()");
             }
 #else
             {
@@ -17916,7 +18459,7 @@ namespace Test
                     _ = pointD5D.ToVectorColumn();
                 };
 
-                ExecuteTest(method, "Com.PointD5D.ToVectorColumn()");
+                ExecuteTest(method, "ToVectorColumn()");
             }
 #endif
 
@@ -17929,7 +18472,7 @@ namespace Test
                     _ = pointD5D.ToRowVector();
                 };
 
-                ExecuteTest(method, "Com.PointD5D.ToRowVector()");
+                ExecuteTest(method, "ToRowVector()");
             }
 #else
             {
@@ -17940,7 +18483,7 @@ namespace Test
                     _ = pointD5D.ToVectorRow();
                 };
 
-                ExecuteTest(method, "Com.PointD5D.ToVectorRow()");
+                ExecuteTest(method, "ToVectorRow()");
             }
 #endif
         }
@@ -17958,7 +18501,7 @@ namespace Test
                     _ = Com.PointD5D.Equals(left, right);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.Equals(Com.PointD5D, Com.PointD5D)");
+                ExecuteTest(method, "Equals(Com.PointD5D, Com.PointD5D)");
             }
 
             // Compare
@@ -17973,10 +18516,10 @@ namespace Test
                     _ = Com.PointD5D.Compare(left, right);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.Compare(Com.PointD5D, Com.PointD5D)");
+                ExecuteTest(method, "Compare(Com.PointD5D, Com.PointD5D)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // From
@@ -17990,10 +18533,10 @@ namespace Test
                     _ = Com.PointD5D.FromVector(vector);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.FromVector(Com.Vector)");
+                ExecuteTest(method, "FromVector(Com.Vector)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
 
             // Matrix
@@ -18004,7 +18547,7 @@ namespace Test
                     _ = Com.PointD5D.IdentityMatrix();
                 };
 
-                ExecuteTest(method, "Com.PointD5D.IdentityMatrix()");
+                ExecuteTest(method, "IdentityMatrix()");
             }
 
             {
@@ -18015,7 +18558,7 @@ namespace Test
                     _ = Com.PointD5D.OffsetMatrix(d);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.OffsetMatrix(double)");
+                ExecuteTest(method, "OffsetMatrix(double)");
             }
 
             {
@@ -18030,7 +18573,7 @@ namespace Test
                     _ = Com.PointD5D.OffsetMatrix(dx, dy, dz, du, dv);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.OffsetMatrix(double, double, double, double, double)");
+                ExecuteTest(method, "OffsetMatrix(double, double, double, double, double)");
             }
 
             {
@@ -18041,7 +18584,7 @@ namespace Test
                     _ = Com.PointD5D.OffsetMatrix(pt);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.OffsetMatrix(Com.PointD5D)");
+                ExecuteTest(method, "OffsetMatrix(Com.PointD5D)");
             }
 
             {
@@ -18052,7 +18595,7 @@ namespace Test
                     _ = Com.PointD5D.ScaleMatrix(s);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.ScaleMatrix(double)");
+                ExecuteTest(method, "ScaleMatrix(double)");
             }
 
             {
@@ -18067,7 +18610,7 @@ namespace Test
                     _ = Com.PointD5D.ScaleMatrix(sx, sy, sz, su, sv);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.ScaleMatrix(double, double, double, double, double)");
+                ExecuteTest(method, "ScaleMatrix(double, double, double, double, double)");
             }
 
             {
@@ -18078,7 +18621,7 @@ namespace Test
                     _ = Com.PointD5D.ScaleMatrix(pt);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.ScaleMatrix(Com.PointD5D)");
+                ExecuteTest(method, "ScaleMatrix(Com.PointD5D)");
             }
 
 #if ComVer1905
@@ -18090,10 +18633,10 @@ namespace Test
                     _ = Com.PointD5D.ReflectMatrix(index);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.ReflectMatrix(int)");
+                ExecuteTest(method, "ReflectMatrix(int)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -18108,10 +18651,10 @@ namespace Test
                     _ = Com.PointD5D.ShearMatrix(index1, index2, angle);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.ShearMatrix(int, int, double)");
+                ExecuteTest(method, "ShearMatrix(int, int, double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -18126,10 +18669,10 @@ namespace Test
                     _ = Com.PointD5D.RotateMatrix(index1, index2, angle);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.RotateMatrix(int, int, double)");
+                ExecuteTest(method, "RotateMatrix(int, int, double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // 距离与夹角
@@ -18143,7 +18686,7 @@ namespace Test
                     _ = Com.PointD5D.DistanceBetween(left, right);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.DistanceBetween(Com.PointD5D, Com.PointD5D)");
+                ExecuteTest(method, "DistanceBetween(Com.PointD5D, Com.PointD5D)");
             }
 
             {
@@ -18155,7 +18698,7 @@ namespace Test
                     _ = Com.PointD5D.AngleBetween(left, right);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.AngleBetween(Com.PointD5D, Com.PointD5D)");
+                ExecuteTest(method, "AngleBetween(Com.PointD5D, Com.PointD5D)");
             }
 
             // 向量乘积
@@ -18169,7 +18712,7 @@ namespace Test
                     _ = Com.PointD5D.DotProduct(left, right);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.DotProduct(Com.PointD5D, Com.PointD5D)");
+                ExecuteTest(method, "DotProduct(Com.PointD5D, Com.PointD5D)");
             }
 
             {
@@ -18181,7 +18724,7 @@ namespace Test
                     _ = Com.PointD5D.CrossProduct(left, right);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.CrossProduct(Com.PointD5D, Com.PointD5D)");
+                ExecuteTest(method, "CrossProduct(Com.PointD5D, Com.PointD5D)");
             }
 
             // 初等函数
@@ -18194,7 +18737,7 @@ namespace Test
                     _ = Com.PointD5D.Abs(pointD5D);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.Abs(Com.PointD5D)");
+                ExecuteTest(method, "Abs(Com.PointD5D)");
             }
 
             {
@@ -18205,7 +18748,7 @@ namespace Test
                     _ = Com.PointD5D.Sign(pointD5D);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.Sign(Com.PointD5D)");
+                ExecuteTest(method, "Sign(Com.PointD5D)");
             }
 
             {
@@ -18216,7 +18759,7 @@ namespace Test
                     _ = Com.PointD5D.Ceiling(pointD5D);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.Ceiling(Com.PointD5D)");
+                ExecuteTest(method, "Ceiling(Com.PointD5D)");
             }
 
             {
@@ -18227,7 +18770,7 @@ namespace Test
                     _ = Com.PointD5D.Floor(pointD5D);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.Floor(Com.PointD5D)");
+                ExecuteTest(method, "Floor(Com.PointD5D)");
             }
 
             {
@@ -18238,7 +18781,7 @@ namespace Test
                     _ = Com.PointD5D.Round(pointD5D);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.Round(Com.PointD5D)");
+                ExecuteTest(method, "Round(Com.PointD5D)");
             }
 
             {
@@ -18249,7 +18792,7 @@ namespace Test
                     _ = Com.PointD5D.Truncate(pointD5D);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.Truncate(Com.PointD5D)");
+                ExecuteTest(method, "Truncate(Com.PointD5D)");
             }
 
             {
@@ -18261,7 +18804,7 @@ namespace Test
                     _ = Com.PointD5D.Max(left, right);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.Max(Com.PointD5D, Com.PointD5D)");
+                ExecuteTest(method, "Max(Com.PointD5D, Com.PointD5D)");
             }
 
             {
@@ -18273,7 +18816,7 @@ namespace Test
                     _ = Com.PointD5D.Min(left, right);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.Min(Com.PointD5D, Com.PointD5D)");
+                ExecuteTest(method, "Min(Com.PointD5D, Com.PointD5D)");
             }
         }
 
@@ -18290,7 +18833,7 @@ namespace Test
                     _ = (left == right);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.operator ==(Com.PointD5D, Com.PointD5D)");
+                ExecuteTest(method, "operator ==(Com.PointD5D, Com.PointD5D)");
             }
 
             {
@@ -18302,7 +18845,7 @@ namespace Test
                     _ = (left != right);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.operator !=(Com.PointD5D, Com.PointD5D)");
+                ExecuteTest(method, "operator !=(Com.PointD5D, Com.PointD5D)");
             }
 
             {
@@ -18314,7 +18857,7 @@ namespace Test
                     _ = (left < right);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.operator <(Com.PointD5D, Com.PointD5D)");
+                ExecuteTest(method, "operator <(Com.PointD5D, Com.PointD5D)");
             }
 
             {
@@ -18326,7 +18869,7 @@ namespace Test
                     _ = (left > right);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.operator >(Com.PointD5D, Com.PointD5D)");
+                ExecuteTest(method, "operator >(Com.PointD5D, Com.PointD5D)");
             }
 
             {
@@ -18338,7 +18881,7 @@ namespace Test
                     _ = (left <= right);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.operator <=(Com.PointD5D, Com.PointD5D)");
+                ExecuteTest(method, "operator <=(Com.PointD5D, Com.PointD5D)");
             }
 
             {
@@ -18350,7 +18893,7 @@ namespace Test
                     _ = (left >= right);
                 };
 
-                ExecuteTest(method, "Com.PointD5D.operator >=(Com.PointD5D, Com.PointD5D)");
+                ExecuteTest(method, "operator >=(Com.PointD5D, Com.PointD5D)");
             }
 
             // 运算
@@ -18363,7 +18906,7 @@ namespace Test
                     _ = +pointD5D;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.operator +(Com.PointD5D)");
+                ExecuteTest(method, "operator +(Com.PointD5D)");
             }
 
             {
@@ -18374,7 +18917,7 @@ namespace Test
                     _ = -pointD5D;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.operator -(Com.PointD5D)");
+                ExecuteTest(method, "operator -(Com.PointD5D)");
             }
 
             {
@@ -18386,7 +18929,7 @@ namespace Test
                     _ = pt + n;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.operator +(Com.PointD5D, double)");
+                ExecuteTest(method, "operator +(Com.PointD5D, double)");
             }
 
             {
@@ -18398,7 +18941,7 @@ namespace Test
                     _ = n + pt;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.operator +(double, Com.PointD5D)");
+                ExecuteTest(method, "operator +(double, Com.PointD5D)");
             }
 
             {
@@ -18410,7 +18953,7 @@ namespace Test
                     _ = left + right;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.operator +(Com.PointD5D, Com.PointD5D)");
+                ExecuteTest(method, "operator +(Com.PointD5D, Com.PointD5D)");
             }
 
             {
@@ -18422,7 +18965,7 @@ namespace Test
                     _ = pt - n;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.operator -(Com.PointD5D, double)");
+                ExecuteTest(method, "operator -(Com.PointD5D, double)");
             }
 
             {
@@ -18434,7 +18977,7 @@ namespace Test
                     _ = n - pt;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.operator -(double, Com.PointD5D)");
+                ExecuteTest(method, "operator -(double, Com.PointD5D)");
             }
 
             {
@@ -18446,7 +18989,7 @@ namespace Test
                     _ = left - right;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.operator -(Com.PointD5D, Com.PointD5D)");
+                ExecuteTest(method, "operator -(Com.PointD5D, Com.PointD5D)");
             }
 
             {
@@ -18458,7 +19001,7 @@ namespace Test
                     _ = pt * n;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.operator *(Com.PointD5D, double)");
+                ExecuteTest(method, "operator *(Com.PointD5D, double)");
             }
 
             {
@@ -18470,7 +19013,7 @@ namespace Test
                     _ = n * pt;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.operator *(double, Com.PointD5D)");
+                ExecuteTest(method, "operator *(double, Com.PointD5D)");
             }
 
             {
@@ -18482,7 +19025,7 @@ namespace Test
                     _ = left * right;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.operator *(Com.PointD5D, Com.PointD5D)");
+                ExecuteTest(method, "operator *(Com.PointD5D, Com.PointD5D)");
             }
 
             {
@@ -18494,7 +19037,7 @@ namespace Test
                     _ = pt / n;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.operator /(Com.PointD5D, double)");
+                ExecuteTest(method, "operator /(Com.PointD5D, double)");
             }
 
             {
@@ -18506,7 +19049,7 @@ namespace Test
                     _ = n / pt;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.operator /(double, Com.PointD5D)");
+                ExecuteTest(method, "operator /(double, Com.PointD5D)");
             }
 
             {
@@ -18518,13 +19061,43 @@ namespace Test
                     _ = left / right;
                 };
 
-                ExecuteTest(method, "Com.PointD5D.operator /(Com.PointD5D, Com.PointD5D)");
+                ExecuteTest(method, "operator /(Com.PointD5D, Com.PointD5D)");
             }
         }
     }
 
     sealed class PointD6DTest : ClassPerfTestBase
     {
+        private const string _NamespaceName = "Com";
+        private const string _ClassName = "PointD6D";
+
+        private void ExecuteTest(Action method, string methodName, string comment)
+        {
+            base.ExecuteTest(method, _NamespaceName, _ClassName, methodName, comment);
+        }
+
+        private void ExecuteTest(Action method, string methodName)
+        {
+            base.ExecuteTest(method, _NamespaceName, _ClassName, methodName);
+        }
+
+        private void ExecuteTest(string methodName, UnsupportedReason unsupportedReason)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, methodName, unsupportedReason);
+        }
+
+        private void ExecuteTest(string methodName)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, methodName);
+        }
+
+        private void ExecuteTest(UnsupportedReason unsupportedReason)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, string.Empty, unsupportedReason);
+        }
+
+        //
+
         private static Com.PointD6D _GetRandomPointD6D()
         {
             return new Com.PointD6D(Com.Statistics.RandomDouble(-1E18, 1E18), Com.Statistics.RandomDouble(-1E18, 1E18), Com.Statistics.RandomDouble(-1E18, 1E18), Com.Statistics.RandomDouble(-1E18, 1E18), Com.Statistics.RandomDouble(-1E18, 1E18), Com.Statistics.RandomDouble(-1E18, 1E18));
@@ -18587,7 +19160,7 @@ namespace Test
                     _ = new Com.PointD6D(x, y, z, u, v, w);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.PointD6D(double, double, double, double, double, double)");
+                ExecuteTest(method, "PointD6D(double, double, double, double, double, double)");
             }
         }
 
@@ -18604,7 +19177,7 @@ namespace Test
                     _ = pointD6D[index];
                 };
 
-                ExecuteTest(method, "Com.PointD6D.this[int].get()");
+                ExecuteTest(method, "this[int].get()");
             }
 
             {
@@ -18617,7 +19190,7 @@ namespace Test
                     pointD6D[index] = value;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.this[int].set(double)");
+                ExecuteTest(method, "this[int].set(double)");
             }
 
             // 分量
@@ -18630,7 +19203,7 @@ namespace Test
                     _ = pointD6D.X;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.X.get()");
+                ExecuteTest(method, "X.get()");
             }
 
             {
@@ -18642,7 +19215,7 @@ namespace Test
                     pointD6D.X = value;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.X.set(double)");
+                ExecuteTest(method, "X.set(double)");
             }
 
             {
@@ -18653,7 +19226,7 @@ namespace Test
                     _ = pointD6D.Y;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.Y.get()");
+                ExecuteTest(method, "Y.get()");
             }
 
             {
@@ -18665,7 +19238,7 @@ namespace Test
                     pointD6D.Y = value;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.Y.set(double)");
+                ExecuteTest(method, "Y.set(double)");
             }
 
             {
@@ -18676,7 +19249,7 @@ namespace Test
                     _ = pointD6D.Z;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.Z.get()");
+                ExecuteTest(method, "Z.get()");
             }
 
             {
@@ -18688,7 +19261,7 @@ namespace Test
                     pointD6D.Z = value;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.Z.set(double)");
+                ExecuteTest(method, "Z.set(double)");
             }
 
             {
@@ -18699,7 +19272,7 @@ namespace Test
                     _ = pointD6D.U;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.U.get()");
+                ExecuteTest(method, "U.get()");
             }
 
             {
@@ -18711,7 +19284,7 @@ namespace Test
                     pointD6D.U = value;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.U.set(double)");
+                ExecuteTest(method, "U.set(double)");
             }
 
             {
@@ -18722,7 +19295,7 @@ namespace Test
                     _ = pointD6D.V;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.V.get()");
+                ExecuteTest(method, "V.get()");
             }
 
             {
@@ -18734,7 +19307,7 @@ namespace Test
                     pointD6D.V = value;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.V.set(double)");
+                ExecuteTest(method, "V.set(double)");
             }
 
             {
@@ -18745,7 +19318,7 @@ namespace Test
                     _ = pointD6D.W;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.W.get()");
+                ExecuteTest(method, "W.get()");
             }
 
             {
@@ -18757,7 +19330,7 @@ namespace Test
                     pointD6D.W = value;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.W.set(double)");
+                ExecuteTest(method, "W.set(double)");
             }
 
             // Dimension
@@ -18771,10 +19344,10 @@ namespace Test
                     _ = pointD6D.Dimension;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.Dimension.get()");
+                ExecuteTest(method, "Dimension.get()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // Is
@@ -18787,7 +19360,7 @@ namespace Test
                     _ = pointD6D.IsEmpty;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.IsEmpty.get()");
+                ExecuteTest(method, "IsEmpty.get()");
             }
 
 #if ComVer1905
@@ -18799,10 +19372,10 @@ namespace Test
                     _ = pointD6D.IsZero;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.IsZero.get()");
+                ExecuteTest(method, "IsZero.get()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -18814,10 +19387,10 @@ namespace Test
                     _ = pointD6D.IsReadOnly;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.IsReadOnly.get()");
+                ExecuteTest(method, "IsReadOnly.get()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -18829,10 +19402,10 @@ namespace Test
                     _ = pointD6D.IsFixedSize;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.IsFixedSize.get()");
+                ExecuteTest(method, "IsFixedSize.get()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             {
@@ -18843,7 +19416,7 @@ namespace Test
                     _ = pointD6D.IsNaN;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.IsNaN.get()");
+                ExecuteTest(method, "IsNaN.get()");
             }
 
             {
@@ -18854,7 +19427,7 @@ namespace Test
                     _ = pointD6D.IsInfinity;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.IsInfinity.get()");
+                ExecuteTest(method, "IsInfinity.get()");
             }
 
             {
@@ -18865,7 +19438,7 @@ namespace Test
                     _ = pointD6D.IsNaNOrInfinity;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.IsNaNOrInfinity.get()");
+                ExecuteTest(method, "IsNaNOrInfinity.get()");
             }
 
             // 模
@@ -18879,7 +19452,7 @@ namespace Test
                     _ = pointD6D.Module;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.Module.get()");
+                ExecuteTest(method, "Module.get()");
             }
 #else
             {
@@ -18890,7 +19463,7 @@ namespace Test
                     _ = pointD6D.VectorModule;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.VectorModule.get()");
+                ExecuteTest(method, "VectorModule.get()");
             }
 #endif
 
@@ -18903,7 +19476,7 @@ namespace Test
                     _ = pointD6D.ModuleSquared;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.ModuleSquared.get()");
+                ExecuteTest(method, "ModuleSquared.get()");
             }
 #else
             {
@@ -18914,7 +19487,7 @@ namespace Test
                     _ = pointD6D.VectorModuleSquared;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.VectorModuleSquared.get()");
+                ExecuteTest(method, "VectorModuleSquared.get()");
             }
 #endif
 
@@ -18929,7 +19502,7 @@ namespace Test
                     _ = pointD6D.Opposite;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.Opposite.get()");
+                ExecuteTest(method, "Opposite.get()");
             }
 #else
             {
@@ -18940,7 +19513,7 @@ namespace Test
                     _ = pointD6D.VectorNegate;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.VectorNegate.get()");
+                ExecuteTest(method, "VectorNegate.get()");
             }
 #endif
 
@@ -18953,7 +19526,7 @@ namespace Test
                     _ = pointD6D.Normalize;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.Normalize.get()");
+                ExecuteTest(method, "Normalize.get()");
             }
 #else
             {
@@ -18964,7 +19537,7 @@ namespace Test
                     _ = pointD6D.VectorNormalize;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.VectorNormalize.get()");
+                ExecuteTest(method, "VectorNormalize.get()");
             }
 #endif
 
@@ -18978,7 +19551,7 @@ namespace Test
                     _ = pointD6D.XYZUV;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.XYZUV.get()");
+                ExecuteTest(method, "XYZUV.get()");
             }
 
             {
@@ -18990,7 +19563,7 @@ namespace Test
                     pointD6D.XYZUV = value;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.XYZUV.set(Com.PointD5D)");
+                ExecuteTest(method, "XYZUV.set(Com.PointD5D)");
             }
 
             {
@@ -19001,7 +19574,7 @@ namespace Test
                     _ = pointD6D.YZUVW;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.YZUVW.get()");
+                ExecuteTest(method, "YZUVW.get()");
             }
 
             {
@@ -19013,7 +19586,7 @@ namespace Test
                     pointD6D.YZUVW = value;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.YZUVW.set(Com.PointD5D)");
+                ExecuteTest(method, "YZUVW.set(Com.PointD5D)");
             }
 
             {
@@ -19024,7 +19597,7 @@ namespace Test
                     _ = pointD6D.ZUVWX;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.ZUVWX.get()");
+                ExecuteTest(method, "ZUVWX.get()");
             }
 
             {
@@ -19036,7 +19609,7 @@ namespace Test
                     pointD6D.ZUVWX = value;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.ZUVWX.set(Com.PointD5D)");
+                ExecuteTest(method, "ZUVWX.set(Com.PointD5D)");
             }
 
             {
@@ -19047,7 +19620,7 @@ namespace Test
                     _ = pointD6D.UVWXY;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.UVWXY.get()");
+                ExecuteTest(method, "UVWXY.get()");
             }
 
             {
@@ -19059,7 +19632,7 @@ namespace Test
                     pointD6D.UVWXY = value;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.UVWXY.set(Com.PointD5D)");
+                ExecuteTest(method, "UVWXY.set(Com.PointD5D)");
             }
 
             {
@@ -19070,7 +19643,7 @@ namespace Test
                     _ = pointD6D.VWXYZ;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.VWXYZ.get()");
+                ExecuteTest(method, "VWXYZ.get()");
             }
 
             {
@@ -19082,7 +19655,7 @@ namespace Test
                     pointD6D.VWXYZ = value;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.VWXYZ.set(Com.PointD5D)");
+                ExecuteTest(method, "VWXYZ.set(Com.PointD5D)");
             }
 
             {
@@ -19093,7 +19666,7 @@ namespace Test
                     _ = pointD6D.WXYZU;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.WXYZU.get()");
+                ExecuteTest(method, "WXYZU.get()");
             }
 
             {
@@ -19105,7 +19678,7 @@ namespace Test
                     pointD6D.WXYZU = value;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.WXYZU.set(Com.PointD5D)");
+                ExecuteTest(method, "WXYZU.set(Com.PointD5D)");
             }
 
             // 角度
@@ -19119,7 +19692,7 @@ namespace Test
                     _ = pointD6D.AngleFromX;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.AngleFromX.get()");
+                ExecuteTest(method, "AngleFromX.get()");
             }
 #else
             {
@@ -19130,7 +19703,7 @@ namespace Test
                     _ = pointD6D.AngleX;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.AngleX.get()");
+                ExecuteTest(method, "AngleX.get()");
             }
 #endif
 
@@ -19143,7 +19716,7 @@ namespace Test
                     _ = pointD6D.AngleFromY;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.AngleFromY.get()");
+                ExecuteTest(method, "AngleFromY.get()");
             }
 #else
             {
@@ -19154,7 +19727,7 @@ namespace Test
                     _ = pointD6D.AngleY;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.AngleY.get()");
+                ExecuteTest(method, "AngleY.get()");
             }
 #endif
 
@@ -19167,7 +19740,7 @@ namespace Test
                     _ = pointD6D.AngleFromZ;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.AngleFromZ.get()");
+                ExecuteTest(method, "AngleFromZ.get()");
             }
 #else
             {
@@ -19178,7 +19751,7 @@ namespace Test
                     _ = pointD6D.AngleZ;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.AngleZ.get()");
+                ExecuteTest(method, "AngleZ.get()");
             }
 #endif
 
@@ -19191,7 +19764,7 @@ namespace Test
                     _ = pointD6D.AngleFromU;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.AngleFromU.get()");
+                ExecuteTest(method, "AngleFromU.get()");
             }
 #else
             {
@@ -19202,7 +19775,7 @@ namespace Test
                     _ = pointD6D.AngleU;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.AngleU.get()");
+                ExecuteTest(method, "AngleU.get()");
             }
 #endif
 
@@ -19215,7 +19788,7 @@ namespace Test
                     _ = pointD6D.AngleFromV;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.AngleFromV.get()");
+                ExecuteTest(method, "AngleFromV.get()");
             }
 #else
             {
@@ -19226,7 +19799,7 @@ namespace Test
                     _ = pointD6D.AngleV;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.AngleV.get()");
+                ExecuteTest(method, "AngleV.get()");
             }
 #endif
 
@@ -19239,7 +19812,7 @@ namespace Test
                     _ = pointD6D.AngleFromW;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.AngleFromW.get()");
+                ExecuteTest(method, "AngleFromW.get()");
             }
 #else
             {
@@ -19250,7 +19823,7 @@ namespace Test
                     _ = pointD6D.AngleW;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.AngleW.get()");
+                ExecuteTest(method, "AngleW.get()");
             }
 #endif
 
@@ -19263,7 +19836,7 @@ namespace Test
                     _ = pointD6D.AngleFromXYZUV;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.AngleFromXYZUV.get()");
+                ExecuteTest(method, "AngleFromXYZUV.get()");
             }
 #else
             {
@@ -19274,7 +19847,7 @@ namespace Test
                     _ = pointD6D.AngleXYZUV;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.AngleXYZUV.get()");
+                ExecuteTest(method, "AngleXYZUV.get()");
             }
 #endif
 
@@ -19287,7 +19860,7 @@ namespace Test
                     _ = pointD6D.AngleFromYZUVW;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.AngleFromYZUVW.get()");
+                ExecuteTest(method, "AngleFromYZUVW.get()");
             }
 #else
             {
@@ -19298,7 +19871,7 @@ namespace Test
                     _ = pointD6D.AngleYZUVW;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.AngleYZUVW.get()");
+                ExecuteTest(method, "AngleYZUVW.get()");
             }
 #endif
 
@@ -19311,7 +19884,7 @@ namespace Test
                     _ = pointD6D.AngleFromZUVWX;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.AngleFromZUVWX.get()");
+                ExecuteTest(method, "AngleFromZUVWX.get()");
             }
 #else
             {
@@ -19322,7 +19895,7 @@ namespace Test
                     _ = pointD6D.AngleZUVWX;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.AngleZUVWX.get()");
+                ExecuteTest(method, "AngleZUVWX.get()");
             }
 #endif
 
@@ -19335,7 +19908,7 @@ namespace Test
                     _ = pointD6D.AngleFromUVWXY;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.AngleFromUVWXY.get()");
+                ExecuteTest(method, "AngleFromUVWXY.get()");
             }
 #else
             {
@@ -19346,7 +19919,7 @@ namespace Test
                     _ = pointD6D.AngleUVWXY;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.AngleUVWXY.get()");
+                ExecuteTest(method, "AngleUVWXY.get()");
             }
 #endif
 
@@ -19359,7 +19932,7 @@ namespace Test
                     _ = pointD6D.AngleFromVWXYZ;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.AngleFromVWXYZ.get()");
+                ExecuteTest(method, "AngleFromVWXYZ.get()");
             }
 #else
             {
@@ -19370,7 +19943,7 @@ namespace Test
                     _ = pointD6D.AngleVWXYZ;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.AngleVWXYZ.get()");
+                ExecuteTest(method, "AngleVWXYZ.get()");
             }
 #endif
 
@@ -19383,7 +19956,7 @@ namespace Test
                     _ = pointD6D.AngleFromWXYZU;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.AngleFromWXYZU.get()");
+                ExecuteTest(method, "AngleFromWXYZU.get()");
             }
 #else
             {
@@ -19394,7 +19967,7 @@ namespace Test
                     _ = pointD6D.AngleWXYZU;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.AngleWXYZU.get()");
+                ExecuteTest(method, "AngleWXYZU.get()");
             }
 #endif
         }
@@ -19417,7 +19990,7 @@ namespace Test
                     _ = pointD6D.Equals(obj);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.Equals(object)");
+                ExecuteTest(method, "Equals(object)");
             }
 
             {
@@ -19428,7 +20001,7 @@ namespace Test
                     _ = pointD6D.GetHashCode();
                 };
 
-                ExecuteTest(method, "Com.PointD6D.GetHashCode()");
+                ExecuteTest(method, "GetHashCode()");
             }
 
             {
@@ -19439,7 +20012,7 @@ namespace Test
                     _ = pointD6D.ToString();
                 };
 
-                ExecuteTest(method, "Com.PointD6D.ToString()");
+                ExecuteTest(method, "ToString()");
             }
 
             // Equals
@@ -19453,7 +20026,7 @@ namespace Test
                     _ = left.Equals(right);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.Equals(Com.PointD6D)");
+                ExecuteTest(method, "Equals(Com.PointD6D)");
             }
 
             // CompareTo
@@ -19468,10 +20041,10 @@ namespace Test
                     _ = pointD6D.CompareTo(obj);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.CompareTo(object)");
+                ExecuteTest(method, "CompareTo(object)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -19484,10 +20057,10 @@ namespace Test
                     _ = left.CompareTo(right);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.CompareTo(Com.PointD6D)");
+                ExecuteTest(method, "CompareTo(Com.PointD6D)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // 检索
@@ -19502,10 +20075,10 @@ namespace Test
                     _ = pointD6D.IndexOf(item);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.IndexOf(double)");
+                ExecuteTest(method, "IndexOf(double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -19519,10 +20092,10 @@ namespace Test
                     _ = pointD6D.IndexOf(item, startIndex);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.IndexOf(double, int)");
+                ExecuteTest(method, "IndexOf(double, int)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -19537,10 +20110,10 @@ namespace Test
                     _ = pointD6D.IndexOf(item, startIndex, count);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.IndexOf(double, int, int)");
+                ExecuteTest(method, "IndexOf(double, int, int)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -19553,10 +20126,10 @@ namespace Test
                     _ = pointD6D.LastIndexOf(item);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.LastIndexOf(double)");
+                ExecuteTest(method, "LastIndexOf(double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -19570,10 +20143,10 @@ namespace Test
                     _ = pointD6D.LastIndexOf(item, startIndex);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.LastIndexOf(double, int)");
+                ExecuteTest(method, "LastIndexOf(double, int)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -19588,10 +20161,10 @@ namespace Test
                     _ = pointD6D.LastIndexOf(item, startIndex, count);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.LastIndexOf(double, int, int)");
+                ExecuteTest(method, "LastIndexOf(double, int, int)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -19604,10 +20177,10 @@ namespace Test
                     _ = pointD6D.Contains(item);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.Contains(double)");
+                ExecuteTest(method, "Contains(double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // ToArray，ToList
@@ -19620,7 +20193,7 @@ namespace Test
                     _ = pointD6D.ToArray();
                 };
 
-                ExecuteTest(method, "Com.PointD6D.ToArray()");
+                ExecuteTest(method, "ToArray()");
             }
 
 #if ComVer1905
@@ -19632,10 +20205,10 @@ namespace Test
                     _ = pointD6D.ToList();
                 };
 
-                ExecuteTest(method, "Com.PointD6D.ToList()");
+                ExecuteTest(method, "ToList()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // 坐标系转换
@@ -19648,7 +20221,7 @@ namespace Test
                     _ = pointD6D.ToSpherical();
                 };
 
-                ExecuteTest(method, "Com.PointD6D.ToSpherical()");
+                ExecuteTest(method, "ToSpherical()");
             }
 
             {
@@ -19659,7 +20232,7 @@ namespace Test
                     _ = pointD6D.ToCartesian();
                 };
 
-                ExecuteTest(method, "Com.PointD6D.ToCartesian()");
+                ExecuteTest(method, "ToCartesian()");
             }
 
             // 距离与夹角
@@ -19673,7 +20246,7 @@ namespace Test
                     _ = pointD6D.DistanceFrom(pt);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.DistanceFrom(Com.PointD6D)");
+                ExecuteTest(method, "DistanceFrom(Com.PointD6D)");
             }
 
             {
@@ -19685,7 +20258,7 @@ namespace Test
                     _ = pointD6D.AngleFrom(pt);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.AngleFrom(Com.PointD6D)");
+                ExecuteTest(method, "AngleFrom(Com.PointD6D)");
             }
 
             // Offset
@@ -19699,7 +20272,7 @@ namespace Test
                     pointD6D.Offset(d);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.Offset(double)");
+                ExecuteTest(method, "Offset(double)");
             }
 
             {
@@ -19716,7 +20289,7 @@ namespace Test
                     pointD6D.Offset(dx, dy, dz, du, dv, dw);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.Offset(double, double, double, double, double, double)");
+                ExecuteTest(method, "Offset(double, double, double, double, double, double)");
             }
 
             {
@@ -19728,7 +20301,7 @@ namespace Test
                     pointD6D.Offset(pt);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.Offset(Com.PointD6D)");
+                ExecuteTest(method, "Offset(Com.PointD6D)");
             }
 
             {
@@ -19740,7 +20313,7 @@ namespace Test
                     _ = pointD6D.OffsetCopy(d);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.OffsetCopy(double)");
+                ExecuteTest(method, "OffsetCopy(double)");
             }
 
             {
@@ -19757,7 +20330,7 @@ namespace Test
                     _ = pointD6D.OffsetCopy(dx, dy, dz, du, dv, dw);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.OffsetCopy(double, double, double, double, double, double)");
+                ExecuteTest(method, "OffsetCopy(double, double, double, double, double, double)");
             }
 
             {
@@ -19769,7 +20342,7 @@ namespace Test
                     _ = pointD6D.OffsetCopy(pt);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.OffsetCopy(Com.PointD6D)");
+                ExecuteTest(method, "OffsetCopy(Com.PointD6D)");
             }
 
             // Scale
@@ -19783,7 +20356,7 @@ namespace Test
                     pointD6D.Scale(s);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.Scale(double)");
+                ExecuteTest(method, "Scale(double)");
             }
 
             {
@@ -19800,7 +20373,7 @@ namespace Test
                     pointD6D.Scale(sx, sy, sz, su, sv, sw);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.Scale(double, double, double, double, double, double)");
+                ExecuteTest(method, "Scale(double, double, double, double, double, double)");
             }
 
             {
@@ -19812,7 +20385,7 @@ namespace Test
                     pointD6D.Scale(pt);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.Scale(Com.PointD6D)");
+                ExecuteTest(method, "Scale(Com.PointD6D)");
             }
 
             {
@@ -19824,7 +20397,7 @@ namespace Test
                     _ = pointD6D.ScaleCopy(s);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.ScaleCopy(double)");
+                ExecuteTest(method, "ScaleCopy(double)");
             }
 
             {
@@ -19841,7 +20414,7 @@ namespace Test
                     _ = pointD6D.ScaleCopy(sx, sy, sz, su, sv, sw);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.ScaleCopy(double, double, double, double, double, double)");
+                ExecuteTest(method, "ScaleCopy(double, double, double, double, double, double)");
             }
 
             {
@@ -19853,7 +20426,7 @@ namespace Test
                     _ = pointD6D.ScaleCopy(pt);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.ScaleCopy(Com.PointD6D)");
+                ExecuteTest(method, "ScaleCopy(Com.PointD6D)");
             }
 
             // Reflect
@@ -19868,10 +20441,10 @@ namespace Test
                     pointD6D.Reflect(index);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.Reflect(int)");
+                ExecuteTest(method, "Reflect(int)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -19884,10 +20457,10 @@ namespace Test
                     _ = pointD6D.ReflectCopy(index);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.ReflectCopy(int)");
+                ExecuteTest(method, "ReflectCopy(int)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // Shear
@@ -19905,10 +20478,10 @@ namespace Test
                     pointD6D.Shear(index1, index2, angle);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.Shear(int, int, double)");
+                ExecuteTest(method, "Shear(int, int, double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -19924,10 +20497,10 @@ namespace Test
                     _ = pointD6D.ShearCopy(index1, index2, angle);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.ShearCopy(int, int, double)");
+                ExecuteTest(method, "ShearCopy(int, int, double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // Rotate
@@ -19945,10 +20518,10 @@ namespace Test
                     pointD6D.Rotate(index1, index2, angle);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.Rotate(int, int, double)");
+                ExecuteTest(method, "Rotate(int, int, double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -19964,10 +20537,10 @@ namespace Test
                     _ = pointD6D.RotateCopy(index1, index2, angle);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.RotateCopy(int, int, double)");
+                ExecuteTest(method, "RotateCopy(int, int, double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // Affine
@@ -19987,7 +20560,7 @@ namespace Test
                     pointD6D.AffineTransform(ex, ey, ez, eu, ev, ew, offset);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.AffineTransform(Com.PointD6D, Com.PointD6D, Com.PointD6D, Com.PointD6D, Com.PointD6D, Com.PointD6D, Com.PointD6D)");
+                ExecuteTest(method, "AffineTransform(Com.PointD6D, Com.PointD6D, Com.PointD6D, Com.PointD6D, Com.PointD6D, Com.PointD6D, Com.PointD6D)");
             }
 
             {
@@ -19999,7 +20572,7 @@ namespace Test
                     pointD6D.AffineTransform(matrixLeft);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.AffineTransform(Com.Matrix)");
+                ExecuteTest(method, "AffineTransform(Com.Matrix)");
             }
 
 #if ComVer1910
@@ -20019,10 +20592,10 @@ namespace Test
                     pointD6D.AffineTransform(matricesLeft);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.AffineTransform(param Com.Matrix[])", "total 8 matrices");
+                ExecuteTest(method, "AffineTransform(param Com.Matrix[])", "total 8 matrices");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
 
             {
@@ -20039,7 +20612,7 @@ namespace Test
                     pointD6D.AffineTransform(matrixLeftList);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.AffineTransform(System.Collections.Generic.List<Com.Matrix>)", "total 8 matrices");
+                ExecuteTest(method, "AffineTransform(System.Collections.Generic.List<Com.Matrix>)", "total 8 matrices");
             }
 
             {
@@ -20057,7 +20630,7 @@ namespace Test
                     _ = pointD6D.AffineTransformCopy(ex, ey, ez, eu, ev, ew, offset);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.AffineTransformCopy(Com.PointD6D, Com.PointD6D, Com.PointD6D, Com.PointD6D, Com.PointD6D, Com.PointD6D, Com.PointD6D)");
+                ExecuteTest(method, "AffineTransformCopy(Com.PointD6D, Com.PointD6D, Com.PointD6D, Com.PointD6D, Com.PointD6D, Com.PointD6D, Com.PointD6D)");
             }
 
             {
@@ -20069,7 +20642,7 @@ namespace Test
                     _ = pointD6D.AffineTransformCopy(matrixLeft);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.AffineTransformCopy(Com.Matrix)");
+                ExecuteTest(method, "AffineTransformCopy(Com.Matrix)");
             }
 
 #if ComVer1910
@@ -20089,10 +20662,10 @@ namespace Test
                     _ = pointD6D.AffineTransformCopy(matricesLeft);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.AffineTransformCopy(param Com.Matrix[])", "total 8 matrices");
+                ExecuteTest(method, "AffineTransformCopy(param Com.Matrix[])", "total 8 matrices");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
 
             {
@@ -20109,7 +20682,7 @@ namespace Test
                     _ = pointD6D.AffineTransformCopy(matrixLeftList);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.AffineTransformCopy(System.Collections.Generic.List<Com.Matrix>)", "total 8 matrices");
+                ExecuteTest(method, "AffineTransformCopy(System.Collections.Generic.List<Com.Matrix>)", "total 8 matrices");
             }
 
             {
@@ -20127,7 +20700,7 @@ namespace Test
                     pointD6D.InverseAffineTransform(ex, ey, ez, eu, ev, ew, offset);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.InverseAffineTransform(Com.PointD6D, Com.PointD6D, Com.PointD6D, Com.PointD6D, Com.PointD6D, Com.PointD6D, Com.PointD6D)");
+                ExecuteTest(method, "InverseAffineTransform(Com.PointD6D, Com.PointD6D, Com.PointD6D, Com.PointD6D, Com.PointD6D, Com.PointD6D, Com.PointD6D)");
             }
 
             {
@@ -20139,7 +20712,7 @@ namespace Test
                     pointD6D.InverseAffineTransform(matrixLeft);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.InverseAffineTransform(Com.Matrix)");
+                ExecuteTest(method, "InverseAffineTransform(Com.Matrix)");
             }
 
 #if ComVer1910
@@ -20159,10 +20732,10 @@ namespace Test
                     pointD6D.InverseAffineTransform(matricesLeft);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.InverseAffineTransform(param Com.Matrix[])", "total 8 matrices");
+                ExecuteTest(method, "InverseAffineTransform(param Com.Matrix[])", "total 8 matrices");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
 
             {
@@ -20179,7 +20752,7 @@ namespace Test
                     pointD6D.InverseAffineTransform(matrixLeftList);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.InverseAffineTransform(System.Collections.Generic.List<Com.Matrix>)", "total 8 matrices");
+                ExecuteTest(method, "InverseAffineTransform(System.Collections.Generic.List<Com.Matrix>)", "total 8 matrices");
             }
 
             {
@@ -20197,7 +20770,7 @@ namespace Test
                     _ = pointD6D.InverseAffineTransformCopy(ex, ey, ez, eu, ev, ew, offset);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.InverseAffineTransformCopy(Com.PointD6D, Com.PointD6D, Com.PointD6D, Com.PointD6D, Com.PointD6D, Com.PointD6D, Com.PointD6D)");
+                ExecuteTest(method, "InverseAffineTransformCopy(Com.PointD6D, Com.PointD6D, Com.PointD6D, Com.PointD6D, Com.PointD6D, Com.PointD6D, Com.PointD6D)");
             }
 
             {
@@ -20209,7 +20782,7 @@ namespace Test
                     _ = pointD6D.InverseAffineTransformCopy(matrixLeft);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.InverseAffineTransformCopy(Com.Matrix)");
+                ExecuteTest(method, "InverseAffineTransformCopy(Com.Matrix)");
             }
 
 #if ComVer1910
@@ -20229,10 +20802,10 @@ namespace Test
                     _ = pointD6D.InverseAffineTransformCopy(matricesLeft);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.InverseAffineTransformCopy(param Com.Matrix[])", "total 8 matrices");
+                ExecuteTest(method, "InverseAffineTransformCopy(param Com.Matrix[])", "total 8 matrices");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
 
             {
@@ -20249,7 +20822,7 @@ namespace Test
                     _ = pointD6D.InverseAffineTransformCopy(matrixLeftList);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.InverseAffineTransformCopy(System.Collections.Generic.List<Com.Matrix>)", "total 8 matrices");
+                ExecuteTest(method, "InverseAffineTransformCopy(System.Collections.Generic.List<Com.Matrix>)", "total 8 matrices");
             }
 
             // Project
@@ -20264,7 +20837,7 @@ namespace Test
                     _ = pointD6D.ProjectToXYZUV(prjCenter, focalLength);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.ProjectToXYZUV(Com.PointD6D, double)");
+                ExecuteTest(method, "ProjectToXYZUV(Com.PointD6D, double)");
             }
 
             {
@@ -20277,7 +20850,7 @@ namespace Test
                     _ = pointD6D.ProjectToYZUVW(prjCenter, focalLength);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.ProjectToYZUVW(Com.PointD6D, double)");
+                ExecuteTest(method, "ProjectToYZUVW(Com.PointD6D, double)");
             }
 
             {
@@ -20290,7 +20863,7 @@ namespace Test
                     _ = pointD6D.ProjectToZUVWX(prjCenter, focalLength);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.ProjectToZUVWX(Com.PointD6D, double)");
+                ExecuteTest(method, "ProjectToZUVWX(Com.PointD6D, double)");
             }
 
             {
@@ -20303,7 +20876,7 @@ namespace Test
                     _ = pointD6D.ProjectToUVWXY(prjCenter, focalLength);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.ProjectToUVWXY(Com.PointD6D, double)");
+                ExecuteTest(method, "ProjectToUVWXY(Com.PointD6D, double)");
             }
 
             {
@@ -20316,7 +20889,7 @@ namespace Test
                     _ = pointD6D.ProjectToVWXYZ(prjCenter, focalLength);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.ProjectToVWXYZ(Com.PointD6D, double)");
+                ExecuteTest(method, "ProjectToVWXYZ(Com.PointD6D, double)");
             }
 
             {
@@ -20329,7 +20902,7 @@ namespace Test
                     _ = pointD6D.ProjectToWXYZU(prjCenter, focalLength);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.ProjectToWXYZU(Com.PointD6D, double)");
+                ExecuteTest(method, "ProjectToWXYZU(Com.PointD6D, double)");
             }
 
             // ToVector
@@ -20343,7 +20916,7 @@ namespace Test
                     _ = pointD6D.ToColumnVector();
                 };
 
-                ExecuteTest(method, "Com.PointD6D.ToColumnVector()");
+                ExecuteTest(method, "ToColumnVector()");
             }
 #else
             {
@@ -20354,7 +20927,7 @@ namespace Test
                     _ = pointD6D.ToVectorColumn();
                 };
 
-                ExecuteTest(method, "Com.PointD6D.ToVectorColumn()");
+                ExecuteTest(method, "ToVectorColumn()");
             }
 #endif
 
@@ -20367,7 +20940,7 @@ namespace Test
                     _ = pointD6D.ToRowVector();
                 };
 
-                ExecuteTest(method, "Com.PointD6D.ToRowVector()");
+                ExecuteTest(method, "ToRowVector()");
             }
 #else
             {
@@ -20378,7 +20951,7 @@ namespace Test
                     _ = pointD6D.ToVectorRow();
                 };
 
-                ExecuteTest(method, "Com.PointD6D.ToVectorRow()");
+                ExecuteTest(method, "ToVectorRow()");
             }
 #endif
         }
@@ -20396,7 +20969,7 @@ namespace Test
                     _ = Com.PointD6D.Equals(left, right);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.Equals(Com.PointD6D, Com.PointD6D)");
+                ExecuteTest(method, "Equals(Com.PointD6D, Com.PointD6D)");
             }
 
             // Compare
@@ -20411,10 +20984,10 @@ namespace Test
                     _ = Com.PointD6D.Compare(left, right);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.Compare(Com.PointD6D, Com.PointD6D)");
+                ExecuteTest(method, "Compare(Com.PointD6D, Com.PointD6D)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // From
@@ -20428,10 +21001,10 @@ namespace Test
                     _ = Com.PointD6D.FromVector(vector);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.FromVector(Com.Vector)");
+                ExecuteTest(method, "FromVector(Com.Vector)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
 
             // Matrix
@@ -20442,7 +21015,7 @@ namespace Test
                     _ = Com.PointD6D.IdentityMatrix();
                 };
 
-                ExecuteTest(method, "Com.PointD6D.IdentityMatrix()");
+                ExecuteTest(method, "IdentityMatrix()");
             }
 
             {
@@ -20453,7 +21026,7 @@ namespace Test
                     _ = Com.PointD6D.OffsetMatrix(d);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.OffsetMatrix(double)");
+                ExecuteTest(method, "OffsetMatrix(double)");
             }
 
             {
@@ -20469,7 +21042,7 @@ namespace Test
                     _ = Com.PointD6D.OffsetMatrix(dx, dy, dz, du, dv, dw);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.OffsetMatrix(double, double, double, double, double, double)");
+                ExecuteTest(method, "OffsetMatrix(double, double, double, double, double, double)");
             }
 
             {
@@ -20480,7 +21053,7 @@ namespace Test
                     _ = Com.PointD6D.OffsetMatrix(pt);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.OffsetMatrix(Com.PointD6D)");
+                ExecuteTest(method, "OffsetMatrix(Com.PointD6D)");
             }
 
             {
@@ -20491,7 +21064,7 @@ namespace Test
                     _ = Com.PointD6D.ScaleMatrix(s);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.ScaleMatrix(double)");
+                ExecuteTest(method, "ScaleMatrix(double)");
             }
 
             {
@@ -20507,7 +21080,7 @@ namespace Test
                     _ = Com.PointD6D.ScaleMatrix(sx, sy, sz, su, sv, sw);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.ScaleMatrix(double, double, double, double, double, double)");
+                ExecuteTest(method, "ScaleMatrix(double, double, double, double, double, double)");
             }
 
             {
@@ -20518,7 +21091,7 @@ namespace Test
                     _ = Com.PointD6D.ScaleMatrix(pt);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.ScaleMatrix(Com.PointD6D)");
+                ExecuteTest(method, "ScaleMatrix(Com.PointD6D)");
             }
 
 #if ComVer1905
@@ -20530,10 +21103,10 @@ namespace Test
                     _ = Com.PointD6D.ReflectMatrix(index);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.ReflectMatrix(int)");
+                ExecuteTest(method, "ReflectMatrix(int)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -20548,10 +21121,10 @@ namespace Test
                     _ = Com.PointD6D.ShearMatrix(index1, index2, angle);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.ShearMatrix(int, int, double)");
+                ExecuteTest(method, "ShearMatrix(int, int, double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -20566,10 +21139,10 @@ namespace Test
                     _ = Com.PointD6D.RotateMatrix(index1, index2, angle);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.RotateMatrix(int, int, double)");
+                ExecuteTest(method, "RotateMatrix(int, int, double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // 距离与夹角
@@ -20583,7 +21156,7 @@ namespace Test
                     _ = Com.PointD6D.DistanceBetween(left, right);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.DistanceBetween(Com.PointD6D, Com.PointD6D)");
+                ExecuteTest(method, "DistanceBetween(Com.PointD6D, Com.PointD6D)");
             }
 
             {
@@ -20595,7 +21168,7 @@ namespace Test
                     _ = Com.PointD6D.AngleBetween(left, right);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.AngleBetween(Com.PointD6D, Com.PointD6D)");
+                ExecuteTest(method, "AngleBetween(Com.PointD6D, Com.PointD6D)");
             }
 
             // 向量乘积
@@ -20609,7 +21182,7 @@ namespace Test
                     _ = Com.PointD6D.DotProduct(left, right);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.DotProduct(Com.PointD6D, Com.PointD6D)");
+                ExecuteTest(method, "DotProduct(Com.PointD6D, Com.PointD6D)");
             }
 
             {
@@ -20621,7 +21194,7 @@ namespace Test
                     _ = Com.PointD6D.CrossProduct(left, right);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.CrossProduct(Com.PointD6D, Com.PointD6D)");
+                ExecuteTest(method, "CrossProduct(Com.PointD6D, Com.PointD6D)");
             }
 
             // 初等函数
@@ -20634,7 +21207,7 @@ namespace Test
                     _ = Com.PointD6D.Abs(pointD6D);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.Abs(Com.PointD6D)");
+                ExecuteTest(method, "Abs(Com.PointD6D)");
             }
 
             {
@@ -20645,7 +21218,7 @@ namespace Test
                     _ = Com.PointD6D.Sign(pointD6D);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.Sign(Com.PointD6D)");
+                ExecuteTest(method, "Sign(Com.PointD6D)");
             }
 
             {
@@ -20656,7 +21229,7 @@ namespace Test
                     _ = Com.PointD6D.Ceiling(pointD6D);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.Ceiling(Com.PointD6D)");
+                ExecuteTest(method, "Ceiling(Com.PointD6D)");
             }
 
             {
@@ -20667,7 +21240,7 @@ namespace Test
                     _ = Com.PointD6D.Floor(pointD6D);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.Floor(Com.PointD6D)");
+                ExecuteTest(method, "Floor(Com.PointD6D)");
             }
 
             {
@@ -20678,7 +21251,7 @@ namespace Test
                     _ = Com.PointD6D.Round(pointD6D);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.Round(Com.PointD6D)");
+                ExecuteTest(method, "Round(Com.PointD6D)");
             }
 
             {
@@ -20689,7 +21262,7 @@ namespace Test
                     _ = Com.PointD6D.Truncate(pointD6D);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.Truncate(Com.PointD6D)");
+                ExecuteTest(method, "Truncate(Com.PointD6D)");
             }
 
             {
@@ -20701,7 +21274,7 @@ namespace Test
                     _ = Com.PointD6D.Max(left, right);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.Max(Com.PointD6D, Com.PointD6D)");
+                ExecuteTest(method, "Max(Com.PointD6D, Com.PointD6D)");
             }
 
             {
@@ -20713,7 +21286,7 @@ namespace Test
                     _ = Com.PointD6D.Min(left, right);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.Min(Com.PointD6D, Com.PointD6D)");
+                ExecuteTest(method, "Min(Com.PointD6D, Com.PointD6D)");
             }
         }
 
@@ -20730,7 +21303,7 @@ namespace Test
                     _ = (left == right);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.operator ==(Com.PointD6D, Com.PointD6D)");
+                ExecuteTest(method, "operator ==(Com.PointD6D, Com.PointD6D)");
             }
 
             {
@@ -20742,7 +21315,7 @@ namespace Test
                     _ = (left != right);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.operator !=(Com.PointD6D, Com.PointD6D)");
+                ExecuteTest(method, "operator !=(Com.PointD6D, Com.PointD6D)");
             }
 
             {
@@ -20754,7 +21327,7 @@ namespace Test
                     _ = (left < right);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.operator <(Com.PointD6D, Com.PointD6D)");
+                ExecuteTest(method, "operator <(Com.PointD6D, Com.PointD6D)");
             }
 
             {
@@ -20766,7 +21339,7 @@ namespace Test
                     _ = (left > right);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.operator >(Com.PointD6D, Com.PointD6D)");
+                ExecuteTest(method, "operator >(Com.PointD6D, Com.PointD6D)");
             }
 
             {
@@ -20778,7 +21351,7 @@ namespace Test
                     _ = (left <= right);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.operator <=(Com.PointD6D, Com.PointD6D)");
+                ExecuteTest(method, "operator <=(Com.PointD6D, Com.PointD6D)");
             }
 
             {
@@ -20790,7 +21363,7 @@ namespace Test
                     _ = (left >= right);
                 };
 
-                ExecuteTest(method, "Com.PointD6D.operator >=(Com.PointD6D, Com.PointD6D)");
+                ExecuteTest(method, "operator >=(Com.PointD6D, Com.PointD6D)");
             }
 
             // 运算
@@ -20803,7 +21376,7 @@ namespace Test
                     _ = +pointD6D;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.operator +(Com.PointD6D)");
+                ExecuteTest(method, "operator +(Com.PointD6D)");
             }
 
             {
@@ -20814,7 +21387,7 @@ namespace Test
                     _ = -pointD6D;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.operator -(Com.PointD6D)");
+                ExecuteTest(method, "operator -(Com.PointD6D)");
             }
 
             {
@@ -20826,7 +21399,7 @@ namespace Test
                     _ = pt + n;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.operator +(Com.PointD6D, double)");
+                ExecuteTest(method, "operator +(Com.PointD6D, double)");
             }
 
             {
@@ -20838,7 +21411,7 @@ namespace Test
                     _ = n + pt;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.operator +(double, Com.PointD6D)");
+                ExecuteTest(method, "operator +(double, Com.PointD6D)");
             }
 
             {
@@ -20850,7 +21423,7 @@ namespace Test
                     _ = left + right;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.operator +(Com.PointD6D, Com.PointD6D)");
+                ExecuteTest(method, "operator +(Com.PointD6D, Com.PointD6D)");
             }
 
             {
@@ -20862,7 +21435,7 @@ namespace Test
                     _ = pt - n;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.operator -(Com.PointD6D, double)");
+                ExecuteTest(method, "operator -(Com.PointD6D, double)");
             }
 
             {
@@ -20874,7 +21447,7 @@ namespace Test
                     _ = n - pt;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.operator -(double, Com.PointD6D)");
+                ExecuteTest(method, "operator -(double, Com.PointD6D)");
             }
 
             {
@@ -20886,7 +21459,7 @@ namespace Test
                     _ = left - right;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.operator -(Com.PointD6D, Com.PointD6D)");
+                ExecuteTest(method, "operator -(Com.PointD6D, Com.PointD6D)");
             }
 
             {
@@ -20898,7 +21471,7 @@ namespace Test
                     _ = pt * n;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.operator *(Com.PointD6D, double)");
+                ExecuteTest(method, "operator *(Com.PointD6D, double)");
             }
 
             {
@@ -20910,7 +21483,7 @@ namespace Test
                     _ = n * pt;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.operator *(double, Com.PointD6D)");
+                ExecuteTest(method, "operator *(double, Com.PointD6D)");
             }
 
             {
@@ -20922,7 +21495,7 @@ namespace Test
                     _ = left * right;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.operator *(Com.PointD6D, Com.PointD6D)");
+                ExecuteTest(method, "operator *(Com.PointD6D, Com.PointD6D)");
             }
 
             {
@@ -20934,7 +21507,7 @@ namespace Test
                     _ = pt / n;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.operator /(Com.PointD6D, double)");
+                ExecuteTest(method, "operator /(Com.PointD6D, double)");
             }
 
             {
@@ -20946,7 +21519,7 @@ namespace Test
                     _ = n / pt;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.operator /(double, Com.PointD6D)");
+                ExecuteTest(method, "operator /(double, Com.PointD6D)");
             }
 
             {
@@ -20958,13 +21531,43 @@ namespace Test
                     _ = left / right;
                 };
 
-                ExecuteTest(method, "Com.PointD6D.operator /(Com.PointD6D, Com.PointD6D)");
+                ExecuteTest(method, "operator /(Com.PointD6D, Com.PointD6D)");
             }
         }
     }
 
     sealed class RealTest : ClassPerfTestBase
     {
+        private const string _NamespaceName = "Com";
+        private const string _ClassName = "Real";
+
+        private void ExecuteTest(Action method, string methodName, string comment)
+        {
+            base.ExecuteTest(method, _NamespaceName, _ClassName, methodName, comment);
+        }
+
+        private void ExecuteTest(Action method, string methodName)
+        {
+            base.ExecuteTest(method, _NamespaceName, _ClassName, methodName);
+        }
+
+        private void ExecuteTest(string methodName, UnsupportedReason unsupportedReason)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, methodName, unsupportedReason);
+        }
+
+        private void ExecuteTest(string methodName)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, methodName);
+        }
+
+        private void ExecuteTest(UnsupportedReason unsupportedReason)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, string.Empty, unsupportedReason);
+        }
+
+        //
+
 #if ComVer1905
         private static Com.Real _GetRandomReal()
         {
@@ -20986,10 +21589,10 @@ namespace Test
                     _ = new Com.Real(value, magnitude);
                 };
 
-                ExecuteTest(method, "Com.Real.Real(double, long)");
+                ExecuteTest(method, "Real(double, long)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -21001,10 +21604,10 @@ namespace Test
                     _ = new Com.Real(value);
                 };
 
-                ExecuteTest(method, "Com.Real.Real(double)");
+                ExecuteTest(method, "Real(double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -21016,10 +21619,10 @@ namespace Test
                     _ = new Com.Real(value);
                 };
 
-                ExecuteTest(method, "Com.Real.Real(float)");
+                ExecuteTest(method, "Real(float)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -21031,10 +21634,10 @@ namespace Test
                     _ = new Com.Real(value);
                 };
 
-                ExecuteTest(method, "Com.Real.Real(decimal)");
+                ExecuteTest(method, "Real(decimal)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -21046,10 +21649,10 @@ namespace Test
                     _ = new Com.Real(value);
                 };
 
-                ExecuteTest(method, "Com.Real.Real(ulong)");
+                ExecuteTest(method, "Real(ulong)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -21061,10 +21664,10 @@ namespace Test
                     _ = new Com.Real(value);
                 };
 
-                ExecuteTest(method, "Com.Real.Real(long)");
+                ExecuteTest(method, "Real(long)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -21076,10 +21679,10 @@ namespace Test
                     _ = new Com.Real(value);
                 };
 
-                ExecuteTest(method, "Com.Real.Real(uint)");
+                ExecuteTest(method, "Real(uint)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -21091,10 +21694,10 @@ namespace Test
                     _ = new Com.Real(value);
                 };
 
-                ExecuteTest(method, "Com.Real.Real(int)");
+                ExecuteTest(method, "Real(int)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -21106,10 +21709,10 @@ namespace Test
                     _ = new Com.Real(value);
                 };
 
-                ExecuteTest(method, "Com.Real.Real(ushort)");
+                ExecuteTest(method, "Real(ushort)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -21121,10 +21724,10 @@ namespace Test
                     _ = new Com.Real(value);
                 };
 
-                ExecuteTest(method, "Com.Real.Real(short)");
+                ExecuteTest(method, "Real(short)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -21136,10 +21739,10 @@ namespace Test
                     _ = new Com.Real(value);
                 };
 
-                ExecuteTest(method, "Com.Real.Real(byte)");
+                ExecuteTest(method, "Real(byte)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -21151,10 +21754,10 @@ namespace Test
                     _ = new Com.Real(value);
                 };
 
-                ExecuteTest(method, "Com.Real.Real(sbyte)");
+                ExecuteTest(method, "Real(sbyte)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
         }
 
@@ -21171,10 +21774,10 @@ namespace Test
                     _ = real.IsNaN;
                 };
 
-                ExecuteTest(method, "Com.Real.IsNaN.get()");
+                ExecuteTest(method, "IsNaN.get()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -21186,10 +21789,10 @@ namespace Test
                     _ = real.IsPositiveInfinity;
                 };
 
-                ExecuteTest(method, "Com.Real.IsPositiveInfinity.get()");
+                ExecuteTest(method, "IsPositiveInfinity.get()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -21201,10 +21804,10 @@ namespace Test
                     _ = real.IsNegativeInfinity;
                 };
 
-                ExecuteTest(method, "Com.Real.IsNegativeInfinity.get()");
+                ExecuteTest(method, "IsNegativeInfinity.get()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -21216,10 +21819,10 @@ namespace Test
                     _ = real.IsInfinity;
                 };
 
-                ExecuteTest(method, "Com.Real.IsInfinity.get()");
+                ExecuteTest(method, "IsInfinity.get()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -21231,10 +21834,10 @@ namespace Test
                     _ = real.IsNaNOrInfinity;
                 };
 
-                ExecuteTest(method, "Com.Real.IsNaNOrInfinity.get()");
+                ExecuteTest(method, "IsNaNOrInfinity.get()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -21246,10 +21849,10 @@ namespace Test
                     _ = real.IsZero;
                 };
 
-                ExecuteTest(method, "Com.Real.IsZero.get()");
+                ExecuteTest(method, "IsZero.get()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -21261,10 +21864,10 @@ namespace Test
                     _ = real.IsOne;
                 };
 
-                ExecuteTest(method, "Com.Real.IsOne.get()");
+                ExecuteTest(method, "IsOne.get()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -21276,10 +21879,10 @@ namespace Test
                     _ = real.IsMinusOne;
                 };
 
-                ExecuteTest(method, "Com.Real.IsMinusOne.get()");
+                ExecuteTest(method, "IsMinusOne.get()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -21291,10 +21894,10 @@ namespace Test
                     _ = real.IsPositive;
                 };
 
-                ExecuteTest(method, "Com.Real.IsPositive.get()");
+                ExecuteTest(method, "IsPositive.get()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -21306,10 +21909,10 @@ namespace Test
                     _ = real.IsNegative;
                 };
 
-                ExecuteTest(method, "Com.Real.IsNegative.get()");
+                ExecuteTest(method, "IsNegative.get()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -21321,10 +21924,10 @@ namespace Test
                     _ = real.IsInteger;
                 };
 
-                ExecuteTest(method, "Com.Real.IsInteger.get()");
+                ExecuteTest(method, "IsInteger.get()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -21336,10 +21939,10 @@ namespace Test
                     _ = real.IsDecimal;
                 };
 
-                ExecuteTest(method, "Com.Real.IsDecimal.get()");
+                ExecuteTest(method, "IsDecimal.get()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -21351,10 +21954,10 @@ namespace Test
                     _ = real.IsEven;
                 };
 
-                ExecuteTest(method, "Com.Real.IsEven.get()");
+                ExecuteTest(method, "IsEven.get()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -21366,10 +21969,10 @@ namespace Test
                     _ = real.IsOdd;
                 };
 
-                ExecuteTest(method, "Com.Real.IsOdd.get()");
+                ExecuteTest(method, "IsOdd.get()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // 分量
@@ -21383,10 +21986,10 @@ namespace Test
                     _ = real.Value;
                 };
 
-                ExecuteTest(method, "Com.Real.Value.get()");
+                ExecuteTest(method, "Value.get()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -21399,10 +22002,10 @@ namespace Test
                     real.Value = value;
                 };
 
-                ExecuteTest(method, "Com.Real.Value.set(double)");
+                ExecuteTest(method, "Value.set(double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -21414,10 +22017,10 @@ namespace Test
                     _ = real.Magnitude;
                 };
 
-                ExecuteTest(method, "Com.Real.Magnitude.get()");
+                ExecuteTest(method, "Magnitude.get()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -21430,10 +22033,10 @@ namespace Test
                     real.Magnitude = value;
                 };
 
-                ExecuteTest(method, "Com.Real.Magnitude.set(long)");
+                ExecuteTest(method, "Magnitude.set(long)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // 相反数、倒数
@@ -21447,10 +22050,10 @@ namespace Test
                     _ = real.Opposite;
                 };
 
-                ExecuteTest(method, "Com.Real.Opposite.get()");
+                ExecuteTest(method, "Opposite.get()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
 
 #if ComVer1910
@@ -21462,10 +22065,10 @@ namespace Test
                     _ = real.Reciprocal;
                 };
 
-                ExecuteTest(method, "Com.Real.Reciprocal.get()");
+                ExecuteTest(method, "Reciprocal.get()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
         }
 
@@ -21488,10 +22091,10 @@ namespace Test
                     _ = real.Equals(obj);
                 };
 
-                ExecuteTest(method, "Com.Real.Equals(object)");
+                ExecuteTest(method, "Equals(object)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -21504,10 +22107,10 @@ namespace Test
                     _ = real.GetHashCode();
                 };
 
-                ExecuteTest(method, "Com.Real.GetHashCode()");
+                ExecuteTest(method, "GetHashCode()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -21520,10 +22123,10 @@ namespace Test
                     _ = real.ToString();
                 };
 
-                ExecuteTest(method, "Com.Real.ToString()");
+                ExecuteTest(method, "ToString()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // Equals
@@ -21538,10 +22141,10 @@ namespace Test
                     _ = left.Equals(right);
                 };
 
-                ExecuteTest(method, "Com.Real.Equals(Com.Real)");
+                ExecuteTest(method, "Equals(Com.Real)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // CompareTo
@@ -21556,10 +22159,10 @@ namespace Test
                     _ = left.CompareTo(right);
                 };
 
-                ExecuteTest(method, "Com.Real.CompareTo(object)");
+                ExecuteTest(method, "CompareTo(object)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -21572,10 +22175,10 @@ namespace Test
                     _ = left.CompareTo(right);
                 };
 
-                ExecuteTest(method, "Com.Real.CompareTo(Com.Real)");
+                ExecuteTest(method, "CompareTo(Com.Real)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
         }
 
@@ -21593,10 +22196,10 @@ namespace Test
                     _ = Com.Real.Equals(left, right);
                 };
 
-                ExecuteTest(method, "Com.Real.Equals(Com.Real, Com.Real)");
+                ExecuteTest(method, "Equals(Com.Real, Com.Real)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // Compare
@@ -21611,10 +22214,10 @@ namespace Test
                     _ = Com.Real.Compare(left, right);
                 };
 
-                ExecuteTest(method, "Com.Real.CompareTo(Com.Real, Com.Real)");
+                ExecuteTest(method, "CompareTo(Com.Real, Com.Real)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // 幂函数，指数函数，对数函数
@@ -21628,10 +22231,10 @@ namespace Test
                     _ = Com.Real.Sqr(real);
                 };
 
-                ExecuteTest(method, "Com.Real.Sqr(Com.Real)");
+                ExecuteTest(method, "Sqr(Com.Real)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -21643,10 +22246,10 @@ namespace Test
                     _ = Com.Real.Sqrt(real);
                 };
 
-                ExecuteTest(method, "Com.Real.Sqrt(Com.Real)");
+                ExecuteTest(method, "Sqrt(Com.Real)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -21658,10 +22261,10 @@ namespace Test
                     _ = Com.Real.Exp10(real);
                 };
 
-                ExecuteTest(method, "Com.Real.Exp10(Com.Real)");
+                ExecuteTest(method, "Exp10(Com.Real)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -21673,10 +22276,10 @@ namespace Test
                     _ = Com.Real.Exp(real);
                 };
 
-                ExecuteTest(method, "Com.Real.Exp(Com.Real)");
+                ExecuteTest(method, "Exp(Com.Real)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -21689,10 +22292,10 @@ namespace Test
                     _ = Com.Real.Pow(left, right);
                 };
 
-                ExecuteTest(method, "Com.Real.Pow(Com.Real, Com.Real)");
+                ExecuteTest(method, "Pow(Com.Real, Com.Real)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -21704,10 +22307,10 @@ namespace Test
                     _ = Com.Real.Log10(real);
                 };
 
-                ExecuteTest(method, "Com.Real.Log10(Com.Real)");
+                ExecuteTest(method, "Log10(Com.Real)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -21719,10 +22322,10 @@ namespace Test
                     _ = Com.Real.Log(real);
                 };
 
-                ExecuteTest(method, "Com.Real.Log(Com.Real)");
+                ExecuteTest(method, "Log(Com.Real)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -21735,10 +22338,10 @@ namespace Test
                     _ = Com.Real.Log(left, right);
                 };
 
-                ExecuteTest(method, "Com.Real.Log(Com.Real, Com.Real)");
+                ExecuteTest(method, "Log(Com.Real, Com.Real)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // 三角函数
@@ -21752,10 +22355,10 @@ namespace Test
                     _ = Com.Real.Sin(real);
                 };
 
-                ExecuteTest(method, "Com.Real.Sin(Com.Real)", "real at magnitude of 4096");
+                ExecuteTest(method, "Sin(Com.Real)", "real at magnitude of 4096");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -21767,10 +22370,10 @@ namespace Test
                     _ = Com.Real.Cos(real);
                 };
 
-                ExecuteTest(method, "Com.Real.Cos(Com.Real)", "real at magnitude of 4096");
+                ExecuteTest(method, "Cos(Com.Real)", "real at magnitude of 4096");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -21782,10 +22385,10 @@ namespace Test
                     _ = Com.Real.Tan(real);
                 };
 
-                ExecuteTest(method, "Com.Real.Tan(Com.Real)", "real at magnitude of 4096");
+                ExecuteTest(method, "Tan(Com.Real)", "real at magnitude of 4096");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -21797,10 +22400,10 @@ namespace Test
                     _ = Com.Real.Asin(real);
                 };
 
-                ExecuteTest(method, "Com.Real.Asin(Com.Real)");
+                ExecuteTest(method, "Asin(Com.Real)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -21812,10 +22415,10 @@ namespace Test
                     _ = Com.Real.Acos(real);
                 };
 
-                ExecuteTest(method, "Com.Real.Acos(Com.Real)");
+                ExecuteTest(method, "Acos(Com.Real)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -21827,10 +22430,10 @@ namespace Test
                     _ = Com.Real.Atan(real);
                 };
 
-                ExecuteTest(method, "Com.Real.Atan(Com.Real)");
+                ExecuteTest(method, "Atan(Com.Real)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -21842,10 +22445,10 @@ namespace Test
                     _ = Com.Real.Sinh(real);
                 };
 
-                ExecuteTest(method, "Com.Real.Sinh(Com.Real)");
+                ExecuteTest(method, "Sinh(Com.Real)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -21857,10 +22460,10 @@ namespace Test
                     _ = Com.Real.Cosh(real);
                 };
 
-                ExecuteTest(method, "Com.Real.Cosh(Com.Real)");
+                ExecuteTest(method, "Cosh(Com.Real)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -21872,10 +22475,10 @@ namespace Test
                     _ = Com.Real.Tanh(real);
                 };
 
-                ExecuteTest(method, "Com.Real.Tanh(Com.Real)");
+                ExecuteTest(method, "Tanh(Com.Real)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -21887,10 +22490,10 @@ namespace Test
                     _ = Com.Real.Asinh(real);
                 };
 
-                ExecuteTest(method, "Com.Real.Asinh(Com.Real)");
+                ExecuteTest(method, "Asinh(Com.Real)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -21902,10 +22505,10 @@ namespace Test
                     _ = Com.Real.Acosh(real);
                 };
 
-                ExecuteTest(method, "Com.Real.Acosh(Com.Real)");
+                ExecuteTest(method, "Acosh(Com.Real)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -21917,10 +22520,10 @@ namespace Test
                     _ = Com.Real.Atanh(real);
                 };
 
-                ExecuteTest(method, "Com.Real.Atanh(Com.Real)");
+                ExecuteTest(method, "Atanh(Com.Real)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // 初等函数
@@ -21934,10 +22537,10 @@ namespace Test
                     _ = Com.Real.Abs(real);
                 };
 
-                ExecuteTest(method, "Com.Real.Abs(Com.Real)");
+                ExecuteTest(method, "Abs(Com.Real)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -21949,10 +22552,10 @@ namespace Test
                     _ = Com.Real.Sign(real);
                 };
 
-                ExecuteTest(method, "Com.Real.Sign(Com.Real)");
+                ExecuteTest(method, "Sign(Com.Real)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -21964,10 +22567,10 @@ namespace Test
                     _ = Com.Real.Ceiling(real);
                 };
 
-                ExecuteTest(method, "Com.Real.Ceiling(Com.Real)");
+                ExecuteTest(method, "Ceiling(Com.Real)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -21979,10 +22582,10 @@ namespace Test
                     _ = Com.Real.Floor(real);
                 };
 
-                ExecuteTest(method, "Com.Real.Floor(Com.Real)");
+                ExecuteTest(method, "Floor(Com.Real)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -21994,10 +22597,10 @@ namespace Test
                     _ = Com.Real.Round(real);
                 };
 
-                ExecuteTest(method, "Com.Real.Round(Com.Real)");
+                ExecuteTest(method, "Round(Com.Real)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -22009,10 +22612,10 @@ namespace Test
                     _ = Com.Real.Truncate(real);
                 };
 
-                ExecuteTest(method, "Com.Real.Truncate(Com.Real)");
+                ExecuteTest(method, "Truncate(Com.Real)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -22025,10 +22628,10 @@ namespace Test
                     _ = Com.Real.Max(left, right);
                 };
 
-                ExecuteTest(method, "Com.Real.Max(Com.Real, Com.Real)");
+                ExecuteTest(method, "Max(Com.Real, Com.Real)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -22041,10 +22644,10 @@ namespace Test
                     _ = Com.Real.Min(left, right);
                 };
 
-                ExecuteTest(method, "Com.Real.Min(Com.Real, Com.Real)");
+                ExecuteTest(method, "Min(Com.Real, Com.Real)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
         }
 
@@ -22062,10 +22665,10 @@ namespace Test
                     _ = (left == right);
                 };
 
-                ExecuteTest(method, "Com.Real.operator ==(Com.Real, Com.Real)");
+                ExecuteTest(method, "operator ==(Com.Real, Com.Real)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -22078,10 +22681,10 @@ namespace Test
                     _ = (left != right);
                 };
 
-                ExecuteTest(method, "Com.Real.operator !=(Com.Real, Com.Real)");
+                ExecuteTest(method, "operator !=(Com.Real, Com.Real)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -22094,10 +22697,10 @@ namespace Test
                     _ = (left < right);
                 };
 
-                ExecuteTest(method, "Com.Real.operator <(Com.Real, Com.Real)");
+                ExecuteTest(method, "operator <(Com.Real, Com.Real)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -22110,10 +22713,10 @@ namespace Test
                     _ = (left > right);
                 };
 
-                ExecuteTest(method, "Com.Real.operator >(Com.Real, Com.Real)");
+                ExecuteTest(method, "operator >(Com.Real, Com.Real)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -22126,10 +22729,10 @@ namespace Test
                     _ = (left <= right);
                 };
 
-                ExecuteTest(method, "Com.Real.operator <=(Com.Real, Com.Real)");
+                ExecuteTest(method, "operator <=(Com.Real, Com.Real)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -22142,10 +22745,10 @@ namespace Test
                     _ = (left >= right);
                 };
 
-                ExecuteTest(method, "Com.Real.operator >=(Com.Real, Com.Real)");
+                ExecuteTest(method, "operator >=(Com.Real, Com.Real)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // 运算
@@ -22159,10 +22762,10 @@ namespace Test
                     _ = +real;
                 };
 
-                ExecuteTest(method, "Com.Real.operator +(Com.Real)");
+                ExecuteTest(method, "operator +(Com.Real)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -22174,10 +22777,10 @@ namespace Test
                     _ = -real;
                 };
 
-                ExecuteTest(method, "Com.Real.operator -(Com.Real)");
+                ExecuteTest(method, "operator -(Com.Real)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -22189,10 +22792,10 @@ namespace Test
                     real++;
                 };
 
-                ExecuteTest(method, "Com.Real.operator ++(Com.Real)");
+                ExecuteTest(method, "operator ++(Com.Real)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -22204,10 +22807,10 @@ namespace Test
                     real--;
                 };
 
-                ExecuteTest(method, "Com.Real.operator --(Com.Real)");
+                ExecuteTest(method, "operator --(Com.Real)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -22220,10 +22823,10 @@ namespace Test
                     _ = left + right;
                 };
 
-                ExecuteTest(method, "Com.Real.operator +(Com.Real, Com.Real)");
+                ExecuteTest(method, "operator +(Com.Real, Com.Real)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -22236,10 +22839,10 @@ namespace Test
                     _ = left - right;
                 };
 
-                ExecuteTest(method, "Com.Real.operator -(Com.Real, Com.Real)");
+                ExecuteTest(method, "operator -(Com.Real, Com.Real)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -22252,10 +22855,10 @@ namespace Test
                     _ = left * right;
                 };
 
-                ExecuteTest(method, "Com.Real.operator *(Com.Real, Com.Real)");
+                ExecuteTest(method, "operator *(Com.Real, Com.Real)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -22268,10 +22871,10 @@ namespace Test
                     _ = left / right;
                 };
 
-                ExecuteTest(method, "Com.Real.operator /(Com.Real, Com.Real)");
+                ExecuteTest(method, "operator /(Com.Real, Com.Real)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -22284,10 +22887,10 @@ namespace Test
                     _ = left % right;
                 };
 
-                ExecuteTest(method, "Com.Real.operator %(Com.Real, Com.Real)", "left at magnitude of 4096, right at magnitude of 256");
+                ExecuteTest(method, "operator %(Com.Real, Com.Real)", "left at magnitude of 4096, right at magnitude of 256");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -22300,10 +22903,10 @@ namespace Test
                     _ = left ^ right;
                 };
 
-                ExecuteTest(method, "Com.Real.operator ^(Com.Real, Com.Real)");
+                ExecuteTest(method, "operator ^(Com.Real, Com.Real)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // 类型转换
@@ -22317,10 +22920,10 @@ namespace Test
                     _ = (double)real;
                 };
 
-                ExecuteTest(method, "Com.Real.explicit operator double(Com.Real)");
+                ExecuteTest(method, "explicit operator double(Com.Real)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -22332,10 +22935,10 @@ namespace Test
                     _ = (float)real;
                 };
 
-                ExecuteTest(method, "Com.Real.explicit operator float(Com.Real)");
+                ExecuteTest(method, "explicit operator float(Com.Real)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -22347,10 +22950,10 @@ namespace Test
                     _ = (decimal)real;
                 };
 
-                ExecuteTest(method, "Com.Real.explicit operator decimal(Com.Real)");
+                ExecuteTest(method, "explicit operator decimal(Com.Real)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -22362,10 +22965,10 @@ namespace Test
                     _ = (ulong)real;
                 };
 
-                ExecuteTest(method, "Com.Real.explicit operator ulong(Com.Real)");
+                ExecuteTest(method, "explicit operator ulong(Com.Real)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -22377,10 +22980,10 @@ namespace Test
                     _ = (long)real;
                 };
 
-                ExecuteTest(method, "Com.Real.explicit operator long(Com.Real)");
+                ExecuteTest(method, "explicit operator long(Com.Real)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -22392,10 +22995,10 @@ namespace Test
                     _ = (uint)real;
                 };
 
-                ExecuteTest(method, "Com.Real.explicit operator uint(Com.Real)");
+                ExecuteTest(method, "explicit operator uint(Com.Real)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -22407,10 +23010,10 @@ namespace Test
                     _ = (int)real;
                 };
 
-                ExecuteTest(method, "Com.Real.explicit operator int(Com.Real)");
+                ExecuteTest(method, "explicit operator int(Com.Real)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -22422,10 +23025,10 @@ namespace Test
                     _ = (ushort)real;
                 };
 
-                ExecuteTest(method, "Com.Real.explicit operator ushort(Com.Real)");
+                ExecuteTest(method, "explicit operator ushort(Com.Real)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -22437,10 +23040,10 @@ namespace Test
                     _ = (short)real;
                 };
 
-                ExecuteTest(method, "Com.Real.explicit operator short(Com.Real)");
+                ExecuteTest(method, "explicit operator short(Com.Real)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -22452,10 +23055,10 @@ namespace Test
                     _ = (byte)real;
                 };
 
-                ExecuteTest(method, "Com.Real.explicit operator byte(Com.Real)");
+                ExecuteTest(method, "explicit operator byte(Com.Real)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -22467,10 +23070,10 @@ namespace Test
                     _ = (sbyte)real;
                 };
 
-                ExecuteTest(method, "Com.Real.explicit operator sbyte(Com.Real)");
+                ExecuteTest(method, "explicit operator sbyte(Com.Real)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -22482,10 +23085,10 @@ namespace Test
                     _ = (Com.Real)value;
                 };
 
-                ExecuteTest(method, "Com.Real.implicit operator Real(double)");
+                ExecuteTest(method, "implicit operator Real(double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -22497,10 +23100,10 @@ namespace Test
                     _ = (Com.Real)value;
                 };
 
-                ExecuteTest(method, "Com.Real.implicit operator Real(float)");
+                ExecuteTest(method, "implicit operator Real(float)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -22512,10 +23115,10 @@ namespace Test
                     _ = (Com.Real)value;
                 };
 
-                ExecuteTest(method, "Com.Real.explicit operator Real(decimal)");
+                ExecuteTest(method, "explicit operator Real(decimal)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -22527,10 +23130,10 @@ namespace Test
                     _ = (Com.Real)value;
                 };
 
-                ExecuteTest(method, "Com.Real.implicit operator Real(ulong)");
+                ExecuteTest(method, "implicit operator Real(ulong)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -22542,10 +23145,10 @@ namespace Test
                     _ = (Com.Real)value;
                 };
 
-                ExecuteTest(method, "Com.Real.implicit operator Real(long)");
+                ExecuteTest(method, "implicit operator Real(long)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -22557,10 +23160,10 @@ namespace Test
                     _ = (Com.Real)value;
                 };
 
-                ExecuteTest(method, "Com.Real.implicit operator Real(uint)");
+                ExecuteTest(method, "implicit operator Real(uint)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -22572,10 +23175,10 @@ namespace Test
                     _ = (Com.Real)value;
                 };
 
-                ExecuteTest(method, "Com.Real.implicit operator Real(int)");
+                ExecuteTest(method, "implicit operator Real(int)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -22587,10 +23190,10 @@ namespace Test
                     _ = (Com.Real)value;
                 };
 
-                ExecuteTest(method, "Com.Real.implicit operator Real(ushort)");
+                ExecuteTest(method, "implicit operator Real(ushort)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -22602,10 +23205,10 @@ namespace Test
                     _ = (Com.Real)value;
                 };
 
-                ExecuteTest(method, "Com.Real.implicit operator Real(short)");
+                ExecuteTest(method, "implicit operator Real(short)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -22617,10 +23220,10 @@ namespace Test
                     _ = (Com.Real)value;
                 };
 
-                ExecuteTest(method, "Com.Real.implicit operator Real(byte)");
+                ExecuteTest(method, "implicit operator Real(byte)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -22632,16 +23235,46 @@ namespace Test
                     _ = (Com.Real)value;
                 };
 
-                ExecuteTest(method, "Com.Real.implicit operator Real(sbyte)");
+                ExecuteTest(method, "implicit operator Real(sbyte)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
         }
     }
 
     sealed class StatisticsTest : ClassPerfTestBase
     {
+        private const string _NamespaceName = "Com";
+        private const string _ClassName = "Statistics";
+
+        private void ExecuteTest(Action method, string methodName, string comment)
+        {
+            base.ExecuteTest(method, _NamespaceName, _ClassName, methodName, comment);
+        }
+
+        private void ExecuteTest(Action method, string methodName)
+        {
+            base.ExecuteTest(method, _NamespaceName, _ClassName, methodName);
+        }
+
+        private void ExecuteTest(string methodName, UnsupportedReason unsupportedReason)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, methodName, unsupportedReason);
+        }
+
+        private void ExecuteTest(string methodName)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, methodName);
+        }
+
+        private void ExecuteTest(UnsupportedReason unsupportedReason)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, string.Empty, unsupportedReason);
+        }
+
+        //
+
         private static sbyte[] _GetRandomSbyteArray(int size)
         {
             if (size > 0)
@@ -22883,7 +23516,7 @@ namespace Test
                     _ = Com.Statistics.RandomInteger();
                 };
 
-                ExecuteTest(method, "Com.Statistics.RandomInteger()");
+                ExecuteTest(method, "RandomInteger()");
             }
 
             {
@@ -22894,7 +23527,7 @@ namespace Test
                     _ = Com.Statistics.RandomInteger(right);
                 };
 
-                ExecuteTest(method, "Com.Statistics.RandomInteger(int)");
+                ExecuteTest(method, "RandomInteger(int)");
             }
 
             {
@@ -22906,7 +23539,7 @@ namespace Test
                     _ = Com.Statistics.RandomInteger(left, right);
                 };
 
-                ExecuteTest(method, "Com.Statistics.RandomInteger(int, int)");
+                ExecuteTest(method, "RandomInteger(int, int)");
             }
 
             {
@@ -22915,7 +23548,7 @@ namespace Test
                     _ = Com.Statistics.RandomDouble();
                 };
 
-                ExecuteTest(method, "Com.Statistics.RandomDouble()");
+                ExecuteTest(method, "RandomDouble()");
             }
 
             {
@@ -22926,7 +23559,7 @@ namespace Test
                     _ = Com.Statistics.RandomDouble(right);
                 };
 
-                ExecuteTest(method, "Com.Statistics.RandomDouble(double)");
+                ExecuteTest(method, "RandomDouble(double)");
             }
 
             {
@@ -22938,7 +23571,7 @@ namespace Test
                     _ = Com.Statistics.RandomDouble(left, right);
                 };
 
-                ExecuteTest(method, "Com.Statistics.RandomDouble(double, double)");
+                ExecuteTest(method, "RandomDouble(double, double)");
             }
 
 #if ComVer1905
@@ -22948,10 +23581,10 @@ namespace Test
                     _ = Com.Statistics.NormalDistributionRandomInteger();
                 };
 
-                ExecuteTest(method, "Com.Statistics.NormalDistributionRandomInteger()");
+                ExecuteTest(method, "NormalDistributionRandomInteger()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -22964,10 +23597,10 @@ namespace Test
                     _ = Com.Statistics.NormalDistributionRandomInteger(ev, sd);
                 };
 
-                ExecuteTest(method, "Com.Statistics.NormalDistributionRandomInteger(double, double)");
+                ExecuteTest(method, "NormalDistributionRandomInteger(double, double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -22977,10 +23610,10 @@ namespace Test
                     _ = Com.Statistics.NormalDistributionRandomDouble();
                 };
 
-                ExecuteTest(method, "Com.Statistics.NormalDistributionRandomDouble()");
+                ExecuteTest(method, "NormalDistributionRandomDouble()");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -22993,10 +23626,10 @@ namespace Test
                     _ = Com.Statistics.NormalDistributionRandomDouble(ev, sd);
                 };
 
-                ExecuteTest(method, "Com.Statistics.NormalDistributionRandomDouble(double, double)");
+                ExecuteTest(method, "NormalDistributionRandomDouble(double, double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // 排列组合
@@ -23011,10 +23644,10 @@ namespace Test
                     _ = Com.Statistics.Arrangement(total, selection);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Arrangement(double, double)", "total at 2097152, selection at 1048576");
+                ExecuteTest(method, "Arrangement(double, double)", "total at 2097152, selection at 1048576");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23027,10 +23660,10 @@ namespace Test
                     _ = Com.Statistics.Combination(total, selection);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Combination(double, double)", "total at 2097152, selection at 1048576");
+                ExecuteTest(method, "Combination(double, double)", "total at 2097152, selection at 1048576");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // 分布
@@ -23045,10 +23678,10 @@ namespace Test
                     _ = Com.Statistics.GeometricDistributionProbability(value, p);
                 };
 
-                ExecuteTest(method, "Com.Statistics.GeometricDistributionProbability(int, double)", "value at 1048576, p at 0.5");
+                ExecuteTest(method, "GeometricDistributionProbability(int, double)", "value at 1048576, p at 0.5");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23063,10 +23696,10 @@ namespace Test
                     _ = Com.Statistics.HypergeometricDistributionProbability(value, N, M, n);
                 };
 
-                ExecuteTest(method, "Com.Statistics.HypergeometricDistributionProbability(int, int, int, int)", "value at 1048576, N at 8388608, M at 4194304, n at 2097152");
+                ExecuteTest(method, "HypergeometricDistributionProbability(int, int, int, int)", "value at 1048576, N at 8388608, M at 4194304, n at 2097152");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23080,10 +23713,10 @@ namespace Test
                     _ = Com.Statistics.BinomialDistributionProbability(value, n, p);
                 };
 
-                ExecuteTest(method, "Com.Statistics.BinomialDistributionProbability(int, int, double)", "value at 1048576, N at 2097152, p at 0.5");
+                ExecuteTest(method, "BinomialDistributionProbability(int, int, double)", "value at 1048576, N at 2097152, p at 0.5");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23096,10 +23729,10 @@ namespace Test
                     _ = Com.Statistics.PoissonDistributionProbability(value, lambda);
                 };
 
-                ExecuteTest(method, "Com.Statistics.PoissonDistributionProbability(int, double)", "value at 1048576, lambda at 1048576");
+                ExecuteTest(method, "PoissonDistributionProbability(int, double)", "value at 1048576, lambda at 1048576");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23112,10 +23745,10 @@ namespace Test
                     _ = Com.Statistics.ExponentialDistributionProbabilityDensity(value, lambda);
                 };
 
-                ExecuteTest(method, "Com.Statistics.ExponentialDistributionProbabilityDensity(double, double)", "value at 0.5, lambda at 0.5");
+                ExecuteTest(method, "ExponentialDistributionProbabilityDensity(double, double)", "value at 0.5, lambda at 0.5");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23129,10 +23762,10 @@ namespace Test
                     _ = Com.Statistics.ExponentialDistributionProbability(lambda, left, right);
                 };
 
-                ExecuteTest(method, "Com.Statistics.ExponentialDistributionProbabilityDensity(double, double, double)", "lambda at 0.5, left at 0.5, right at 1");
+                ExecuteTest(method, "ExponentialDistributionProbabilityDensity(double, double, double)", "lambda at 0.5, left at 0.5, right at 1");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23144,10 +23777,10 @@ namespace Test
                     _ = Com.Statistics.NormalDistributionProbabilityDensity(value);
                 };
 
-                ExecuteTest(method, "Com.Statistics.NormalDistributionProbabilityDensity(double)", "value at 0.5");
+                ExecuteTest(method, "NormalDistributionProbabilityDensity(double)", "value at 0.5");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23161,10 +23794,10 @@ namespace Test
                     _ = Com.Statistics.NormalDistributionProbabilityDensity(value, ev, sd);
                 };
 
-                ExecuteTest(method, "Com.Statistics.NormalDistributionProbabilityDensity(double, double, double)", "value at 0.5, ev at 0, sd at 1");
+                ExecuteTest(method, "NormalDistributionProbabilityDensity(double, double, double)", "value at 0.5, ev at 0, sd at 1");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23177,10 +23810,10 @@ namespace Test
                     _ = Com.Statistics.ChiSquaredDistributionProbabilityDensity(value, k);
                 };
 
-                ExecuteTest(method, "Com.Statistics.ChiSquaredDistributionProbabilityDensity(double, int)", "value at 0.5, k at 1");
+                ExecuteTest(method, "ChiSquaredDistributionProbabilityDensity(double, int)", "value at 0.5, k at 1");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // 极值，极差，求和，平均
@@ -23194,10 +23827,10 @@ namespace Test
                     _ = Com.Statistics.Max(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Max(params sbyte[])", "array size at 1024");
+                ExecuteTest(method, "Max(params sbyte[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23209,10 +23842,10 @@ namespace Test
                     _ = Com.Statistics.Max(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Max(params byte[])", "array size at 1024");
+                ExecuteTest(method, "Max(params byte[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23224,10 +23857,10 @@ namespace Test
                     _ = Com.Statistics.Max(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Max(params short[])", "array size at 1024");
+                ExecuteTest(method, "Max(params short[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23239,10 +23872,10 @@ namespace Test
                     _ = Com.Statistics.Max(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Max(params ushort[])", "array size at 1024");
+                ExecuteTest(method, "Max(params ushort[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23254,10 +23887,10 @@ namespace Test
                     _ = Com.Statistics.Max(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Max(params int[])", "array size at 1024");
+                ExecuteTest(method, "Max(params int[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23269,10 +23902,10 @@ namespace Test
                     _ = Com.Statistics.Max(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Max(params uint[])", "array size at 1024");
+                ExecuteTest(method, "Max(params uint[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23284,10 +23917,10 @@ namespace Test
                     _ = Com.Statistics.Max(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Max(params long[])", "array size at 1024");
+                ExecuteTest(method, "Max(params long[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23299,10 +23932,10 @@ namespace Test
                     _ = Com.Statistics.Max(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Max(params ulong[])", "array size at 1024");
+                ExecuteTest(method, "Max(params ulong[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23314,10 +23947,10 @@ namespace Test
                     _ = Com.Statistics.Max(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Max(params decimal[])", "array size at 1024");
+                ExecuteTest(method, "Max(params decimal[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23329,10 +23962,10 @@ namespace Test
                     _ = Com.Statistics.Max(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Max(params float[])", "array size at 1024");
+                ExecuteTest(method, "Max(params float[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23344,22 +23977,22 @@ namespace Test
                     _ = Com.Statistics.Max(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Max(params double[])", "array size at 1024");
+                ExecuteTest(method, "Max(params double[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
-            ExecuteTest(WillNotTest, "Com.Statistics.Max<T>(params T[]) where T : System.IComparable");
+            ExecuteTest("Max<T>(params T[]) where T : System.IComparable");
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
-            ExecuteTest(WillNotTest, "Com.Statistics.Max(params System.IComparable[])");
+            ExecuteTest("Max(params System.IComparable[])");
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23371,10 +24004,10 @@ namespace Test
                     _ = Com.Statistics.Min(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Min(params sbyte[])", "array size at 1024");
+                ExecuteTest(method, "Min(params sbyte[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23386,10 +24019,10 @@ namespace Test
                     _ = Com.Statistics.Min(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Min(params byte[])", "array size at 1024");
+                ExecuteTest(method, "Min(params byte[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23401,10 +24034,10 @@ namespace Test
                     _ = Com.Statistics.Min(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Min(params short[])", "array size at 1024");
+                ExecuteTest(method, "Min(params short[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23416,10 +24049,10 @@ namespace Test
                     _ = Com.Statistics.Min(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Min(params ushort[])", "array size at 1024");
+                ExecuteTest(method, "Min(params ushort[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23431,10 +24064,10 @@ namespace Test
                     _ = Com.Statistics.Min(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Min(params int[])", "array size at 1024");
+                ExecuteTest(method, "Min(params int[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23446,10 +24079,10 @@ namespace Test
                     _ = Com.Statistics.Min(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Min(params uint[])", "array size at 1024");
+                ExecuteTest(method, "Min(params uint[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23461,10 +24094,10 @@ namespace Test
                     _ = Com.Statistics.Min(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Min(params long[])", "array size at 1024");
+                ExecuteTest(method, "Min(params long[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23476,10 +24109,10 @@ namespace Test
                     _ = Com.Statistics.Min(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Min(params ulong[])", "array size at 1024");
+                ExecuteTest(method, "Min(params ulong[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23491,10 +24124,10 @@ namespace Test
                     _ = Com.Statistics.Min(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Min(params decimal[])", "array size at 1024");
+                ExecuteTest(method, "Min(params decimal[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23506,10 +24139,10 @@ namespace Test
                     _ = Com.Statistics.Min(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Min(params float[])", "array size at 1024");
+                ExecuteTest(method, "Min(params float[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23521,22 +24154,22 @@ namespace Test
                     _ = Com.Statistics.Min(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Min(params double[])", "array size at 1024");
+                ExecuteTest(method, "Min(params double[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
-            ExecuteTest(WillNotTest, "Com.Statistics.Min<T>(params T[]) where T : System.IComparable");
+            ExecuteTest("Min<T>(params T[]) where T : System.IComparable");
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
-            ExecuteTest(WillNotTest, "Com.Statistics.Min(params System.IComparable[])");
+            ExecuteTest("Min(params System.IComparable[])");
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23548,10 +24181,10 @@ namespace Test
                     _ = Com.Statistics.MinMax(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.MinMax(params sbyte[])", "array size at 1024");
+                ExecuteTest(method, "MinMax(params sbyte[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23563,10 +24196,10 @@ namespace Test
                     _ = Com.Statistics.MinMax(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.MinMax(params byte[])", "array size at 1024");
+                ExecuteTest(method, "MinMax(params byte[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23578,10 +24211,10 @@ namespace Test
                     _ = Com.Statistics.MinMax(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.MinMax(params short[])", "array size at 1024");
+                ExecuteTest(method, "MinMax(params short[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23593,10 +24226,10 @@ namespace Test
                     _ = Com.Statistics.MinMax(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.MinMax(params ushort[])", "array size at 1024");
+                ExecuteTest(method, "MinMax(params ushort[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23608,10 +24241,10 @@ namespace Test
                     _ = Com.Statistics.MinMax(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.MinMax(params int[])", "array size at 1024");
+                ExecuteTest(method, "MinMax(params int[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23623,10 +24256,10 @@ namespace Test
                     _ = Com.Statistics.MinMax(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.MinMax(params uint[])", "array size at 1024");
+                ExecuteTest(method, "MinMax(params uint[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23638,10 +24271,10 @@ namespace Test
                     _ = Com.Statistics.MinMax(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.MinMax(params long[])", "array size at 1024");
+                ExecuteTest(method, "MinMax(params long[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23653,10 +24286,10 @@ namespace Test
                     _ = Com.Statistics.MinMax(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.MinMax(params ulong[])", "array size at 1024");
+                ExecuteTest(method, "MinMax(params ulong[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23668,10 +24301,10 @@ namespace Test
                     _ = Com.Statistics.MinMax(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.MinMax(params decimal[])", "array size at 1024");
+                ExecuteTest(method, "MinMax(params decimal[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23683,10 +24316,10 @@ namespace Test
                     _ = Com.Statistics.MinMax(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.MinMax(params float[])", "array size at 1024");
+                ExecuteTest(method, "MinMax(params float[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23698,22 +24331,22 @@ namespace Test
                     _ = Com.Statistics.MinMax(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.MinMax(params double[])", "array size at 1024");
+                ExecuteTest(method, "MinMax(params double[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
-            ExecuteTest(WillNotTest, "Com.Statistics.MinMax<T>(params T[]) where T : System.IComparable");
+            ExecuteTest("MinMax<T>(params T[]) where T : System.IComparable");
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
-            ExecuteTest(WillNotTest, "Com.Statistics.MinMax(params System.IComparable[])");
+            ExecuteTest("MinMax(params System.IComparable[])");
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23725,10 +24358,10 @@ namespace Test
                     _ = Com.Statistics.Range(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Range(params sbyte[])", "array size at 1024");
+                ExecuteTest(method, "Range(params sbyte[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23740,10 +24373,10 @@ namespace Test
                     _ = Com.Statistics.Range(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Range(params byte[])", "array size at 1024");
+                ExecuteTest(method, "Range(params byte[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23755,10 +24388,10 @@ namespace Test
                     _ = Com.Statistics.Range(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Range(params short[])", "array size at 1024");
+                ExecuteTest(method, "Range(params short[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23770,10 +24403,10 @@ namespace Test
                     _ = Com.Statistics.Range(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Range(params ushort[])", "array size at 1024");
+                ExecuteTest(method, "Range(params ushort[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23785,10 +24418,10 @@ namespace Test
                     _ = Com.Statistics.Range(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Range(params int[])", "array size at 1024");
+                ExecuteTest(method, "Range(params int[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23800,10 +24433,10 @@ namespace Test
                     _ = Com.Statistics.Range(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Range(params uint[])", "array size at 1024");
+                ExecuteTest(method, "Range(params uint[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23815,10 +24448,10 @@ namespace Test
                     _ = Com.Statistics.Range(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Range(params long[])", "array size at 1024");
+                ExecuteTest(method, "Range(params long[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23830,10 +24463,10 @@ namespace Test
                     _ = Com.Statistics.Range(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Range(params ulong[])", "array size at 1024");
+                ExecuteTest(method, "Range(params ulong[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23845,10 +24478,10 @@ namespace Test
                     _ = Com.Statistics.Range(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Range(params decimal[])", "array size at 1024");
+                ExecuteTest(method, "Range(params decimal[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23860,10 +24493,10 @@ namespace Test
                     _ = Com.Statistics.Range(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Range(params float[])", "array size at 1024");
+                ExecuteTest(method, "Range(params float[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23875,10 +24508,10 @@ namespace Test
                     _ = Com.Statistics.Range(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Range(params double[])", "array size at 1024");
+                ExecuteTest(method, "Range(params double[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23890,10 +24523,10 @@ namespace Test
                     _ = Com.Statistics.Sum(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Sum(params sbyte[])", "array size at 1024");
+                ExecuteTest(method, "Sum(params sbyte[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23905,10 +24538,10 @@ namespace Test
                     _ = Com.Statistics.Sum(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Sum(params byte[])", "array size at 1024");
+                ExecuteTest(method, "Sum(params byte[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23920,10 +24553,10 @@ namespace Test
                     _ = Com.Statistics.Sum(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Sum(params short[])", "array size at 1024");
+                ExecuteTest(method, "Sum(params short[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23935,10 +24568,10 @@ namespace Test
                     _ = Com.Statistics.Sum(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Sum(params ushort[])", "array size at 1024");
+                ExecuteTest(method, "Sum(params ushort[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23955,10 +24588,10 @@ namespace Test
                     _ = Com.Statistics.Sum(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Sum(params int[])", "array size at 1024");
+                ExecuteTest(method, "Sum(params int[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23970,10 +24603,10 @@ namespace Test
                     _ = Com.Statistics.Sum(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Sum(params uint[])", "array size at 1024");
+                ExecuteTest(method, "Sum(params uint[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -23985,10 +24618,10 @@ namespace Test
                     _ = Com.Statistics.Sum(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Sum(params long[])", "array size at 1024");
+                ExecuteTest(method, "Sum(params long[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -24000,10 +24633,10 @@ namespace Test
                     _ = Com.Statistics.Sum(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Sum(params ulong[])", "array size at 1024");
+                ExecuteTest(method, "Sum(params ulong[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -24015,10 +24648,10 @@ namespace Test
                     _ = Com.Statistics.Sum(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Sum(params decimal[])", "array size at 1024");
+                ExecuteTest(method, "Sum(params decimal[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -24030,10 +24663,10 @@ namespace Test
                     _ = Com.Statistics.Sum(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Sum(params float[])", "array size at 1024");
+                ExecuteTest(method, "Sum(params float[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -24045,10 +24678,10 @@ namespace Test
                     _ = Com.Statistics.Sum(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Sum(params double[])", "array size at 1024");
+                ExecuteTest(method, "Sum(params double[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -24060,10 +24693,10 @@ namespace Test
                     _ = Com.Statistics.Average(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Average(params sbyte[])", "array size at 1024");
+                ExecuteTest(method, "Average(params sbyte[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -24075,10 +24708,10 @@ namespace Test
                     _ = Com.Statistics.Average(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Average(params byte[])", "array size at 1024");
+                ExecuteTest(method, "Average(params byte[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -24090,10 +24723,10 @@ namespace Test
                     _ = Com.Statistics.Average(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Average(params short[])", "array size at 1024");
+                ExecuteTest(method, "Average(params short[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -24105,10 +24738,10 @@ namespace Test
                     _ = Com.Statistics.Average(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Average(params ushort[])", "array size at 1024");
+                ExecuteTest(method, "Average(params ushort[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -24120,10 +24753,10 @@ namespace Test
                     _ = Com.Statistics.Average(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Average(params int[])", "array size at 1024");
+                ExecuteTest(method, "Average(params int[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -24135,10 +24768,10 @@ namespace Test
                     _ = Com.Statistics.Average(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Average(params uint[])", "array size at 1024");
+                ExecuteTest(method, "Average(params uint[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -24150,10 +24783,10 @@ namespace Test
                     _ = Com.Statistics.Average(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Average(params long[])", "array size at 1024");
+                ExecuteTest(method, "Average(params long[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -24165,10 +24798,10 @@ namespace Test
                     _ = Com.Statistics.Average(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Average(params ulong[])", "array size at 1024");
+                ExecuteTest(method, "Average(params ulong[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -24180,10 +24813,10 @@ namespace Test
                     _ = Com.Statistics.Average(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Average(params decimal[])", "array size at 1024");
+                ExecuteTest(method, "Average(params decimal[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -24195,10 +24828,10 @@ namespace Test
                     _ = Com.Statistics.Average(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Average(params float[])", "array size at 1024");
+                ExecuteTest(method, "Average(params float[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -24210,10 +24843,10 @@ namespace Test
                     _ = Com.Statistics.Average(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Average(params double[])", "array size at 1024");
+                ExecuteTest(method, "Average(params double[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -24225,10 +24858,10 @@ namespace Test
                     _ = Com.Statistics.MinMaxAverage(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.MinMaxAverage(params sbyte[])", "array size at 1024");
+                ExecuteTest(method, "MinMaxAverage(params sbyte[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -24240,10 +24873,10 @@ namespace Test
                     _ = Com.Statistics.MinMaxAverage(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.MinMaxAverage(params byte[])", "array size at 1024");
+                ExecuteTest(method, "MinMaxAverage(params byte[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -24255,10 +24888,10 @@ namespace Test
                     _ = Com.Statistics.MinMaxAverage(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.MinMaxAverage(params short[])", "array size at 1024");
+                ExecuteTest(method, "MinMaxAverage(params short[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -24270,10 +24903,10 @@ namespace Test
                     _ = Com.Statistics.MinMaxAverage(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.MinMaxAverage(params ushort[])", "array size at 1024");
+                ExecuteTest(method, "MinMaxAverage(params ushort[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -24285,10 +24918,10 @@ namespace Test
                     _ = Com.Statistics.MinMaxAverage(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.MinMaxAverage(params int[])", "array size at 1024");
+                ExecuteTest(method, "MinMaxAverage(params int[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -24300,10 +24933,10 @@ namespace Test
                     _ = Com.Statistics.MinMaxAverage(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.MinMaxAverage(params uint[])", "array size at 1024");
+                ExecuteTest(method, "MinMaxAverage(params uint[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -24315,10 +24948,10 @@ namespace Test
                     _ = Com.Statistics.MinMaxAverage(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.MinMaxAverage(params long[])", "array size at 1024");
+                ExecuteTest(method, "MinMaxAverage(params long[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -24330,10 +24963,10 @@ namespace Test
                     _ = Com.Statistics.MinMaxAverage(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.MinMaxAverage(params ulong[])", "array size at 1024");
+                ExecuteTest(method, "MinMaxAverage(params ulong[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -24345,10 +24978,10 @@ namespace Test
                     _ = Com.Statistics.MinMaxAverage(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.MinMaxAverage(params decimal[])", "array size at 1024");
+                ExecuteTest(method, "MinMaxAverage(params decimal[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -24360,10 +24993,10 @@ namespace Test
                     _ = Com.Statistics.MinMaxAverage(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.MinMaxAverage(params float[])", "array size at 1024");
+                ExecuteTest(method, "MinMaxAverage(params float[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -24375,10 +25008,10 @@ namespace Test
                     _ = Com.Statistics.MinMaxAverage(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.MinMaxAverage(params double[])", "array size at 1024");
+                ExecuteTest(method, "MinMaxAverage(params double[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // 方差与标准差
@@ -24392,10 +25025,10 @@ namespace Test
                     _ = Com.Statistics.Deviation(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.Deviation(params double[])", "array size at 1024");
+                ExecuteTest(method, "Deviation(params double[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -24407,10 +25040,10 @@ namespace Test
                     _ = Com.Statistics.SampleDeviation(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.SampleDeviation(params double[])", "array size at 1024");
+                ExecuteTest(method, "SampleDeviation(params double[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -24422,10 +25055,10 @@ namespace Test
                     _ = Com.Statistics.StandardDeviation(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.StandardDeviation(params double[])", "array size at 1024");
+                ExecuteTest(method, "StandardDeviation(params double[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -24437,10 +25070,10 @@ namespace Test
                     _ = Com.Statistics.SampleStandardDeviation(values);
                 };
 
-                ExecuteTest(method, "Com.Statistics.SampleStandardDeviation(params double[])", "array size at 1024");
+                ExecuteTest(method, "SampleStandardDeviation(params double[])", "array size at 1024");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
         }
 
@@ -24452,6 +25085,36 @@ namespace Test
 
     sealed class TextTest : ClassPerfTestBase
     {
+        private const string _NamespaceName = "Com";
+        private const string _ClassName = "Text";
+
+        private void ExecuteTest(Action method, string methodName, string comment)
+        {
+            base.ExecuteTest(method, _NamespaceName, _ClassName, methodName, comment);
+        }
+
+        private void ExecuteTest(Action method, string methodName)
+        {
+            base.ExecuteTest(method, _NamespaceName, _ClassName, methodName);
+        }
+
+        private void ExecuteTest(string methodName, UnsupportedReason unsupportedReason)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, methodName, unsupportedReason);
+        }
+
+        private void ExecuteTest(string methodName)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, methodName);
+        }
+
+        private void ExecuteTest(UnsupportedReason unsupportedReason)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, string.Empty, unsupportedReason);
+        }
+
+        //
+
         protected override void Constructor()
         {
 
@@ -24489,10 +25152,10 @@ namespace Test
                     _ = Com.Text.GetScientificNotationString(value, significance, useNaturalExpression, useMagnitudeOrderCode, unit);
                 };
 
-                ExecuteTest(method, "Com.Text.GetScientificNotationString(double, int, bool, bool, string)");
+                ExecuteTest(method, "GetScientificNotationString(double, int, bool, bool, string)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -24507,10 +25170,10 @@ namespace Test
                     _ = Com.Text.GetScientificNotationString(value, significance, useNaturalExpression, useMagnitudeOrderCode);
                 };
 
-                ExecuteTest(method, "Com.Text.GetScientificNotationString(double, int, bool, bool)");
+                ExecuteTest(method, "GetScientificNotationString(double, int, bool, bool)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -24525,10 +25188,10 @@ namespace Test
                     _ = Com.Text.GetScientificNotationString(value, significance, useNaturalExpression, unit);
                 };
 
-                ExecuteTest(method, "Com.Text.GetScientificNotationString(double, int, bool, string)");
+                ExecuteTest(method, "GetScientificNotationString(double, int, bool, string)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -24542,10 +25205,10 @@ namespace Test
                     _ = Com.Text.GetScientificNotationString(value, significance, useNaturalExpression);
                 };
 
-                ExecuteTest(method, "Com.Text.GetScientificNotationString(double, int, bool)");
+                ExecuteTest(method, "GetScientificNotationString(double, int, bool)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -24559,10 +25222,10 @@ namespace Test
                     _ = Com.Text.GetScientificNotationString(value, significance, unit);
                 };
 
-                ExecuteTest(method, "Com.Text.GetScientificNotationString(double, int, string)");
+                ExecuteTest(method, "GetScientificNotationString(double, int, string)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -24575,10 +25238,10 @@ namespace Test
                     _ = Com.Text.GetScientificNotationString(value, significance);
                 };
 
-                ExecuteTest(method, "Com.Text.GetScientificNotationString(double, int)");
+                ExecuteTest(method, "GetScientificNotationString(double, int)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -24593,10 +25256,10 @@ namespace Test
                     _ = Com.Text.GetScientificNotationString(value, useNaturalExpression, useMagnitudeOrderCode, unit);
                 };
 
-                ExecuteTest(method, "Com.Text.GetScientificNotationString(double, bool, bool, string)");
+                ExecuteTest(method, "GetScientificNotationString(double, bool, bool, string)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -24610,10 +25273,10 @@ namespace Test
                     _ = Com.Text.GetScientificNotationString(value, useNaturalExpression, useMagnitudeOrderCode);
                 };
 
-                ExecuteTest(method, "Com.Text.GetScientificNotationString(double, bool, bool)");
+                ExecuteTest(method, "GetScientificNotationString(double, bool, bool)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -24627,10 +25290,10 @@ namespace Test
                     _ = Com.Text.GetScientificNotationString(value, useNaturalExpression, unit);
                 };
 
-                ExecuteTest(method, "Com.Text.GetScientificNotationString(double, bool, string)");
+                ExecuteTest(method, "GetScientificNotationString(double, bool, string)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -24643,10 +25306,10 @@ namespace Test
                     _ = Com.Text.GetScientificNotationString(value, useNaturalExpression);
                 };
 
-                ExecuteTest(method, "Com.Text.GetScientificNotationString(double, bool)");
+                ExecuteTest(method, "GetScientificNotationString(double, bool)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -24659,10 +25322,10 @@ namespace Test
                     _ = Com.Text.GetScientificNotationString(value, unit);
                 };
 
-                ExecuteTest(method, "Com.Text.GetScientificNotationString(double, string)");
+                ExecuteTest(method, "GetScientificNotationString(double, string)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -24674,10 +25337,10 @@ namespace Test
                     _ = Com.Text.GetScientificNotationString(value);
                 };
 
-                ExecuteTest(method, "Com.Text.GetScientificNotationString(double)");
+                ExecuteTest(method, "GetScientificNotationString(double)");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // 字符串处理
@@ -24694,7 +25357,7 @@ namespace Test
                     _ = Com.Text.GetIntervalString(sourceString, startString, endString, includeStartString, includeEndString);
                 };
 
-                ExecuteTest(method, "Com.Text.GetIntervalString(string, string, string, bool, bool)");
+                ExecuteTest(method, "GetIntervalString(string, string, string, bool, bool)");
             }
 
             {
@@ -24707,7 +25370,7 @@ namespace Test
                     _ = Com.Text.StringIntercept(str, font, width);
                 };
 
-                ExecuteTest(method, "Com.Text.StringIntercept(string, System.Drawing.Font, int)");
+                ExecuteTest(method, "StringIntercept(string, System.Drawing.Font, int)");
             }
 
             {
@@ -24720,7 +25383,7 @@ namespace Test
                     _ = Com.Text.GetSuitableFont(text, font, size);
                 };
 
-                ExecuteTest(method, "Com.Text.GetSuitableFont(string, System.Drawing.Font, System.Drawing.SizeF)");
+                ExecuteTest(method, "GetSuitableFont(string, System.Drawing.Font, System.Drawing.SizeF)");
             }
 
             // 转换为字符串
@@ -24733,7 +25396,7 @@ namespace Test
                     _ = Com.Text.GetLongTimeStringFromTimeSpan(timeSpan);
                 };
 
-                ExecuteTest(method, "Com.Text.GetLongTimeStringFromTimeSpan(System.TimeSpan)");
+                ExecuteTest(method, "GetLongTimeStringFromTimeSpan(System.TimeSpan)");
             }
 
             {
@@ -24744,7 +25407,7 @@ namespace Test
                     _ = Com.Text.GetTimeStringFromTimeSpan(timeSpan);
                 };
 
-                ExecuteTest(method, "Com.Text.GetTimeStringFromTimeSpan(System.TimeSpan)");
+                ExecuteTest(method, "GetTimeStringFromTimeSpan(System.TimeSpan)");
             }
 
             {
@@ -24756,7 +25419,7 @@ namespace Test
                     _ = Com.Text.GetStandardizationTimespanOfSecond(second, significance);
                 };
 
-                ExecuteTest(method, "Com.Text.GetStandardizationTimespanOfSecond(double, int)");
+                ExecuteTest(method, "GetStandardizationTimespanOfSecond(double, int)");
             }
 
             {
@@ -24767,7 +25430,7 @@ namespace Test
                     _ = Com.Text.GetLargeTimespanStringOfSecond(second);
                 };
 
-                ExecuteTest(method, "Com.Text.GetLargeTimespanStringOfSecond(double)");
+                ExecuteTest(method, "GetLargeTimespanStringOfSecond(double)");
             }
 
             {
@@ -24779,7 +25442,7 @@ namespace Test
                     _ = Com.Text.GetStandardizationDistanceOfMeter(meter, significance);
                 };
 
-                ExecuteTest(method, "Com.Text.GetStandardizationDistanceOfMeter(double, int)");
+                ExecuteTest(method, "GetStandardizationDistanceOfMeter(double, int)");
             }
 
             {
@@ -24790,7 +25453,7 @@ namespace Test
                     _ = Com.Text.GetLargeDistanceStringOfMeter(meter);
                 };
 
-                ExecuteTest(method, "Com.Text.GetLargeDistanceStringOfMeter(double)");
+                ExecuteTest(method, "GetLargeDistanceStringOfMeter(double)");
             }
 
             {
@@ -24803,7 +25466,7 @@ namespace Test
                     _ = Com.Text.GetAngleStringOfDegree(degree, decimalDigits, cutdownIdleZeros);
                 };
 
-                ExecuteTest(method, "Com.Text.GetAngleStringOfDegree(double, int, bool)");
+                ExecuteTest(method, "GetAngleStringOfDegree(double, int, bool)");
             }
 
             {
@@ -24814,7 +25477,7 @@ namespace Test
                     _ = Com.Text.GetSize64StringFromByte(b);
                 };
 
-                ExecuteTest(method, "Com.Text.GetSize64StringFromByte(long)");
+                ExecuteTest(method, "GetSize64StringFromByte(long)");
             }
         }
 
@@ -24826,6 +25489,36 @@ namespace Test
 
     sealed class VectorTest : ClassPerfTestBase
     {
+        private const string _NamespaceName = "Com";
+        private const string _ClassName = "Vector";
+
+        private void ExecuteTest(Action method, string methodName, string comment)
+        {
+            base.ExecuteTest(method, _NamespaceName, _ClassName, methodName, comment);
+        }
+
+        private void ExecuteTest(Action method, string methodName)
+        {
+            base.ExecuteTest(method, _NamespaceName, _ClassName, methodName);
+        }
+
+        private void ExecuteTest(string methodName, UnsupportedReason unsupportedReason)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, methodName, unsupportedReason);
+        }
+
+        private void ExecuteTest(string methodName)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, methodName);
+        }
+
+        private void ExecuteTest(UnsupportedReason unsupportedReason)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, string.Empty, unsupportedReason);
+        }
+
+        //
+
         private static Com.Vector _GetRandomVector(Com.Vector.Type type, int dimension)
         {
             if (dimension > 0)
@@ -24916,7 +25609,7 @@ namespace Test
                     _ = new Com.Vector(type, values);
                 };
 
-                ExecuteTest(method, "Com.Vector.Vector(Com.Vector.Type, params double[])", "dimension at 32");
+                ExecuteTest(method, "Vector(Com.Vector.Type, params double[])", "dimension at 32");
             }
 
             {
@@ -24932,7 +25625,7 @@ namespace Test
                     _ = new Com.Vector(values);
                 };
 
-                ExecuteTest(method, "Com.Vector.Vector(params double[])", "dimension at 32");
+                ExecuteTest(method, "Vector(params double[])", "dimension at 32");
             }
         }
 
@@ -24949,7 +25642,7 @@ namespace Test
                     _ = vector[index];
                 };
 
-                ExecuteTest(method, "Com.Vector.this[int].get()", "dimension at 32");
+                ExecuteTest(method, "this[int].get()", "dimension at 32");
             }
 
             {
@@ -24962,7 +25655,7 @@ namespace Test
                     vector[index] = value;
                 };
 
-                ExecuteTest(method, "Com.Vector.this[int].set(double)", "dimension at 32");
+                ExecuteTest(method, "this[int].set(double)", "dimension at 32");
             }
 
             // Dimension
@@ -24975,7 +25668,7 @@ namespace Test
                     _ = vector.Dimension;
                 };
 
-                ExecuteTest(method, "Com.Vector.Dimension.get()", "dimension at 32");
+                ExecuteTest(method, "Dimension.get()", "dimension at 32");
             }
 
             // Is
@@ -24989,7 +25682,7 @@ namespace Test
                     _ = vector.IsEmpty;
                 };
 
-                ExecuteTest(method, "Com.Vector.IsEmpty.get()", "dimension at 32");
+                ExecuteTest(method, "IsEmpty.get()", "dimension at 32");
             }
 #else
             {
@@ -25000,7 +25693,7 @@ namespace Test
                     _ = vector.IsNonVector;
                 };
 
-                ExecuteTest(method, "Com.Vector.IsNonVector.get()", "dimension at 32");
+                ExecuteTest(method, "IsNonVector.get()", "dimension at 32");
             }
 #endif
 
@@ -25013,10 +25706,10 @@ namespace Test
                     _ = vector.IsZero;
                 };
 
-                ExecuteTest(method, "Com.Vector.IsZero.get()", "dimension at 32");
+                ExecuteTest(method, "IsZero.get()", "dimension at 32");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             {
@@ -25027,7 +25720,7 @@ namespace Test
                     _ = vector.IsColumnVector;
                 };
 
-                ExecuteTest(method, "Com.Vector.IsColumnVector.get()", "dimension at 32");
+                ExecuteTest(method, "IsColumnVector.get()", "dimension at 32");
             }
 
             {
@@ -25038,7 +25731,7 @@ namespace Test
                     _ = vector.IsRowVector;
                 };
 
-                ExecuteTest(method, "Com.Vector.IsRowVector.get()", "dimension at 32");
+                ExecuteTest(method, "IsRowVector.get()", "dimension at 32");
             }
 
 #if ComVer1905
@@ -25050,10 +25743,10 @@ namespace Test
                     _ = vector.IsReadOnly;
                 };
 
-                ExecuteTest(method, "Com.Vector.IsReadOnly.get()", "dimension at 32");
+                ExecuteTest(method, "IsReadOnly.get()", "dimension at 32");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -25065,10 +25758,10 @@ namespace Test
                     _ = vector.IsFixedSize;
                 };
 
-                ExecuteTest(method, "Com.Vector.IsFixedSize.get()", "dimension at 32");
+                ExecuteTest(method, "IsFixedSize.get()", "dimension at 32");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -25080,10 +25773,10 @@ namespace Test
                     _ = vector.IsNaN;
                 };
 
-                ExecuteTest(method, "Com.Vector.IsNaN.get()", "dimension at 32");
+                ExecuteTest(method, "IsNaN.get()", "dimension at 32");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -25095,10 +25788,10 @@ namespace Test
                     _ = vector.IsInfinity;
                 };
 
-                ExecuteTest(method, "Com.Vector.IsInfinity.get()", "dimension at 32");
+                ExecuteTest(method, "IsInfinity.get()", "dimension at 32");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -25110,10 +25803,10 @@ namespace Test
                     _ = vector.IsNaNOrInfinity;
                 };
 
-                ExecuteTest(method, "Com.Vector.IsNaNOrInfinity.get()", "dimension at 32");
+                ExecuteTest(method, "IsNaNOrInfinity.get()", "dimension at 32");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // 模
@@ -25126,7 +25819,7 @@ namespace Test
                     _ = vector.Module;
                 };
 
-                ExecuteTest(method, "Com.Vector.Module.get()", "dimension at 32");
+                ExecuteTest(method, "Module.get()", "dimension at 32");
             }
 
             {
@@ -25137,7 +25830,7 @@ namespace Test
                     _ = vector.ModuleSquared;
                 };
 
-                ExecuteTest(method, "Com.Vector.ModuleSquared.get()", "dimension at 32");
+                ExecuteTest(method, "ModuleSquared.get()", "dimension at 32");
             }
 
             // 向量
@@ -25151,7 +25844,7 @@ namespace Test
                     _ = vector.Opposite;
                 };
 
-                ExecuteTest(method, "Com.Vector.Opposite.get()", "dimension at 32");
+                ExecuteTest(method, "Opposite.get()", "dimension at 32");
             }
 #else
             {
@@ -25162,7 +25855,7 @@ namespace Test
                     _ = vector.Negate;
                 };
 
-                ExecuteTest(method, "Com.Vector.Negate.get()", "dimension at 32");
+                ExecuteTest(method, "Negate.get()", "dimension at 32");
             }
 #endif
 
@@ -25174,7 +25867,7 @@ namespace Test
                     _ = vector.Normalize;
                 };
 
-                ExecuteTest(method, "Com.Vector.Normalize.get()", "dimension at 32");
+                ExecuteTest(method, "Normalize.get()", "dimension at 32");
             }
 
             {
@@ -25185,7 +25878,7 @@ namespace Test
                     _ = vector.Transport;
                 };
 
-                ExecuteTest(method, "Com.Vector.Transport.get()", "dimension at 32");
+                ExecuteTest(method, "Transport.get()", "dimension at 32");
             }
         }
 
@@ -25200,7 +25893,7 @@ namespace Test
                     _ = Com.Vector.Empty;
                 };
 
-                ExecuteTest(method, "Com.Vector.Empty.get()");
+                ExecuteTest(method, "Empty.get()");
             }
 #else
             {
@@ -25209,7 +25902,7 @@ namespace Test
                     _ = Com.Vector.NonVector;
                 };
 
-                ExecuteTest(method, "Com.Vector.NonVector.get()");
+                ExecuteTest(method, "NonVector.get()");
             }
 #endif
         }
@@ -25227,7 +25920,7 @@ namespace Test
                     _ = vector.Equals(obj);
                 };
 
-                ExecuteTest(method, "Com.Vector.Equals(object)", "dimension at 32");
+                ExecuteTest(method, "Equals(object)", "dimension at 32");
             }
 
             {
@@ -25238,7 +25931,7 @@ namespace Test
                     _ = vector.GetHashCode();
                 };
 
-                ExecuteTest(method, "Com.Vector.GetHashCode()", "dimension at 32");
+                ExecuteTest(method, "GetHashCode()", "dimension at 32");
             }
 
             {
@@ -25249,7 +25942,7 @@ namespace Test
                     _ = vector.ToString();
                 };
 
-                ExecuteTest(method, "Com.Vector.ToString()", "dimension at 32");
+                ExecuteTest(method, "ToString()", "dimension at 32");
             }
 
             // Equals
@@ -25263,7 +25956,7 @@ namespace Test
                     _ = left.Equals(right);
                 };
 
-                ExecuteTest(method, "Com.Vector.Equals(Com.Vector)", "dimension at 32");
+                ExecuteTest(method, "Equals(Com.Vector)", "dimension at 32");
             }
 
             // CompareTo
@@ -25278,10 +25971,10 @@ namespace Test
                     _ = vector.CompareTo(obj);
                 };
 
-                ExecuteTest(method, "Com.Vector.CompareTo(object)", "dimension at 32");
+                ExecuteTest(method, "CompareTo(object)", "dimension at 32");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -25294,10 +25987,10 @@ namespace Test
                     _ = left.CompareTo(right);
                 };
 
-                ExecuteTest(method, "Com.Vector.CompareTo(Com.Vector)", "dimension at 32");
+                ExecuteTest(method, "CompareTo(Com.Vector)", "dimension at 32");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // Copy
@@ -25310,7 +26003,7 @@ namespace Test
                     _ = vector.Copy();
                 };
 
-                ExecuteTest(method, "Com.Vector.Copy()", "dimension at 32");
+                ExecuteTest(method, "Copy()", "dimension at 32");
             }
 
             // 检索
@@ -25325,10 +26018,10 @@ namespace Test
                     _ = vector.IndexOf(item);
                 };
 
-                ExecuteTest(method, "Com.Vector.IndexOf(double)", "dimension at 32");
+                ExecuteTest(method, "IndexOf(double)", "dimension at 32");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -25342,10 +26035,10 @@ namespace Test
                     _ = vector.IndexOf(item, startIndex);
                 };
 
-                ExecuteTest(method, "Com.Vector.IndexOf(double, int)", "dimension at 32");
+                ExecuteTest(method, "IndexOf(double, int)", "dimension at 32");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -25360,10 +26053,10 @@ namespace Test
                     _ = vector.IndexOf(item, startIndex, count);
                 };
 
-                ExecuteTest(method, "Com.Vector.IndexOf(double, int, int)", "dimension at 32");
+                ExecuteTest(method, "IndexOf(double, int, int)", "dimension at 32");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -25376,10 +26069,10 @@ namespace Test
                     _ = vector.LastIndexOf(item);
                 };
 
-                ExecuteTest(method, "Com.Vector.LastIndexOf(double)", "dimension at 32");
+                ExecuteTest(method, "LastIndexOf(double)", "dimension at 32");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -25393,10 +26086,10 @@ namespace Test
                     _ = vector.LastIndexOf(item, startIndex);
                 };
 
-                ExecuteTest(method, "Com.Vector.LastIndexOf(double, int)", "dimension at 32");
+                ExecuteTest(method, "LastIndexOf(double, int)", "dimension at 32");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -25411,10 +26104,10 @@ namespace Test
                     _ = vector.LastIndexOf(item, startIndex, count);
                 };
 
-                ExecuteTest(method, "Com.Vector.LastIndexOf(double, int, int)", "dimension at 32");
+                ExecuteTest(method, "LastIndexOf(double, int, int)", "dimension at 32");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -25427,10 +26120,10 @@ namespace Test
                     _ = vector.Contains(item);
                 };
 
-                ExecuteTest(method, "Com.Vector.Contains(double)", "dimension at 32");
+                ExecuteTest(method, "Contains(double)", "dimension at 32");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // ToArray，ToList，ToMatrix
@@ -25443,7 +26136,7 @@ namespace Test
                     _ = vector.ToArray();
                 };
 
-                ExecuteTest(method, "Com.Vector.ToArray()", "dimension at 32");
+                ExecuteTest(method, "ToArray()", "dimension at 32");
             }
 
 #if ComVer1905
@@ -25455,10 +26148,10 @@ namespace Test
                     _ = vector.ToList();
                 };
 
-                ExecuteTest(method, "Com.Vector.ToList()", "dimension at 32");
+                ExecuteTest(method, "ToList()", "dimension at 32");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             {
@@ -25469,7 +26162,7 @@ namespace Test
                     _ = vector.ToMatrix();
                 };
 
-                ExecuteTest(method, "Com.Vector.ToMatrix()", "dimension at 32");
+                ExecuteTest(method, "ToMatrix()", "dimension at 32");
             }
 
             // 坐标系转换
@@ -25482,7 +26175,7 @@ namespace Test
                     _ = vector.ToSpherical();
                 };
 
-                ExecuteTest(method, "Com.Vector.ToSpherical()", "dimension at 32");
+                ExecuteTest(method, "ToSpherical()", "dimension at 32");
             }
 
             {
@@ -25493,7 +26186,7 @@ namespace Test
                     _ = vector.ToCartesian();
                 };
 
-                ExecuteTest(method, "Com.Vector.ToCartesian()", "dimension at 32");
+                ExecuteTest(method, "ToCartesian()", "dimension at 32");
             }
 
             // 距离与夹角
@@ -25507,7 +26200,7 @@ namespace Test
                     _ = vector.DistanceFrom(vector_d);
                 };
 
-                ExecuteTest(method, "Com.Vector.DistanceFrom(Com.Vector)", "dimension at 32");
+                ExecuteTest(method, "DistanceFrom(Com.Vector)", "dimension at 32");
             }
 
             {
@@ -25519,7 +26212,7 @@ namespace Test
                     _ = vector.AngleFrom(vector_a);
                 };
 
-                ExecuteTest(method, "Com.Vector.AngleFrom(Com.Vector)", "dimension at 32");
+                ExecuteTest(method, "AngleFrom(Com.Vector)", "dimension at 32");
             }
 
             // Offset
@@ -25533,7 +26226,7 @@ namespace Test
                     vector.Offset(d);
                 };
 
-                ExecuteTest(method, "Com.Vector.Offset(double)", "dimension at 32");
+                ExecuteTest(method, "Offset(double)", "dimension at 32");
             }
 
             {
@@ -25545,7 +26238,7 @@ namespace Test
                     vector.Offset(vector_d);
                 };
 
-                ExecuteTest(method, "Com.Vector.Offset(Com.Vector)", "dimension at 32");
+                ExecuteTest(method, "Offset(Com.Vector)", "dimension at 32");
             }
 
             {
@@ -25557,7 +26250,7 @@ namespace Test
                     _ = vector.OffsetCopy(d);
                 };
 
-                ExecuteTest(method, "Com.Vector.OffsetCopy(double)", "dimension at 32");
+                ExecuteTest(method, "OffsetCopy(double)", "dimension at 32");
             }
 
             {
@@ -25569,7 +26262,7 @@ namespace Test
                     _ = vector.OffsetCopy(vector_d);
                 };
 
-                ExecuteTest(method, "Com.Vector.OffsetCopy(Com.Vector)", "dimension at 32");
+                ExecuteTest(method, "OffsetCopy(Com.Vector)", "dimension at 32");
             }
 
             // Scale
@@ -25583,7 +26276,7 @@ namespace Test
                     vector.Scale(d);
                 };
 
-                ExecuteTest(method, "Com.Vector.Scale(double)", "dimension at 32");
+                ExecuteTest(method, "Scale(double)", "dimension at 32");
             }
 
             {
@@ -25595,7 +26288,7 @@ namespace Test
                     vector.Scale(vector_d);
                 };
 
-                ExecuteTest(method, "Com.Vector.Scale(Com.Vector)", "dimension at 32");
+                ExecuteTest(method, "Scale(Com.Vector)", "dimension at 32");
             }
 
             {
@@ -25607,7 +26300,7 @@ namespace Test
                     _ = vector.ScaleCopy(s);
                 };
 
-                ExecuteTest(method, "Com.Vector.ScaleCopy(double)", "dimension at 32");
+                ExecuteTest(method, "ScaleCopy(double)", "dimension at 32");
             }
 
             {
@@ -25619,7 +26312,7 @@ namespace Test
                     _ = vector.ScaleCopy(vector_s);
                 };
 
-                ExecuteTest(method, "Com.Vector.ScaleCopy(Com.Vector)", "dimension at 32");
+                ExecuteTest(method, "ScaleCopy(Com.Vector)", "dimension at 32");
             }
 
             // Reflect
@@ -25634,10 +26327,10 @@ namespace Test
                     vector.Reflect(index);
                 };
 
-                ExecuteTest(method, "Com.Vector.Reflect(int)", "dimension at 32");
+                ExecuteTest(method, "Reflect(int)", "dimension at 32");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -25650,10 +26343,10 @@ namespace Test
                     _ = vector.ReflectCopy(index);
                 };
 
-                ExecuteTest(method, "Com.Vector.ReflectCopy(int)", "dimension at 32");
+                ExecuteTest(method, "ReflectCopy(int)", "dimension at 32");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // Shear
@@ -25670,10 +26363,10 @@ namespace Test
                     vector.Shear(index1, index2, angle);
                 };
 
-                ExecuteTest(method, "Com.Vector.Shear(int, int, double)", "dimension at 32");
+                ExecuteTest(method, "Shear(int, int, double)", "dimension at 32");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -25688,10 +26381,10 @@ namespace Test
                     _ = vector.ShearCopy(index1, index2, angle);
                 };
 
-                ExecuteTest(method, "Com.Vector.ShearCopy(int, int, double)", "dimension at 32");
+                ExecuteTest(method, "ShearCopy(int, int, double)", "dimension at 32");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // Rotate
@@ -25707,7 +26400,7 @@ namespace Test
                     vector.Rotate(index1, index2, angle);
                 };
 
-                ExecuteTest(method, "Com.Vector.Rotate(int, int, double)", "dimension at 32");
+                ExecuteTest(method, "Rotate(int, int, double)", "dimension at 32");
             }
 
             {
@@ -25721,7 +26414,7 @@ namespace Test
                     _ = vector.RotateCopy(index1, index2, angle);
                 };
 
-                ExecuteTest(method, "Com.Vector.RotateCopy(int, int, double)", "dimension at 32");
+                ExecuteTest(method, "RotateCopy(int, int, double)", "dimension at 32");
             }
 
             // Affine
@@ -25735,7 +26428,7 @@ namespace Test
                     vector.AffineTransform(matrix);
                 };
 
-                ExecuteTest(method, "Com.Vector.AffineTransform(Com.Matrix)", "dimension at 8");
+                ExecuteTest(method, "AffineTransform(Com.Matrix)", "dimension at 8");
             }
 
 #if ComVer1910
@@ -25755,10 +26448,10 @@ namespace Test
                     vector.AffineTransform(matrices);
                 };
 
-                ExecuteTest(method, "Com.Vector.AffineTransform(param Com.Matrix[])", "dimension at 8, total 8 matrices");
+                ExecuteTest(method, "AffineTransform(param Com.Matrix[])", "dimension at 8, total 8 matrices");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
 
             {
@@ -25775,7 +26468,7 @@ namespace Test
                     vector.AffineTransform(matrixList);
                 };
 
-                ExecuteTest(method, "Com.Vector.AffineTransform(System.Collections.Generic.List<Com.Matrix>)", "dimension at 8, total 8 matrices");
+                ExecuteTest(method, "AffineTransform(System.Collections.Generic.List<Com.Matrix>)", "dimension at 8, total 8 matrices");
             }
 
             {
@@ -25787,7 +26480,7 @@ namespace Test
                     _ = vector.AffineTransformCopy(matrix);
                 };
 
-                ExecuteTest(method, "Com.Vector.AffineTransformCopy(Com.Matrix)", "dimension at 8");
+                ExecuteTest(method, "AffineTransformCopy(Com.Matrix)", "dimension at 8");
             }
 
 #if ComVer1910
@@ -25807,10 +26500,10 @@ namespace Test
                     _ = vector.AffineTransformCopy(matrices);
                 };
 
-                ExecuteTest(method, "Com.Vector.AffineTransformCopy(param Com.Matrix[])", "dimension at 8, total 8 matrices");
+                ExecuteTest(method, "AffineTransformCopy(param Com.Matrix[])", "dimension at 8, total 8 matrices");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
 
             {
@@ -25827,7 +26520,7 @@ namespace Test
                     _ = vector.AffineTransformCopy(matrixList);
                 };
 
-                ExecuteTest(method, "Com.Vector.AffineTransformCopy(System.Collections.Generic.List<Com.Matrix>)", "dimension at 8, total 8 matrices");
+                ExecuteTest(method, "AffineTransformCopy(System.Collections.Generic.List<Com.Matrix>)", "dimension at 8, total 8 matrices");
             }
 
             {
@@ -25839,7 +26532,7 @@ namespace Test
                     vector.InverseAffineTransform(matrix);
                 };
 
-                ExecuteTest(method, "Com.Vector.InverseAffineTransform(Com.Matrix)", "dimension at 8");
+                ExecuteTest(method, "InverseAffineTransform(Com.Matrix)", "dimension at 8");
             }
 
 #if ComVer1910
@@ -25859,10 +26552,10 @@ namespace Test
                     vector.InverseAffineTransform(matrices);
                 };
 
-                ExecuteTest(method, "Com.Vector.InverseAffineTransform(param Com.Matrix[])", "dimension at 8, total 8 matrices");
+                ExecuteTest(method, "InverseAffineTransform(param Com.Matrix[])", "dimension at 8, total 8 matrices");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
 
             {
@@ -25879,7 +26572,7 @@ namespace Test
                     vector.InverseAffineTransform(matrixList);
                 };
 
-                ExecuteTest(method, "Com.Vector.InverseAffineTransform(System.Collections.Generic.List<Com.Matrix>)", "dimension at 8, total 8 matrices");
+                ExecuteTest(method, "InverseAffineTransform(System.Collections.Generic.List<Com.Matrix>)", "dimension at 8, total 8 matrices");
             }
 
             {
@@ -25891,7 +26584,7 @@ namespace Test
                     _ = vector.InverseAffineTransformCopy(matrix);
                 };
 
-                ExecuteTest(method, "Com.Vector.InverseAffineTransformCopy(Com.Matrix)", "dimension at 8");
+                ExecuteTest(method, "InverseAffineTransformCopy(Com.Matrix)", "dimension at 8");
             }
 
 #if ComVer1910
@@ -25911,10 +26604,10 @@ namespace Test
                     _ = vector.InverseAffineTransformCopy(matrices);
                 };
 
-                ExecuteTest(method, "Com.Vector.InverseAffineTransformCopy(param Com.Matrix[])", "dimension at 8, total 8 matrices");
+                ExecuteTest(method, "InverseAffineTransformCopy(param Com.Matrix[])", "dimension at 8, total 8 matrices");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1910);
+            ExecuteTest(UnsupportedReason.NeedComVer1910);
 #endif
 
             {
@@ -25931,7 +26624,7 @@ namespace Test
                     _ = vector.InverseAffineTransformCopy(matrixList);
                 };
 
-                ExecuteTest(method, "Com.Vector.InverseAffineTransformCopy(System.Collections.Generic.List<Com.Matrix>)", "dimension at 8, total 8 matrices");
+                ExecuteTest(method, "InverseAffineTransformCopy(System.Collections.Generic.List<Com.Matrix>)", "dimension at 8, total 8 matrices");
             }
 
             // AngleFromBase，AngleFromSpace
@@ -25946,7 +26639,7 @@ namespace Test
                     _ = vector.AngleFromBase(index);
                 };
 
-                ExecuteTest(method, "Com.Vector.AngleFromBase(int)", "dimension at 32");
+                ExecuteTest(method, "AngleFromBase(int)", "dimension at 32");
             }
 #else
             {
@@ -25958,7 +26651,7 @@ namespace Test
                     _ = vector.AngleOfBasis(index);
                 };
 
-                ExecuteTest(method, "Com.Vector.AngleOfBasis(int)", "dimension at 32");
+                ExecuteTest(method, "AngleOfBasis(int)", "dimension at 32");
             }
 #endif
 
@@ -25972,7 +26665,7 @@ namespace Test
                     _ = vector.AngleFromSpace(index);
                 };
 
-                ExecuteTest(method, "Com.Vector.AngleFromSpace(int)", "dimension at 32");
+                ExecuteTest(method, "AngleFromSpace(int)", "dimension at 32");
             }
 #else
             {
@@ -25984,7 +26677,7 @@ namespace Test
                     _ = vector.AngleOfSpace(index);
                 };
 
-                ExecuteTest(method, "Com.Vector.AngleOfSpace(int)", "dimension at 32");
+                ExecuteTest(method, "AngleOfSpace(int)", "dimension at 32");
             }
 #endif
         }
@@ -26002,7 +26695,7 @@ namespace Test
                     _ = Com.Vector.IsNullOrEmpty(vector);
                 };
 
-                ExecuteTest(method, "Com.Vector.IsNullOrEmpty(Com.Vector)", "dimension at 32");
+                ExecuteTest(method, "IsNullOrEmpty(Com.Vector)", "dimension at 32");
             }
 #else
             {
@@ -26013,7 +26706,7 @@ namespace Test
                     _ = Com.Vector.IsNullOrNonVector(vector);
                 };
 
-                ExecuteTest(method, "Com.Vector.IsNullOrNonVector(Com.Vector)", "dimension at 32");
+                ExecuteTest(method, "IsNullOrNonVector(Com.Vector)", "dimension at 32");
             }
 #endif
 
@@ -26028,7 +26721,7 @@ namespace Test
                     _ = Com.Vector.Equals(left, right);
                 };
 
-                ExecuteTest(method, "Com.Vector.Equals(Com.Vector, Com.Vector)", "dimension at 32");
+                ExecuteTest(method, "Equals(Com.Vector, Com.Vector)", "dimension at 32");
             }
 
             // Compare
@@ -26043,10 +26736,10 @@ namespace Test
                     _ = Com.Vector.Compare(left, right);
                 };
 
-                ExecuteTest(method, "Com.Vector.Compare(Com.Vector, Com.Vector)", "dimension at 32");
+                ExecuteTest(method, "Compare(Com.Vector, Com.Vector)", "dimension at 32");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             // Zero，Base
@@ -26060,7 +26753,7 @@ namespace Test
                     _ = Com.Vector.Zero(type, dimension);
                 };
 
-                ExecuteTest(method, "Com.Vector.Zero(Com.Vector.Type, int)", "dimension at 32");
+                ExecuteTest(method, "Zero(Com.Vector.Type, int)", "dimension at 32");
             }
 
             {
@@ -26071,7 +26764,7 @@ namespace Test
                     _ = Com.Vector.Zero(dimension);
                 };
 
-                ExecuteTest(method, "Com.Vector.Zero(int)", "dimension at 32");
+                ExecuteTest(method, "Zero(int)", "dimension at 32");
             }
 
 #if ComVer1905
@@ -26085,7 +26778,7 @@ namespace Test
                     _ = Com.Vector.Base(type, dimension, index);
                 };
 
-                ExecuteTest(method, "Com.Vector.Base(Com.Vector.Type, int, int)", "dimension at 32");
+                ExecuteTest(method, "Base(Com.Vector.Type, int, int)", "dimension at 32");
             }
 #else
             {
@@ -26098,7 +26791,7 @@ namespace Test
                     _ = Com.Vector.Basis(type, dimension, index);
                 };
 
-                ExecuteTest(method, "Com.Vector.Basis(Com.Vector.Type, int, int)", "dimension at 32");
+                ExecuteTest(method, "Basis(Com.Vector.Type, int, int)", "dimension at 32");
             }
 #endif
 
@@ -26112,7 +26805,7 @@ namespace Test
                     _ = Com.Vector.Base(dimension, index);
                 };
 
-                ExecuteTest(method, "Com.Vector.Base(int, int)", "dimension at 32");
+                ExecuteTest(method, "Base(int, int)", "dimension at 32");
             }
 #else
             {
@@ -26124,7 +26817,7 @@ namespace Test
                     _ = Com.Vector.Basis(dimension, index);
                 };
 
-                ExecuteTest(method, "Com.Vector.Basis(int, int)", "dimension at 32");
+                ExecuteTest(method, "Basis(int, int)", "dimension at 32");
             }
 #endif
 
@@ -26140,7 +26833,7 @@ namespace Test
                     _ = Com.Vector.OffsetMatrix(type, dimension, d);
                 };
 
-                ExecuteTest(method, "Com.Vector.OffsetMatrix(Com.Vector.Type, int, double)", "dimension at 32");
+                ExecuteTest(method, "OffsetMatrix(Com.Vector.Type, int, double)", "dimension at 32");
             }
 
             {
@@ -26151,7 +26844,7 @@ namespace Test
                     _ = Com.Vector.OffsetMatrix(vector);
                 };
 
-                ExecuteTest(method, "Com.Vector.OffsetMatrix(Com.Vector)", "dimension at 32");
+                ExecuteTest(method, "OffsetMatrix(Com.Vector)", "dimension at 32");
             }
 
             {
@@ -26164,7 +26857,7 @@ namespace Test
                     _ = Com.Vector.ScaleMatrix(type, dimension, s);
                 };
 
-                ExecuteTest(method, "Com.Vector.ScaleMatrix(Com.Vector.Type, int, double)", "dimension at 32");
+                ExecuteTest(method, "ScaleMatrix(Com.Vector.Type, int, double)", "dimension at 32");
             }
 
             {
@@ -26175,7 +26868,7 @@ namespace Test
                     _ = Com.Vector.ScaleMatrix(vector);
                 };
 
-                ExecuteTest(method, "Com.Vector.ScaleMatrix(Com.Vector)", "dimension at 32");
+                ExecuteTest(method, "ScaleMatrix(Com.Vector)", "dimension at 32");
             }
 
 #if ComVer1905
@@ -26189,10 +26882,10 @@ namespace Test
                     _ = Com.Vector.ReflectMatrix(type, dimension, index);
                 };
 
-                ExecuteTest(method, "Com.Vector.ReflectMatrix(Com.Vector.Type, int, int)", "dimension at 32");
+                ExecuteTest(method, "ReflectMatrix(Com.Vector.Type, int, int)", "dimension at 32");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
 #if ComVer1905
@@ -26208,10 +26901,10 @@ namespace Test
                     _ = Com.Vector.ShearMatrix(type, dimension, index1, index2, angle);
                 };
 
-                ExecuteTest(method, "Com.Vector.ShearMatrix(Com.Vector.Type, int, int, int, double)", "dimension at 32");
+                ExecuteTest(method, "ShearMatrix(Com.Vector.Type, int, int, int, double)", "dimension at 32");
             }
 #else
-            ExecuteTest(WillNotTest, NeedComVer1905);
+            ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
             {
@@ -26226,7 +26919,7 @@ namespace Test
                     _ = Com.Vector.RotateMatrix(type, dimension, index1, index2, angle);
                 };
 
-                ExecuteTest(method, "Com.Vector.RotateMatrix(Com.Vector.Type, int, int, int, double)", "dimension at 32");
+                ExecuteTest(method, "RotateMatrix(Com.Vector.Type, int, int, int, double)", "dimension at 32");
             }
 
             // 距离与夹角
@@ -26240,7 +26933,7 @@ namespace Test
                     _ = Com.Vector.DistanceBetween(left, right);
                 };
 
-                ExecuteTest(method, "Com.Vector.DistanceBetween(Com.Vector, Com.Vector)", "dimension at 32");
+                ExecuteTest(method, "DistanceBetween(Com.Vector, Com.Vector)", "dimension at 32");
             }
 
             {
@@ -26252,7 +26945,7 @@ namespace Test
                     _ = Com.Vector.AngleBetween(left, right);
                 };
 
-                ExecuteTest(method, "Com.Vector.AngleBetween(Com.Vector, Com.Vector)", "dimension at 32");
+                ExecuteTest(method, "AngleBetween(Com.Vector, Com.Vector)", "dimension at 32");
             }
 
             // 向量乘积
@@ -26266,7 +26959,7 @@ namespace Test
                     _ = Com.Vector.DotProduct(left, right);
                 };
 
-                ExecuteTest(method, "Com.Vector.DotProduct(Com.Vector, Com.Vector)", "dimension at 32");
+                ExecuteTest(method, "DotProduct(Com.Vector, Com.Vector)", "dimension at 32");
             }
 
             {
@@ -26278,7 +26971,7 @@ namespace Test
                     _ = Com.Vector.CrossProduct(left, right);
                 };
 
-                ExecuteTest(method, "Com.Vector.CrossProduct(Com.Vector, Com.Vector)", "dimension at 32");
+                ExecuteTest(method, "CrossProduct(Com.Vector, Com.Vector)", "dimension at 32");
             }
 
             // 初等函数
@@ -26291,7 +26984,7 @@ namespace Test
                     _ = Com.Vector.Abs(vector);
                 };
 
-                ExecuteTest(method, "Com.Vector.Abs(Com.Vector)", "dimension at 32");
+                ExecuteTest(method, "Abs(Com.Vector)", "dimension at 32");
             }
 
             {
@@ -26302,7 +26995,7 @@ namespace Test
                     _ = Com.Vector.Sign(vector);
                 };
 
-                ExecuteTest(method, "Com.Vector.Sign(Com.Vector)", "dimension at 32");
+                ExecuteTest(method, "Sign(Com.Vector)", "dimension at 32");
             }
 
             {
@@ -26313,7 +27006,7 @@ namespace Test
                     _ = Com.Vector.Ceiling(vector);
                 };
 
-                ExecuteTest(method, "Com.Vector.Ceiling(Com.Vector)", "dimension at 32");
+                ExecuteTest(method, "Ceiling(Com.Vector)", "dimension at 32");
             }
 
             {
@@ -26324,7 +27017,7 @@ namespace Test
                     _ = Com.Vector.Floor(vector);
                 };
 
-                ExecuteTest(method, "Com.Vector.Floor(Com.Vector)", "dimension at 32");
+                ExecuteTest(method, "Floor(Com.Vector)", "dimension at 32");
             }
 
             {
@@ -26335,7 +27028,7 @@ namespace Test
                     _ = Com.Vector.Round(vector);
                 };
 
-                ExecuteTest(method, "Com.Vector.Round(Com.Vector)", "dimension at 32");
+                ExecuteTest(method, "Round(Com.Vector)", "dimension at 32");
             }
 
             {
@@ -26346,7 +27039,7 @@ namespace Test
                     _ = Com.Vector.Truncate(vector);
                 };
 
-                ExecuteTest(method, "Com.Vector.Truncate(Com.Vector)", "dimension at 32");
+                ExecuteTest(method, "Truncate(Com.Vector)", "dimension at 32");
             }
 
             {
@@ -26358,7 +27051,7 @@ namespace Test
                     _ = Com.Vector.Max(left, right);
                 };
 
-                ExecuteTest(method, "Com.Vector.Max(Com.Vector, Com.Vector)", "dimension at 32");
+                ExecuteTest(method, "Max(Com.Vector, Com.Vector)", "dimension at 32");
             }
 
             {
@@ -26370,7 +27063,7 @@ namespace Test
                     _ = Com.Vector.Min(left, right);
                 };
 
-                ExecuteTest(method, "Com.Vector.Min(Com.Vector, Com.Vector)", "dimension at 32");
+                ExecuteTest(method, "Min(Com.Vector, Com.Vector)", "dimension at 32");
             }
         }
 
@@ -26387,7 +27080,7 @@ namespace Test
                     _ = (left == right);
                 };
 
-                ExecuteTest(method, "Com.Vector.operator ==(Com.Vector, Com.Vector)", "dimension at 32");
+                ExecuteTest(method, "operator ==(Com.Vector, Com.Vector)", "dimension at 32");
             }
 
             {
@@ -26399,7 +27092,7 @@ namespace Test
                     _ = (left != right);
                 };
 
-                ExecuteTest(method, "Com.Vector.operator !=(Com.Vector, Com.Vector)", "dimension at 32");
+                ExecuteTest(method, "operator !=(Com.Vector, Com.Vector)", "dimension at 32");
             }
 
             {
@@ -26411,7 +27104,7 @@ namespace Test
                     _ = (left < right);
                 };
 
-                ExecuteTest(method, "Com.Vector.operator <(Com.Vector, Com.Vector)", "dimension at 32");
+                ExecuteTest(method, "operator <(Com.Vector, Com.Vector)", "dimension at 32");
             }
 
             {
@@ -26423,7 +27116,7 @@ namespace Test
                     _ = (left > right);
                 };
 
-                ExecuteTest(method, "Com.Vector.operator >(Com.Vector, Com.Vector)", "dimension at 32");
+                ExecuteTest(method, "operator >(Com.Vector, Com.Vector)", "dimension at 32");
             }
 
             {
@@ -26435,7 +27128,7 @@ namespace Test
                     _ = (left <= right);
                 };
 
-                ExecuteTest(method, "Com.Vector.operator <=(Com.Vector, Com.Vector)", "dimension at 32");
+                ExecuteTest(method, "operator <=(Com.Vector, Com.Vector)", "dimension at 32");
             }
 
             {
@@ -26447,7 +27140,7 @@ namespace Test
                     _ = (left >= right);
                 };
 
-                ExecuteTest(method, "Com.Vector.operator >=(Com.Vector, Com.Vector)", "dimension at 32");
+                ExecuteTest(method, "operator >=(Com.Vector, Com.Vector)", "dimension at 32");
             }
 
             // 运算
@@ -26460,7 +27153,7 @@ namespace Test
                     _ = +vector;
                 };
 
-                ExecuteTest(method, "Com.Vector.operator +(Com.Vector)", "dimension at 32");
+                ExecuteTest(method, "operator +(Com.Vector)", "dimension at 32");
             }
 
             {
@@ -26471,7 +27164,7 @@ namespace Test
                     _ = -vector;
                 };
 
-                ExecuteTest(method, "Com.Vector.operator -(Com.Vector)", "dimension at 32");
+                ExecuteTest(method, "operator -(Com.Vector)", "dimension at 32");
             }
 
             {
@@ -26483,7 +27176,7 @@ namespace Test
                     _ = pt + n;
                 };
 
-                ExecuteTest(method, "Com.Vector.operator +(Com.Vector, double)", "dimension at 32");
+                ExecuteTest(method, "operator +(Com.Vector, double)", "dimension at 32");
             }
 
             {
@@ -26495,7 +27188,7 @@ namespace Test
                     _ = n + pt;
                 };
 
-                ExecuteTest(method, "Com.Vector.operator +(double, Com.Vector)", "dimension at 32");
+                ExecuteTest(method, "operator +(double, Com.Vector)", "dimension at 32");
             }
 
             {
@@ -26507,7 +27200,7 @@ namespace Test
                     _ = left + right;
                 };
 
-                ExecuteTest(method, "Com.Vector.operator +(Com.Vector, Com.Vector)", "dimension at 32");
+                ExecuteTest(method, "operator +(Com.Vector, Com.Vector)", "dimension at 32");
             }
 
             {
@@ -26519,7 +27212,7 @@ namespace Test
                     _ = pt - n;
                 };
 
-                ExecuteTest(method, "Com.Vector.operator -(Com.Vector, double)", "dimension at 32");
+                ExecuteTest(method, "operator -(Com.Vector, double)", "dimension at 32");
             }
 
             {
@@ -26531,7 +27224,7 @@ namespace Test
                     _ = n - pt;
                 };
 
-                ExecuteTest(method, "Com.Vector.operator -(double, Com.Vector)", "dimension at 32");
+                ExecuteTest(method, "operator -(double, Com.Vector)", "dimension at 32");
             }
 
             {
@@ -26543,7 +27236,7 @@ namespace Test
                     _ = left - right;
                 };
 
-                ExecuteTest(method, "Com.Vector.operator -(Com.Vector, Com.Vector)", "dimension at 32");
+                ExecuteTest(method, "operator -(Com.Vector, Com.Vector)", "dimension at 32");
             }
 
             {
@@ -26555,7 +27248,7 @@ namespace Test
                     _ = pt * n;
                 };
 
-                ExecuteTest(method, "Com.Vector.operator *(Com.Vector, double)", "dimension at 32");
+                ExecuteTest(method, "operator *(Com.Vector, double)", "dimension at 32");
             }
 
             {
@@ -26567,7 +27260,7 @@ namespace Test
                     _ = n * pt;
                 };
 
-                ExecuteTest(method, "Com.Vector.operator *(double, Com.Vector)", "dimension at 32");
+                ExecuteTest(method, "operator *(double, Com.Vector)", "dimension at 32");
             }
 
             {
@@ -26579,7 +27272,7 @@ namespace Test
                     _ = left * right;
                 };
 
-                ExecuteTest(method, "Com.Vector.operator *(Com.Vector, Com.Vector)", "dimension at 32");
+                ExecuteTest(method, "operator *(Com.Vector, Com.Vector)", "dimension at 32");
             }
 
             {
@@ -26591,7 +27284,7 @@ namespace Test
                     _ = pt / n;
                 };
 
-                ExecuteTest(method, "Com.Vector.operator /(Com.Vector, double)", "dimension at 32");
+                ExecuteTest(method, "operator /(Com.Vector, double)", "dimension at 32");
             }
 
             {
@@ -26603,7 +27296,7 @@ namespace Test
                     _ = n / pt;
                 };
 
-                ExecuteTest(method, "Com.Vector.operator /(double, Com.Vector)", "dimension at 32");
+                ExecuteTest(method, "operator /(double, Com.Vector)", "dimension at 32");
             }
 
             {
@@ -26615,7 +27308,7 @@ namespace Test
                     _ = left / right;
                 };
 
-                ExecuteTest(method, "Com.Vector.operator /(Com.Vector, Com.Vector)", "dimension at 32");
+                ExecuteTest(method, "operator /(Com.Vector, Com.Vector)", "dimension at 32");
             }
         }
     }

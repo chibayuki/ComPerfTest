@@ -2,16 +2,12 @@
 Copyright © 2019 chibayuki@foxmail.com
 
 Com性能测试 (ComPerformanceTest)
-Version 19.11.3.0000
+Version 19.11.4.0000
 
 This file is part of "Com性能测试" (ComPerformanceTest)
 
 "Com性能测试" (ComPerformanceTest) is released under the GPLv3 license
 * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-
-#define ComVer1910
-#define ComVer1905
-#define ComVer1809
 
 using System;
 using System.Collections.Generic;
@@ -23,26 +19,8 @@ namespace Test
 {
     class Program
     {
-#if ComVer1910
-        private const string _ComVersionString = "19.10.14.2100";
-#elif ComVer1905
-        private const string _ComVersionString = "19.5.11.1720";
-#elif ComVer1809
-        private const string _ComVersionString = "18.9.28.2200";
-#else
-        private const string _ComVersionString = "<Unknown>";
-#endif
-
         static void Main(string[] args)
         {
-            TestResult.Clear();
-            TestResult.Log(string.Concat("[Com.Properties.AssemblyVersion=", _ComVersionString, "],Period,Frequency,Period [ns],Frequency [Hz],Comment"));
-
-            TestProgress.Reset();
-            TestProgress.Report(0);
-
-            //
-
             ClassPerfTestBase[] TestClass = new ClassPerfTestBase[]
             {
                 new AnimationTest(),
@@ -67,6 +45,19 @@ namespace Test
                 new TextTest(),
                 new VectorTest()
             };
+
+            //
+
+            TestResult.Clear();
+            TestResult.Log("Com Version," + TestResult.ComVersionString);
+            TestResult.Log("Class Count," + TestClass.Length);
+            TestResult.Log("Member Count," + TestProgress.TotalMemberCount);
+            TestResult.Log(string.Concat("Namespace,Class,Method,Period,Frequency,Period [ns],Frequency [Hz],Comment"));
+
+            TestProgress.Reset();
+            TestProgress.Report(0);
+
+            //
 
             for (int i = 0; i < TestClass.Length; i++)
             {
