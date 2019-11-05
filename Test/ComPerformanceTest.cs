@@ -2,7 +2,7 @@
 Copyright © 2019 chibayuki@foxmail.com
 
 Com性能测试 (ComPerformanceTest)
-Version 19.11.4.0000
+Version 19.11.5.0000
 
 This file is part of "Com性能测试" (ComPerformanceTest)
 
@@ -165,12 +165,16 @@ namespace Test
         }
     }
 
-    class ClassPerfTestBase // 类性能测试类的基类
+    abstract class ClassPerfTestBase // 类性能测试类的基类
     {
 #if !DEBUG
-        private const int _MSOfPerMember = 500; // 被测试类每个成员的最短执行时长的毫秒数
+        private const int _MinMSOfPerMember = 100; // 被测试类每个成员的最短执行时长的毫秒数
+        private const int _MinCycOfPerMember = 10; // 被测试类每个成员的最小执行次数
+        private const int _MaxCycOfPerMember = 1000000000; // 被测试类每个成员的最大执行次数
 #else
-        private const int _MSOfPerMember = 1; // 被测试类每个成员的最短执行时长的毫秒数
+        private const int _MinMSOfPerMember = 1; // 被测试类每个成员的最短执行时长的毫秒数
+        private const int _MinCycOfPerMember = 1; // 被测试类每个成员的最小执行次数
+        private const int _MaxCycOfPerMember = 10000000; // 被测试类每个成员的最大执行次数
 #endif
 
         //
@@ -337,7 +341,7 @@ namespace Test
             }
             else
             {
-                double tryMS = _MSOfPerMember * 0.1;
+                const double tryMS = _MinMSOfPerMember * 0.1;
                 int tryCycle = 1;
                 int cycle = 0;
 
@@ -348,9 +352,7 @@ namespace Test
                 {
                     method();
 
-                    cycle++;
-
-                    if (cycle >= tryCycle)
+                    if (++cycle >= tryCycle)
                     {
                         totalMS = (DateTime.Now - dt).TotalMilliseconds;
 
@@ -365,45 +367,48 @@ namespace Test
                     }
                 }
 
-                tryCycle = (int)Math.Ceiling(_MSOfPerMember / (totalMS / cycle));
+                tryCycle = (int)Math.Max(_MinCycOfPerMember, Math.Min(Math.Ceiling(_MinMSOfPerMember * cycle / totalMS), _MaxCycOfPerMember));
 
-                if (tryCycle > 1)
+                cycle = 0;
+                totalMS = 0;
+
+                while (true)
                 {
-                    cycle = 0;
-                    totalMS = 0;
+                    dt = DateTime.Now;
 
                     while (true)
                     {
-                        dt = DateTime.Now;
+                        method();
 
-                        while (true)
-                        {
-                            method();
-
-                            cycle++;
-
-                            if (cycle >= tryCycle)
-                            {
-                                break;
-                            }
-                        }
-
-                        totalMS += (DateTime.Now - dt).TotalMilliseconds;
-
-                        if (totalMS <= 0)
-                        {
-                            tryCycle *= 10;
-                            cycle = 0;
-                            totalMS = 0;
-                        }
-                        else if (totalMS < _MSOfPerMember * 0.9)
-                        {
-                            tryCycle += (int)Math.Ceiling((_MSOfPerMember - totalMS) / (totalMS / cycle));
-                        }
-                        else
+                        if (++cycle >= tryCycle)
                         {
                             break;
                         }
+                    }
+
+                    totalMS += (DateTime.Now - dt).TotalMilliseconds;
+
+                    if (totalMS <= _MinMSOfPerMember * 0.5)
+                    {
+                        if (totalMS <= _MinMSOfPerMember * 0.1)
+                        {
+                            tryCycle *= 10;
+                        }
+                        else
+                        {
+                            tryCycle = (int)Math.Ceiling(_MinMSOfPerMember * tryCycle / totalMS);
+                        }
+
+                        cycle = 0;
+                        totalMS = 0;
+                    }
+                    else if (totalMS < _MinMSOfPerMember)
+                    {
+                        tryCycle *= 2;
+                    }
+                    else
+                    {
+                        break;
                     }
                 }
 
@@ -414,7 +419,7 @@ namespace Test
                 string frequency = _GetScientificNotationString(1000 / msPerCycle, 4, true, true, "Hz").Replace('μ', 'u');
                 string frequencyOriginal = (1000 / msPerCycle).ToString("G");
 
-                resultForLog = string.Concat(memberName, ',', period, ',', frequency, ',', periodOriginal, ',', frequencyOriginal, (comment.Length > 0 ? ',' + comment.Replace(',', ';') : string.Empty));
+                resultForLog = string.Concat(memberName, ',', period, ',', frequency, ',', cycle, ',', totalMS, ',', periodOriginal, ',', frequencyOriginal, (comment.Length > 0 ? ',' + comment.Replace(',', ';') : string.Empty));
                 resultForDisplay = string.Concat('[', memberNameOriginal, "], ", period, ", ", frequency);
             }
 
@@ -425,7 +430,7 @@ namespace Test
             TestProgress.ClearExtra();
 
             Console.ForegroundColor = ConsoleColor.DarkMagenta;
-            Console.Write("Latest result: ");
+            Console.Write("Last result: ");
             Console.ForegroundColor = ConsoleColor.DarkYellow;
             Console.Write(resultForDisplay);
         }

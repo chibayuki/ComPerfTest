@@ -2,7 +2,7 @@
 Copyright © 2019 chibayuki@foxmail.com
 
 Com性能测试 (ComPerformanceTest)
-Version 19.11.4.0000
+Version 19.11.5.0000
 
 This file is part of "Com性能测试" (ComPerformanceTest)
 
@@ -25,7 +25,7 @@ namespace Test
             {
                 new AnimationTest(),
                 new BitOperationTest(),
-                new BitSetTest(),
+                /*new BitSetTest(),
                 new ColorManipulationTest(),
                 new ColorXTest(),
                 new ComplexTest(),
@@ -43,16 +43,18 @@ namespace Test
                 new RealTest(),
                 new StatisticsTest(),
                 new TextTest(),
-                new VectorTest()
+                new VectorTest()*/
             };
 
             //
 
             TestResult.Clear();
-            TestResult.Log("Com Version," + TestResult.ComVersionString);
-            TestResult.Log("Class Count," + TestClass.Length);
-            TestResult.Log("Member Count," + TestProgress.TotalMemberCount);
-            TestResult.Log(string.Concat("Namespace,Class,Method,Period,Frequency,Period [ns],Frequency [Hz],Comment"));
+            TestResult.Log(string.Concat("Com Version:,", TestResult.ComVersionString, ",,,,,,,,"));
+            TestResult.Log(string.Concat("Class Count:,", TestClass.Length, ",,,,,,,,"));
+            TestResult.Log(string.Concat("Member Count:,", TestProgress.TotalMemberCount, ",,,,,,,,"));
+            TestResult.Log(",,,,,,,,,");
+            TestResult.Log("Member,----,----,Result,----,Raw Result,----,----,----,Comment");
+            TestResult.Log("Namespace,Class,Method,Period,Frequency,Count,Timecost [ms],Period [ns],Frequency [Hz],----");
 
             TestProgress.Reset();
             TestProgress.Report(0);
