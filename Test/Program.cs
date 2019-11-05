@@ -25,7 +25,7 @@ namespace Test
             {
                 new AnimationTest(),
                 new BitOperationTest(),
-                /*new BitSetTest(),
+                new BitSetTest(),
                 new ColorManipulationTest(),
                 new ColorXTest(),
                 new ComplexTest(),
@@ -43,7 +43,7 @@ namespace Test
                 new RealTest(),
                 new StatisticsTest(),
                 new TextTest(),
-                new VectorTest()*/
+                new VectorTest()
             };
 
             //
