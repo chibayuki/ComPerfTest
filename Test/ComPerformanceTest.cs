@@ -2,7 +2,7 @@
 Copyright © 2019 chibayuki@foxmail.com
 
 Com性能测试 (ComPerformanceTest)
-Version 19.11.5.0000
+Version 19.11.6.0000
 
 This file is part of "Com性能测试" (ComPerformanceTest)
 
@@ -336,7 +336,7 @@ namespace Test
 
             if (method == null || method == WillNotTest)
             {
-                resultForLog = string.Concat(memberName, ",N/A,N/A,N/A,N/A", (comment.Length > 0 ? ',' + comment.Replace(',', ';') : string.Empty));
+                resultForLog = string.Concat(memberName, ",N/A,N/A,N/A,N/A,N/A,N/A", (comment.Length > 0 ? ',' + comment.Replace(',', ';') : string.Empty));
                 resultForDisplay = string.Concat('[', memberNameOriginal, "], N/A, N/A");
             }
             else
@@ -367,7 +367,7 @@ namespace Test
                     }
                 }
 
-                tryCycle = (int)Math.Max(_MinCycOfPerMember, Math.Min(Math.Ceiling(_MinMSOfPerMember * cycle / totalMS), _MaxCycOfPerMember));
+                tryCycle = (int)Math.Max(_MinCycOfPerMember, Math.Min(Math.Ceiling(_MinMSOfPerMember / totalMS * cycle), _MaxCycOfPerMember));
 
                 cycle = 0;
                 totalMS = 0;
@@ -388,23 +388,45 @@ namespace Test
 
                     totalMS += (DateTime.Now - dt).TotalMilliseconds;
 
-                    if (totalMS <= _MinMSOfPerMember * 0.5)
+                    if (totalMS < _MinMSOfPerMember)
                     {
-                        if (totalMS <= _MinMSOfPerMember * 0.1)
+                        long tryCycleNew = 0;
+
+                        if (totalMS <= _MinMSOfPerMember * 0.5)
                         {
-                            tryCycle *= 10;
+                            if (totalMS <= _MinMSOfPerMember * 0.1)
+                            {
+                                tryCycleNew = (long)tryCycle * 10;
+                            }
+                            else
+                            {
+                                tryCycleNew = (long)Math.Ceiling(_MinMSOfPerMember / totalMS * tryCycle);
+                            }
+
+                            if (tryCycleNew >= _MaxCycOfPerMember)
+                            {
+                                break;
+                            }
+                            else
+                            {
+                                tryCycle = (int)tryCycleNew;
+                                cycle = 0;
+                                totalMS = 0;
+                            }
                         }
                         else
                         {
-                            tryCycle = (int)Math.Ceiling(_MinMSOfPerMember * tryCycle / totalMS);
-                        }
+                            tryCycleNew = (long)tryCycle * 2;
 
-                        cycle = 0;
-                        totalMS = 0;
-                    }
-                    else if (totalMS < _MinMSOfPerMember)
-                    {
-                        tryCycle *= 2;
+                            if (tryCycleNew >= _MaxCycOfPerMember)
+                            {
+                                break;
+                            }
+                            else
+                            {
+                                tryCycle = (int)tryCycleNew;
+                            }
+                        }
                     }
                     else
                     {
