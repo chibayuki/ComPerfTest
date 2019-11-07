@@ -1207,7 +1207,7 @@ namespace Test
                     _ = new Com.BitSet(values);
                 };
 
-                ExecuteTest(method, "BitSet(bool[])", "size at 1024 bits");
+                ExecuteTest(method, "BitSet(params bool[])", "size at 1024 bits");
             }
 
 #if ComVer1905
@@ -1224,7 +1224,7 @@ namespace Test
                     _ = new Com.BitSet(values);
                 };
 
-                ExecuteTest(method, "BitSet(byte[])", "size at 1024 bits");
+                ExecuteTest(method, "BitSet(params byte[])", "size at 1024 bits");
             }
 #else
             ExecuteTest(UnsupportedReason.NeedComVer1905);
@@ -1244,7 +1244,7 @@ namespace Test
                     _ = new Com.BitSet(values);
                 };
 
-                ExecuteTest(method, "BitSet(ushort[])", "size at 1024 bits");
+                ExecuteTest(method, "BitSet(params ushort[])", "size at 1024 bits");
             }
 #else
             ExecuteTest(UnsupportedReason.NeedComVer1905);
@@ -1264,7 +1264,7 @@ namespace Test
                     _ = new Com.BitSet(values);
                 };
 
-                ExecuteTest(method, "BitSet(uint[])", "size at 1024 bits");
+                ExecuteTest(method, "BitSet(params uint[])", "size at 1024 bits");
             }
 #else
             ExecuteTest(UnsupportedReason.NeedComVer1905);
@@ -1284,7 +1284,7 @@ namespace Test
                     _ = new Com.BitSet(values);
                 };
 
-                ExecuteTest(method, "BitSet(ulong[])", "size at 1024 bits");
+                ExecuteTest(method, "BitSet(params ulong[])", "size at 1024 bits");
             }
 #else
             ExecuteTest(UnsupportedReason.NeedComVer1905);
