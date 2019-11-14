@@ -2,7 +2,7 @@
 Copyright © 2019 chibayuki@foxmail.com
 
 Com性能测试 (ComPerformanceTest)
-Version 19.11.5.0000
+Version 19.11.14.0000
 
 This file is part of "Com性能测试" (ComPerformanceTest)
 
@@ -49,12 +49,12 @@ namespace Test
             //
 
             TestResult.Clear();
-            TestResult.Log(string.Concat("Com Version:,", TestResult.ComVersionString, ",,,,,,,,"));
-            TestResult.Log(string.Concat("Class Count:,", TestClass.Length, ",,,,,,,,"));
-            TestResult.Log(string.Concat("Member Count:,", TestProgress.TotalMemberCount, ",,,,,,,,"));
-            TestResult.Log(",,,,,,,,,");
-            TestResult.Log("Member,----,----,Result,----,Raw Result,----,----,----,Comment");
-            TestResult.Log("Namespace,Class,Method,Period,Frequency,Count,Timecost [ms],Period [ns],Frequency [Hz],----");
+            TestResult.LogCsv("Com Version:", ComInfo.ComVersionString);
+            TestResult.LogCsv("Class Count:", TestClass.Length.ToString());
+            TestResult.LogCsv("Member Count:", ComInfo.TotalMemberCount.ToString());
+            TestResult.LogCsv();
+            TestResult.LogCsv("Member", "----", "----", "Result", "----", "Raw Result", "----", "----", "----", "Comment");
+            TestResult.LogCsv("Namespace", "Class", "Method", "Period", "Frequency", "Count", "Timecost [ms]", "Period [ns]", "Frequency [Hz]", "----");
 
             TestProgress.Reset();
             TestProgress.Report(0);

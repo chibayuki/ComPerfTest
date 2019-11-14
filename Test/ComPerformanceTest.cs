@@ -2,7 +2,7 @@
 Copyright © 2019 chibayuki@foxmail.com
 
 Com性能测试 (ComPerformanceTest)
-Version 19.11.6.0000
+Version 19.11.14.0000
 
 This file is part of "Com性能测试" (ComPerformanceTest)
 
@@ -25,27 +25,49 @@ using System.IO;
 
 namespace Test
 {
+    static class ComInfo // Com 信息
+    {
+        public const int TotalMemberCount = 1761; // 成员总数量
+
+#if ComVer1910
+        public const string ComVersionString = "19.10.14.2100"; // Com 版本字符串
+#elif ComVer1905
+        public const string ComVersionString = "19.5.11.1720"; // Com 版本字符串
+#elif ComVer1809
+        public const string ComVersionString = "18.9.28.2200"; // Com 版本字符串
+#else
+        public const string ComVersionString = "<unknown>"; // Com 版本字符串
+#endif
+    }
+
     static class TestResult // 测试结果
     {
         private static List<string> _ResultList = new List<string>(2048);
 
-#if ComVer1910
-        private const string _ComVersionString = "19.10.14.2100";
-#elif ComVer1905
-        private const string _ComVersionString = "19.5.11.1720";
-#elif ComVer1809
-        private const string _ComVersionString = "18.9.28.2200";
-#else
-        private const string _ComVersionString = "<unknown>";
-#endif
-
         //
-
-        public static string ComVersionString => _ComVersionString; // Com 版本字符串
 
         public static void Log(string result) // 记录测试结果
         {
-            _ResultList.Add(result);
+            if (string.IsNullOrWhiteSpace(result))
+            {
+                _ResultList.Add(string.Empty);
+            }
+            else
+            {
+                _ResultList.Add(result);
+            }
+        }
+
+        public static void LogCsv(params string[] result) // 记录测试结果
+        {
+            if (result == null || result.Length <= 0)
+            {
+                _ResultList.Add(string.Empty);
+            }
+            else
+            {
+                Log(string.Join(",", result));
+            }
         }
 
         public static string Save(string fileDir) // 保存测试结果
@@ -60,18 +82,28 @@ namespace Test
                 }
 
                 DateTime dt = DateTime.Now;
-                string fileName = string.Concat("ComPerfTestLog,version=", _ComVersionString, ",generateTime=", (dt.Year % 100).ToString("D2"), '.', dt.Month.ToString("D2"), '.', dt.Day.ToString("D2"), '.', dt.Hour.ToString("D2"), '.', dt.Minute.ToString("D2"), '.', dt.Second.ToString("D2"), '.', dt.Millisecond.ToString("D3"), ".csv");
+                string fileName = string.Concat("ComPerfTestLog,version=", ComInfo.ComVersionString, ",generateTime=", (dt.Year % 100).ToString("D2"), '.', dt.Month.ToString("D2"), '.', dt.Day.ToString("D2"), '.', dt.Hour.ToString("D2"), '.', dt.Minute.ToString("D2"), '.', dt.Second.ToString("D2"), '.', dt.Millisecond.ToString("D3"), ".csv");
 
                 filePath = Path.Combine(fileDir, fileName);
 
-                StreamWriter sw = new StreamWriter(filePath, false);
+                StreamWriter sw = null;
 
-                for (int i = 0; i < _ResultList.Count; i++)
+                try
                 {
-                    sw.WriteLine(_ResultList[i]);
-                }
+                    sw = new StreamWriter(filePath, false);
 
-                sw.Close();
+                    for (int i = 0; i < _ResultList.Count; i++)
+                    {
+                        sw.WriteLine(_ResultList[i]);
+                    }
+                }
+                finally
+                {
+                    if (sw != null)
+                    {
+                        sw.Close();
+                    }
+                }
             }
             catch { }
 
@@ -88,24 +120,21 @@ namespace Test
 
     static class TestProgress // 测试进度
     {
-        private const int _TotalMemberCount = 1761; // 成员总数量
         private static int _CompletedMemberCount = 0; // 已测试成员数量
 
         private static int _FullWidth => Math.Max(10, Math.Min(Console.WindowWidth * 3 / 4, 100)); // 进度条宽度
 
         //
 
-        public static int TotalMemberCount => _TotalMemberCount; // 成员总数量
-
         public static void Report(int delta) // 报告测试进度
         {
             _CompletedMemberCount += delta;
 
-            double progress = (double)_CompletedMemberCount / _TotalMemberCount;
+            double progress = (double)_CompletedMemberCount / ComInfo.TotalMemberCount;
 
             Console.SetCursorPosition(0, 0);
             Console.ForegroundColor = ConsoleColor.DarkCyan;
-            Console.Write("Executing test (" + _CompletedMemberCount + " of " + _TotalMemberCount + ")");
+            Console.Write("Executing test for Com " + ComInfo.ComVersionString);
             Console.SetCursorPosition(2, 2);
             Console.BackgroundColor = ConsoleColor.Gray;
             Console.Write(new string(' ', _FullWidth));
@@ -117,7 +146,7 @@ namespace Test
             Console.Write(new string(' ', _FullWidth));
             Console.SetCursorPosition(2, 3);
             Console.ForegroundColor = ConsoleColor.DarkCyan;
-            Console.Write((Math.Floor(progress * 1000) / 10) + "% completed");
+            Console.Write(string.Concat(Math.Floor(progress * 1000) / 10, "% (", _CompletedMemberCount, " of ", ComInfo.TotalMemberCount, ") completed"));
             Console.ForegroundColor = ConsoleColor.Black;
             Console.SetCursorPosition(0, 5);
             Console.WindowTop = 0;
@@ -132,7 +161,7 @@ namespace Test
             Console.Clear();
             Console.SetCursorPosition(0, 0);
             Console.ForegroundColor = ConsoleColor.DarkCyan;
-            Console.Write("Executing test (0 of " + _TotalMemberCount + ")");
+            Console.Write("Executing test for Com " + ComInfo.ComVersionString);
             Console.ForegroundColor = ConsoleColor.Black;
             Console.SetCursorPosition(2, 2);
             Console.BackgroundColor = ConsoleColor.Gray;
@@ -140,7 +169,7 @@ namespace Test
             Console.BackgroundColor = ConsoleColor.White;
             Console.SetCursorPosition(2, 3);
             Console.ForegroundColor = ConsoleColor.DarkCyan;
-            Console.Write("0% completed");
+            Console.Write(string.Concat("0% (0 of ", ComInfo.TotalMemberCount, ") completed"));
             Console.ForegroundColor = ConsoleColor.Black;
             Console.SetCursorPosition(0, 5);
             Console.WindowTop = 0;
@@ -176,6 +205,10 @@ namespace Test
         private const int _MinCycOfPerMember = 1; // 被测试类每个成员的最小执行次数
         private const int _MaxCycOfPerMember = 10000000; // 被测试类每个成员的最大执行次数
 #endif
+
+        //
+
+        private static string _LastResult = string.Empty; // 最近的一条测试结果
 
         //
 
@@ -308,7 +341,7 @@ namespace Test
 
         protected void ExecuteTest(Action method, string namespaceName, string className, string methodName, string comment) // 执行测试
         {
-            string resultForLog = string.Empty;
+            string[] resultForLog = null;
             string resultForDisplay = string.Empty;
 
             if (string.IsNullOrWhiteSpace(namespaceName))
@@ -329,6 +362,26 @@ namespace Test
             string memberName = string.Concat(namespaceName.Replace(',', ';'), ',', className.Replace(',', ';'), ',', methodName.Replace(',', ';'));
             string memberNameOriginal = string.Concat(namespaceName, '.', className, '.', methodName);
 
+            //
+
+            TestProgress.ClearExtra();
+
+            Console.ForegroundColor = ConsoleColor.DarkMagenta;
+            Console.Write("Now testing: ");
+            Console.ForegroundColor = ConsoleColor.DarkYellow;
+            Console.Write(string.Concat('[', memberNameOriginal, ']'));
+
+            if (!string.IsNullOrWhiteSpace(_LastResult))
+            {
+                Console.SetCursorPosition(0, 6);
+                Console.ForegroundColor = ConsoleColor.DarkMagenta;
+                Console.Write("Last result: ");
+                Console.ForegroundColor = ConsoleColor.DarkYellow;
+                Console.Write(_LastResult);
+            }
+
+            //
+
             if (comment == null)
             {
                 comment = string.Empty;
@@ -336,7 +389,7 @@ namespace Test
 
             if (method == null || method == WillNotTest)
             {
-                resultForLog = string.Concat(memberName, ",N/A,N/A,N/A,N/A,N/A,N/A", (comment.Length > 0 ? ',' + comment.Replace(',', ';') : string.Empty));
+                resultForLog = new string[] { memberName, "N/A", "N/A", "N/A", "N/A", "N/A", "N/A", (comment.Length > 0 ? comment.Replace(',', ';') : string.Empty) };
                 resultForDisplay = string.Concat('[', memberNameOriginal, "], N/A, N/A");
             }
             else
@@ -441,20 +494,15 @@ namespace Test
                 string frequency = _GetScientificNotationString(1000 / msPerCycle, 4, true, true, "Hz").Replace('μ', 'u');
                 string frequencyOriginal = (1000 / msPerCycle).ToString("G");
 
-                resultForLog = string.Concat(memberName, ',', period, ',', frequency, ',', cycle, ',', totalMS, ',', periodOriginal, ',', frequencyOriginal, (comment.Length > 0 ? ',' + comment.Replace(',', ';') : string.Empty));
+                resultForLog = new string[] { memberName, period, frequency, cycle.ToString(), totalMS.ToString("G"), periodOriginal, frequencyOriginal, (comment.Length > 0 ? comment.Replace(',', ';') : string.Empty) };
                 resultForDisplay = string.Concat('[', memberNameOriginal, "], ", period, ", ", frequency);
             }
 
-            TestResult.Log(resultForLog);
+            TestResult.LogCsv(resultForLog);
 
             TestProgress.Report(1);
 
-            TestProgress.ClearExtra();
-
-            Console.ForegroundColor = ConsoleColor.DarkMagenta;
-            Console.Write("Last result: ");
-            Console.ForegroundColor = ConsoleColor.DarkYellow;
-            Console.Write(resultForDisplay);
+            _LastResult = resultForDisplay;
         }
 
         protected void ExecuteTest(Action method, string namespaceName, string className, string methodName) // 执行测试
