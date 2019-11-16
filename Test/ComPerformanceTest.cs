@@ -82,7 +82,7 @@ namespace Test
                 }
 
                 DateTime dt = DateTime.Now;
-                string fileName = string.Concat("ComPerfTestLog,version=", ComInfo.ComVersionString, ",generateTime=", (dt.Year % 100).ToString("D2"), '.', dt.Month.ToString("D2"), '.', dt.Day.ToString("D2"), '.', dt.Hour.ToString("D2"), '.', dt.Minute.ToString("D2"), '.', dt.Second.ToString("D2"), '.', dt.Millisecond.ToString("D3"), ".csv");
+                string fileName = string.Concat("ComPerfReport,version=", ComInfo.ComVersionString, ",id=", dt.GetHashCode(), ".csv");
 
                 filePath = Path.Combine(fileDir, fileName);
 
