@@ -2,13 +2,14 @@
 Copyright © 2019 chibayuki@foxmail.com
 
 Com性能测试 (ComPerformanceTest)
-Version 19.11.25.1900
+Version 19.12.5.0000
 
 This file is part of "Com性能测试" (ComPerformanceTest)
 
 "Com性能测试" (ComPerformanceTest) is released under the GPLv3 license
 * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
+#define ComVerNext
 #define ComVer1910
 #define ComVer1905
 #define ComVer1809
@@ -26,9 +27,11 @@ namespace Test
 {
     static class ComInfo // Com 信息
     {
-        public const int TotalMemberCount = 1761; // 成员总数量
+        public const int TotalMemberCount = 1828; // 成员总数量
 
-#if ComVer1910
+#if ComVerNext
+        public const string ComVersionString = "<master>"; // Com 版本字符串
+#elif ComVer1910
         public const string ComVersionString = "19.10.14.2100"; // Com 版本字符串
 #elif ComVer1905
         public const string ComVersionString = "19.5.11.1720"; // Com 版本字符串
@@ -333,6 +336,7 @@ namespace Test
 
         protected enum UnsupportedReason // 不支持原因
         {
+            NeedComVerNext,
             NeedComVer1910,
             NeedComVer1905,
             NeedComVer1809
@@ -518,6 +522,10 @@ namespace Test
         {
             switch (unsupportedReason)
             {
+                case UnsupportedReason.NeedComVerNext:
+                    ExecuteTest(WillNotTest, namespaceName, className, methodName, "<unsupported member: need Com <master>>");
+                    break;
+
                 case UnsupportedReason.NeedComVer1910:
                     ExecuteTest(WillNotTest, namespaceName, className, methodName, "<unsupported member: need Com 19.10.14.2100 or later>");
                     break;
@@ -9521,6 +9529,23 @@ namespace Test
 
             // Offset
 
+#if ComVerNext
+            {
+                Com.PointD pointD = _GetRandomPointD();
+                int index = Com.Statistics.RandomInteger(2);
+                double d = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    pointD.Offset(index, d);
+                };
+
+                ExecuteTest(method, "Offset(int, double)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
             {
                 Com.PointD pointD = _GetRandomPointD();
                 double d = Com.Statistics.RandomDouble(-1E18, 1E18);
@@ -9531,6 +9556,18 @@ namespace Test
                 };
 
                 ExecuteTest(method, "Offset(double)");
+            }
+
+            {
+                Com.PointD pointD = _GetRandomPointD();
+                Com.PointD pt = _GetRandomPointD();
+
+                Action method = () =>
+                {
+                    pointD.Offset(pt);
+                };
+
+                ExecuteTest(method, "Offset(Com.PointD)");
             }
 
             {
@@ -9546,17 +9583,37 @@ namespace Test
                 ExecuteTest(method, "Offset(double, double)");
             }
 
+#if ComVerNext
             {
                 Com.PointD pointD = _GetRandomPointD();
-                Com.PointD pt = _GetRandomPointD();
+                double d = Com.Statistics.RandomDouble(-1E18, 1E18);
 
                 Action method = () =>
                 {
-                    pointD.Offset(pt);
+                    pointD.OffsetX(d);
                 };
 
-                ExecuteTest(method, "Offset(Com.PointD)");
+                ExecuteTest(method, "OffsetX(double)");
             }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+#if ComVerNext
+            {
+                Com.PointD pointD = _GetRandomPointD();
+                double d = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    pointD.OffsetY(d);
+                };
+
+                ExecuteTest(method, "OffsetY(double)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
 
             {
                 Com.PointD pointD = _GetRandomPointD();
@@ -9606,6 +9663,23 @@ namespace Test
                 ExecuteTest(method, "Offset(System.Drawing.SizeF)");
             }
 
+#if ComVerNext
+            {
+                Com.PointD pointD = _GetRandomPointD();
+                int index = Com.Statistics.RandomInteger(2);
+                double d = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = pointD.OffsetCopy(index, d);
+                };
+
+                ExecuteTest(method, "OffsetCopy(int, double)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
             {
                 Com.PointD pointD = _GetRandomPointD();
                 double d = Com.Statistics.RandomDouble(-1E18, 1E18);
@@ -9616,6 +9690,18 @@ namespace Test
                 };
 
                 ExecuteTest(method, "OffsetCopy(double)");
+            }
+
+            {
+                Com.PointD pointD = _GetRandomPointD();
+                Com.PointD pt = _GetRandomPointD();
+
+                Action method = () =>
+                {
+                    _ = pointD.OffsetCopy(pt);
+                };
+
+                ExecuteTest(method, "OffsetCopy(Com.PointD)");
             }
 
             {
@@ -9631,17 +9717,37 @@ namespace Test
                 ExecuteTest(method, "OffsetCopy(double, double)");
             }
 
+#if ComVerNext
             {
                 Com.PointD pointD = _GetRandomPointD();
-                Com.PointD pt = _GetRandomPointD();
+                double d = Com.Statistics.RandomDouble(-1E18, 1E18);
 
                 Action method = () =>
                 {
-                    _ = pointD.OffsetCopy(pt);
+                    _ = pointD.OffsetXCopy(d);
                 };
 
-                ExecuteTest(method, "OffsetCopy(Com.PointD)");
+                ExecuteTest(method, "OffsetXCopy(double)");
             }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+#if ComVerNext
+            {
+                Com.PointD pointD = _GetRandomPointD();
+                double d = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = pointD.OffsetYCopy(d);
+                };
+
+                ExecuteTest(method, "OffsetYCopy(double)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
 
             {
                 Com.PointD pointD = _GetRandomPointD();
@@ -9693,6 +9799,23 @@ namespace Test
 
             // Scale
 
+#if ComVerNext
+            {
+                Com.PointD pointD = _GetRandomPointD();
+                int index = Com.Statistics.RandomInteger(2);
+                double s = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    pointD.Scale(index, s);
+                };
+
+                ExecuteTest(method, "Scale(int, double)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
             {
                 Com.PointD pointD = _GetRandomPointD();
                 double s = Com.Statistics.RandomDouble(-1E18, 1E18);
@@ -9703,6 +9826,18 @@ namespace Test
                 };
 
                 ExecuteTest(method, "Scale(double)");
+            }
+
+            {
+                Com.PointD pointD = _GetRandomPointD();
+                Com.PointD pt = _GetRandomPointD();
+
+                Action method = () =>
+                {
+                    pointD.Scale(pt);
+                };
+
+                ExecuteTest(method, "Scale(Com.PointD)");
             }
 
             {
@@ -9718,17 +9853,37 @@ namespace Test
                 ExecuteTest(method, "Scale(double, double)");
             }
 
+#if ComVerNext
             {
                 Com.PointD pointD = _GetRandomPointD();
-                Com.PointD pt = _GetRandomPointD();
+                double s = Com.Statistics.RandomDouble(-1E18, 1E18);
 
                 Action method = () =>
                 {
-                    pointD.Scale(pt);
+                    pointD.ScaleX(s);
                 };
 
-                ExecuteTest(method, "Scale(Com.PointD)");
+                ExecuteTest(method, "ScaleX(double)");
             }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+#if ComVerNext
+            {
+                Com.PointD pointD = _GetRandomPointD();
+                double s = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    pointD.ScaleY(s);
+                };
+
+                ExecuteTest(method, "ScaleY(double)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
 
             {
                 Com.PointD pointD = _GetRandomPointD();
@@ -9778,6 +9933,23 @@ namespace Test
                 ExecuteTest(method, "Scale(System.Drawing.SizeF)");
             }
 
+#if ComVerNext
+            {
+                Com.PointD pointD = _GetRandomPointD();
+                int index = Com.Statistics.RandomInteger(2);
+                double s = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = pointD.ScaleCopy(index, s);
+                };
+
+                ExecuteTest(method, "ScaleCopy(int, double)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
             {
                 Com.PointD pointD = _GetRandomPointD();
                 double s = Com.Statistics.RandomDouble(-1E18, 1E18);
@@ -9788,6 +9960,18 @@ namespace Test
                 };
 
                 ExecuteTest(method, "ScaleCopy(double)");
+            }
+
+            {
+                Com.PointD pointD = _GetRandomPointD();
+                Com.PointD pt = _GetRandomPointD();
+
+                Action method = () =>
+                {
+                    _ = pointD.ScaleCopy(pt);
+                };
+
+                ExecuteTest(method, "ScaleCopy(Com.PointD)");
             }
 
             {
@@ -9803,17 +9987,37 @@ namespace Test
                 ExecuteTest(method, "ScaleCopy(double, double)");
             }
 
+#if ComVerNext
             {
                 Com.PointD pointD = _GetRandomPointD();
-                Com.PointD pt = _GetRandomPointD();
+                double s = Com.Statistics.RandomDouble(-1E18, 1E18);
 
                 Action method = () =>
                 {
-                    _ = pointD.ScaleCopy(pt);
+                    _ = pointD.ScaleXCopy(s);
                 };
 
-                ExecuteTest(method, "ScaleCopy(Com.PointD)");
+                ExecuteTest(method, "ScaleXCopy(double)");
             }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+#if ComVerNext
+            {
+                Com.PointD pointD = _GetRandomPointD();
+                double s = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = pointD.ScaleYCopy(s);
+                };
+
+                ExecuteTest(method, "ScaleYCopy(double)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
 
             {
                 Com.PointD pointD = _GetRandomPointD();
@@ -10638,6 +10842,22 @@ namespace Test
                 ExecuteTest(method, "IdentityMatrix()");
             }
 
+#if ComVerNext
+            {
+                int index = Com.Statistics.RandomInteger(2);
+                double d = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = Com.PointD.OffsetMatrix(index, d);
+                };
+
+                ExecuteTest(method, "OffsetMatrix(int, double)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
             {
                 double d = Com.Statistics.RandomDouble(-1E18, 1E18);
 
@@ -10647,6 +10867,17 @@ namespace Test
                 };
 
                 ExecuteTest(method, "OffsetMatrix(double)");
+            }
+
+            {
+                Com.PointD pt = _GetRandomPointD();
+
+                Action method = () =>
+                {
+                    _ = Com.PointD.OffsetMatrix(pt);
+                };
+
+                ExecuteTest(method, "OffsetMatrix(Com.PointD)");
             }
 
             {
@@ -10661,16 +10892,35 @@ namespace Test
                 ExecuteTest(method, "OffsetMatrix(double, double)");
             }
 
+#if ComVerNext
             {
-                Com.PointD pt = _GetRandomPointD();
+                double d = Com.Statistics.RandomDouble(-1E18, 1E18);
 
                 Action method = () =>
                 {
-                    _ = Com.PointD.OffsetMatrix(pt);
+                    _ = Com.PointD.OffsetXMatrix(d);
                 };
 
-                ExecuteTest(method, "OffsetMatrix(Com.PointD)");
+                ExecuteTest(method, "OffsetXMatrix(double)");
             }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+#if ComVerNext
+            {
+                double d = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = Com.PointD.OffsetYMatrix(d);
+                };
+
+                ExecuteTest(method, "OffsetYMatrix(double)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
 
             {
                 Point pt = new Point(Com.Statistics.RandomInteger() - int.MaxValue / 2, Com.Statistics.RandomInteger() - int.MaxValue / 2);
@@ -10716,6 +10966,22 @@ namespace Test
                 ExecuteTest(method, "OffsetMatrix(System.Drawing.SizeF)");
             }
 
+#if ComVerNext
+            {
+                int index = Com.Statistics.RandomInteger(2);
+                double s = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = Com.PointD.ScaleMatrix(index, s);
+                };
+
+                ExecuteTest(method, "ScaleMatrix(int, double)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
             {
                 double s = Com.Statistics.RandomDouble(-1E18, 1E18);
 
@@ -10725,6 +10991,17 @@ namespace Test
                 };
 
                 ExecuteTest(method, "ScaleMatrix(double)");
+            }
+
+            {
+                Com.PointD pt = _GetRandomPointD();
+
+                Action method = () =>
+                {
+                    _ = Com.PointD.ScaleMatrix(pt);
+                };
+
+                ExecuteTest(method, "ScaleMatrix(Com.PointD)");
             }
 
             {
@@ -10739,16 +11016,35 @@ namespace Test
                 ExecuteTest(method, "ScaleMatrix(double, double)");
             }
 
+#if ComVerNext
             {
-                Com.PointD pt = _GetRandomPointD();
+                double s = Com.Statistics.RandomDouble(-1E18, 1E18);
 
                 Action method = () =>
                 {
-                    _ = Com.PointD.ScaleMatrix(pt);
+                    _ = Com.PointD.ScaleXMatrix(s);
                 };
 
-                ExecuteTest(method, "ScaleMatrix(Com.PointD)");
+                ExecuteTest(method, "ScaleXMatrix(double)");
             }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+#if ComVerNext
+            {
+                double s = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = Com.PointD.ScaleYMatrix(s);
+                };
+
+                ExecuteTest(method, "ScaleYMatrix(double)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
 
             {
                 Point pt = new Point(Com.Statistics.RandomInteger() - int.MaxValue / 2, Com.Statistics.RandomInteger() - int.MaxValue / 2);
@@ -11831,6 +12127,22 @@ namespace Test
 #else
             ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
+
+#if ComVerNext
+            {
+                Com.PointD pt = _GetRandomPointD();
+                (double, double) tuple = (pt.X, pt.Y);
+
+                Action method = () =>
+                {
+                    _ = (Com.PointD)tuple;
+                };
+
+                ExecuteTest(method, "implicit operator Com.PointD(System.ValueTuple<double, double>)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
         }
     }
 
@@ -12807,6 +13119,23 @@ namespace Test
 
             // Offset
 
+#if ComVerNext
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+                int index = Com.Statistics.RandomInteger(3);
+                double d = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    pointD3D.Offset(index, d);
+                };
+
+                ExecuteTest(method, "Offset(int, double)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
             {
                 Com.PointD3D pointD3D = _GetRandomPointD3D();
                 double d = Com.Statistics.RandomDouble(-1E18, 1E18);
@@ -12817,20 +13146,6 @@ namespace Test
                 };
 
                 ExecuteTest(method, "Offset(double)");
-            }
-
-            {
-                Com.PointD3D pointD3D = _GetRandomPointD3D();
-                double dx = Com.Statistics.RandomDouble(-1E18, 1E18);
-                double dy = Com.Statistics.RandomDouble(-1E18, 1E18);
-                double dz = Com.Statistics.RandomDouble(-1E18, 1E18);
-
-                Action method = () =>
-                {
-                    pointD3D.Offset(dx, dy, dz);
-                };
-
-                ExecuteTest(method, "Offset(double, double, double)");
             }
 
             {
@@ -12847,6 +13162,85 @@ namespace Test
 
             {
                 Com.PointD3D pointD3D = _GetRandomPointD3D();
+                double dx = Com.Statistics.RandomDouble(-1E18, 1E18);
+                double dy = Com.Statistics.RandomDouble(-1E18, 1E18);
+                double dz = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    pointD3D.Offset(dx, dy, dz);
+                };
+
+                ExecuteTest(method, "Offset(double, double, double)");
+            }
+
+#if ComVerNext
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+                double d = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    pointD3D.OffsetX(d);
+                };
+
+                ExecuteTest(method, "OffsetX(double)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+#if ComVerNext
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+                double d = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    pointD3D.OffsetY(d);
+                };
+
+                ExecuteTest(method, "OffsetY(double)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+#if ComVerNext
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+                double d = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    pointD3D.OffsetZ(d);
+                };
+
+                ExecuteTest(method, "OffsetZ(double)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+#if ComVerNext
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+                int index = Com.Statistics.RandomInteger(3);
+                double d = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = pointD3D.OffsetCopy(index, d);
+                };
+
+                ExecuteTest(method, "OffsetCopy(int, double)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
                 double d = Com.Statistics.RandomDouble(-1E18, 1E18);
 
                 Action method = () =>
@@ -12855,6 +13249,18 @@ namespace Test
                 };
 
                 ExecuteTest(method, "OffsetCopy(double)");
+            }
+
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+                Com.PointD3D pt = _GetRandomPointD3D();
+
+                Action method = () =>
+                {
+                    _ = pointD3D.OffsetCopy(pt);
+                };
+
+                ExecuteTest(method, "OffsetCopy(Com.PointD3D)");
             }
 
             {
@@ -12871,19 +13277,72 @@ namespace Test
                 ExecuteTest(method, "OffsetCopy(double, double, double)");
             }
 
+#if ComVerNext
             {
                 Com.PointD3D pointD3D = _GetRandomPointD3D();
-                Com.PointD3D pt = _GetRandomPointD3D();
+                double d = Com.Statistics.RandomDouble(-1E18, 1E18);
 
                 Action method = () =>
                 {
-                    _ = pointD3D.OffsetCopy(pt);
+                    _ = pointD3D.OffsetXCopy(d);
                 };
 
-                ExecuteTest(method, "OffsetCopy(Com.PointD3D)");
+                ExecuteTest(method, "OffsetXCopy(double)");
             }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+#if ComVerNext
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+                double d = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = pointD3D.OffsetYCopy(d);
+                };
+
+                ExecuteTest(method, "OffsetYCopy(double)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+#if ComVerNext
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+                double d = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = pointD3D.OffsetZCopy(d);
+                };
+
+                ExecuteTest(method, "OffsetZCopy(double)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
 
             // Scale
+
+#if ComVerNext
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+                int index = Com.Statistics.RandomInteger(3);
+                double s = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    pointD3D.Scale(index, s);
+                };
+
+                ExecuteTest(method, "Scale(int, double)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
 
             {
                 Com.PointD3D pointD3D = _GetRandomPointD3D();
@@ -12895,20 +13354,6 @@ namespace Test
                 };
 
                 ExecuteTest(method, "Scale(double)");
-            }
-
-            {
-                Com.PointD3D pointD3D = _GetRandomPointD3D();
-                double sx = Com.Statistics.RandomDouble(-1E18, 1E18);
-                double sy = Com.Statistics.RandomDouble(-1E18, 1E18);
-                double sz = Com.Statistics.RandomDouble(-1E18, 1E18);
-
-                Action method = () =>
-                {
-                    pointD3D.Scale(sx, sy, sz);
-                };
-
-                ExecuteTest(method, "Scale(double, double, double)");
             }
 
             {
@@ -12925,6 +13370,68 @@ namespace Test
 
             {
                 Com.PointD3D pointD3D = _GetRandomPointD3D();
+                double sx = Com.Statistics.RandomDouble(-1E18, 1E18);
+                double sy = Com.Statistics.RandomDouble(-1E18, 1E18);
+                double sz = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    pointD3D.Scale(sx, sy, sz);
+                };
+
+                ExecuteTest(method, "Scale(double, double, double)");
+            }
+
+#if ComVerNext
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+                double s = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    pointD3D.ScaleX(s);
+                };
+
+                ExecuteTest(method, "ScaleX(double)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+#if ComVerNext
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+                double s = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    pointD3D.ScaleY(s);
+                };
+
+                ExecuteTest(method, "ScaleY(double)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+#if ComVerNext
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+                double s = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    pointD3D.ScaleZ(s);
+                };
+
+                ExecuteTest(method, "ScaleZ(double)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
                 double s = Com.Statistics.RandomDouble(-1E18, 1E18);
 
                 Action method = () =>
@@ -12933,6 +13440,18 @@ namespace Test
                 };
 
                 ExecuteTest(method, "ScaleCopy(double)");
+            }
+
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+                Com.PointD3D pt = _GetRandomPointD3D();
+
+                Action method = () =>
+                {
+                    _ = pointD3D.ScaleCopy(pt);
+                };
+
+                ExecuteTest(method, "ScaleCopy(Com.PointD3D)");
             }
 
             {
@@ -12947,18 +13466,6 @@ namespace Test
                 };
 
                 ExecuteTest(method, "ScaleCopy(double, double, double)");
-            }
-
-            {
-                Com.PointD3D pointD3D = _GetRandomPointD3D();
-                Com.PointD3D pt = _GetRandomPointD3D();
-
-                Action method = () =>
-                {
-                    _ = pointD3D.ScaleCopy(pt);
-                };
-
-                ExecuteTest(method, "ScaleCopy(Com.PointD3D)");
             }
 
             // Reflect
@@ -13854,6 +14361,22 @@ namespace Test
                 ExecuteTest(method, "IdentityMatrix()");
             }
 
+#if ComVerNext
+            {
+                int index = Com.Statistics.RandomInteger(3);
+                double d = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = Com.PointD3D.OffsetMatrix(index, d);
+                };
+
+                ExecuteTest(method, "OffsetMatrix(int, double)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
             {
                 double d = Com.Statistics.RandomDouble(-1E18, 1E18);
 
@@ -13863,6 +14386,17 @@ namespace Test
                 };
 
                 ExecuteTest(method, "OffsetMatrix(double)");
+            }
+
+            {
+                Com.PointD3D pt = _GetRandomPointD3D();
+
+                Action method = () =>
+                {
+                    _ = Com.PointD3D.OffsetMatrix(pt);
+                };
+
+                ExecuteTest(method, "OffsetMatrix(Com.PointD3D)");
             }
 
             {
@@ -13878,16 +14412,66 @@ namespace Test
                 ExecuteTest(method, "OffsetMatrix(double, double, double)");
             }
 
+#if ComVerNext
             {
-                Com.PointD3D pt = _GetRandomPointD3D();
+                double d = Com.Statistics.RandomDouble(-1E18, 1E18);
 
                 Action method = () =>
                 {
-                    _ = Com.PointD3D.OffsetMatrix(pt);
+                    _ = Com.PointD3D.OffsetXMatrix(d);
                 };
 
-                ExecuteTest(method, "OffsetMatrix(Com.PointD3D)");
+                ExecuteTest(method, "OffsetXMatrix(double)");
             }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+#if ComVerNext
+            {
+                double d = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = Com.PointD3D.OffsetYMatrix(d);
+                };
+
+                ExecuteTest(method, "OffsetYMatrix(double)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+#if ComVerNext
+            {
+                double d = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = Com.PointD3D.OffsetZMatrix(d);
+                };
+
+                ExecuteTest(method, "OffsetZMatrix(double)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+#if ComVerNext
+            {
+                int index = Com.Statistics.RandomInteger(3);
+                double s = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = Com.PointD3D.ScaleMatrix(index, s);
+                };
+
+                ExecuteTest(method, "ScaleMatrix(int, double)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
 
             {
                 double s = Com.Statistics.RandomDouble(-1E18, 1E18);
@@ -13898,6 +14482,17 @@ namespace Test
                 };
 
                 ExecuteTest(method, "ScaleMatrix(double)");
+            }
+
+            {
+                Com.PointD3D pt = _GetRandomPointD3D();
+
+                Action method = () =>
+                {
+                    _ = Com.PointD3D.ScaleMatrix(pt);
+                };
+
+                ExecuteTest(method, "ScaleMatrix(Com.PointD3D)");
             }
 
             {
@@ -13913,16 +14508,50 @@ namespace Test
                 ExecuteTest(method, "ScaleMatrix(double, double, double)");
             }
 
+#if ComVerNext
             {
-                Com.PointD3D pt = _GetRandomPointD3D();
+                double s = Com.Statistics.RandomDouble(-1E18, 1E18);
 
                 Action method = () =>
                 {
-                    _ = Com.PointD3D.ScaleMatrix(pt);
+                    _ = Com.PointD3D.ScaleXMatrix(s);
                 };
 
-                ExecuteTest(method, "ScaleMatrix(Com.PointD3D)");
+                ExecuteTest(method, "ScaleXMatrix(double)");
             }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+#if ComVerNext
+            {
+                double s = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = Com.PointD3D.ScaleYMatrix(s);
+                };
+
+                ExecuteTest(method, "ScaleYMatrix(double)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+#if ComVerNext
+            {
+                double s = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = Com.PointD3D.ScaleZMatrix(s);
+                };
+
+                ExecuteTest(method, "ScaleZMatrix(double)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
 
 #if ComVer1905
             {
@@ -14525,6 +15154,24 @@ namespace Test
 
                 ExecuteTest(method, "operator /(Com.PointD3D, Com.PointD3D)");
             }
+
+            // 类型转换
+
+#if ComVerNext
+            {
+                Com.PointD3D pt = _GetRandomPointD3D();
+                (double, double, double) tuple = (pt.X, pt.Y, pt.Z);
+
+                Action method = () =>
+                {
+                    _ = (Com.PointD3D)tuple;
+                };
+
+                ExecuteTest(method, "implicit operator Com.PointD3D(System.ValueTuple<double, double, double>)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
         }
     }
 
@@ -15548,6 +16195,23 @@ namespace Test
 
             // Offset
 
+#if ComVerNext
+            {
+                Com.PointD4D pointD4D = _GetRandomPointD4D();
+                int index = Com.Statistics.RandomInteger(4);
+                double d = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    pointD4D.Offset(index, d);
+                };
+
+                ExecuteTest(method, "Offset(int, double)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
             {
                 Com.PointD4D pointD4D = _GetRandomPointD4D();
                 double d = Com.Statistics.RandomDouble(-1E18, 1E18);
@@ -15558,6 +16222,18 @@ namespace Test
                 };
 
                 ExecuteTest(method, "Offset(double)");
+            }
+
+            {
+                Com.PointD4D pointD4D = _GetRandomPointD4D();
+                Com.PointD4D pt = _GetRandomPointD4D();
+
+                Action method = () =>
+                {
+                    pointD4D.Offset(pt);
+                };
+
+                ExecuteTest(method, "Offset(Com.PointD4D)");
             }
 
             {
@@ -15575,17 +16251,22 @@ namespace Test
                 ExecuteTest(method, "Offset(double, double, double, double)");
             }
 
+#if ComVerNext
             {
                 Com.PointD4D pointD4D = _GetRandomPointD4D();
-                Com.PointD4D pt = _GetRandomPointD4D();
+                int index = Com.Statistics.RandomInteger(4);
+                double d = Com.Statistics.RandomDouble(-1E18, 1E18);
 
                 Action method = () =>
                 {
-                    pointD4D.Offset(pt);
+                    _ = pointD4D.OffsetCopy(index, d);
                 };
 
-                ExecuteTest(method, "Offset(Com.PointD4D)");
+                ExecuteTest(method, "OffsetCopy(int, double)");
             }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
 
             {
                 Com.PointD4D pointD4D = _GetRandomPointD4D();
@@ -15597,6 +16278,18 @@ namespace Test
                 };
 
                 ExecuteTest(method, "OffsetCopy(double)");
+            }
+
+            {
+                Com.PointD4D pointD4D = _GetRandomPointD4D();
+                Com.PointD4D pt = _GetRandomPointD4D();
+
+                Action method = () =>
+                {
+                    _ = pointD4D.OffsetCopy(pt);
+                };
+
+                ExecuteTest(method, "OffsetCopy(Com.PointD4D)");
             }
 
             {
@@ -15614,19 +16307,24 @@ namespace Test
                 ExecuteTest(method, "OffsetCopy(double, double, double, double)");
             }
 
+            // Scale
+
+#if ComVerNext
             {
                 Com.PointD4D pointD4D = _GetRandomPointD4D();
-                Com.PointD4D pt = _GetRandomPointD4D();
+                int index = Com.Statistics.RandomInteger(4);
+                double s = Com.Statistics.RandomDouble(-1E18, 1E18);
 
                 Action method = () =>
                 {
-                    _ = pointD4D.OffsetCopy(pt);
+                    pointD4D.Scale(index, s);
                 };
 
-                ExecuteTest(method, "OffsetCopy(Com.PointD4D)");
+                ExecuteTest(method, "Scale(int, double)");
             }
-
-            // Scale
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
 
             {
                 Com.PointD4D pointD4D = _GetRandomPointD4D();
@@ -15638,6 +16336,18 @@ namespace Test
                 };
 
                 ExecuteTest(method, "Scale(double)");
+            }
+
+            {
+                Com.PointD4D pointD4D = _GetRandomPointD4D();
+                Com.PointD4D pt = _GetRandomPointD4D();
+
+                Action method = () =>
+                {
+                    pointD4D.Scale(pt);
+                };
+
+                ExecuteTest(method, "Scale(Com.PointD4D)");
             }
 
             {
@@ -15655,17 +16365,22 @@ namespace Test
                 ExecuteTest(method, "Scale(double, double, double, double)");
             }
 
+#if ComVerNext
             {
                 Com.PointD4D pointD4D = _GetRandomPointD4D();
-                Com.PointD4D pt = _GetRandomPointD4D();
+                int index = Com.Statistics.RandomInteger(4);
+                double s = Com.Statistics.RandomDouble(-1E18, 1E18);
 
                 Action method = () =>
                 {
-                    pointD4D.Scale(pt);
+                    _ = pointD4D.ScaleCopy(index, s);
                 };
 
-                ExecuteTest(method, "Scale(Com.PointD4D)");
+                ExecuteTest(method, "ScaleCopy(int, double)");
             }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
 
             {
                 Com.PointD4D pointD4D = _GetRandomPointD4D();
@@ -15681,6 +16396,18 @@ namespace Test
 
             {
                 Com.PointD4D pointD4D = _GetRandomPointD4D();
+                Com.PointD4D pt = _GetRandomPointD4D();
+
+                Action method = () =>
+                {
+                    _ = pointD4D.ScaleCopy(pt);
+                };
+
+                ExecuteTest(method, "ScaleCopy(Com.PointD4D)");
+            }
+
+            {
+                Com.PointD4D pointD4D = _GetRandomPointD4D();
                 double sx = Com.Statistics.RandomDouble(-1E18, 1E18);
                 double sy = Com.Statistics.RandomDouble(-1E18, 1E18);
                 double sz = Com.Statistics.RandomDouble(-1E18, 1E18);
@@ -15692,18 +16419,6 @@ namespace Test
                 };
 
                 ExecuteTest(method, "ScaleCopy(double, double, double, double)");
-            }
-
-            {
-                Com.PointD4D pointD4D = _GetRandomPointD4D();
-                Com.PointD4D pt = _GetRandomPointD4D();
-
-                Action method = () =>
-                {
-                    _ = pointD4D.ScaleCopy(pt);
-                };
-
-                ExecuteTest(method, "ScaleCopy(Com.PointD4D)");
             }
 
             // Reflect
@@ -16261,6 +16976,22 @@ namespace Test
                 ExecuteTest(method, "IdentityMatrix()");
             }
 
+#if ComVerNext
+            {
+                int index = Com.Statistics.RandomInteger(4);
+                double d = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = Com.PointD4D.OffsetMatrix(index, d);
+                };
+
+                ExecuteTest(method, "OffsetMatrix(int, double)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
             {
                 double d = Com.Statistics.RandomDouble(-1E18, 1E18);
 
@@ -16270,6 +17001,17 @@ namespace Test
                 };
 
                 ExecuteTest(method, "OffsetMatrix(double)");
+            }
+
+            {
+                Com.PointD4D pt = _GetRandomPointD4D();
+
+                Action method = () =>
+                {
+                    _ = Com.PointD4D.OffsetMatrix(pt);
+                };
+
+                ExecuteTest(method, "OffsetMatrix(Com.PointD4D)");
             }
 
             {
@@ -16286,16 +17028,21 @@ namespace Test
                 ExecuteTest(method, "OffsetMatrix(double, double, double, double)");
             }
 
+#if ComVerNext
             {
-                Com.PointD4D pt = _GetRandomPointD4D();
+                int index = Com.Statistics.RandomInteger(4);
+                double s = Com.Statistics.RandomDouble(-1E18, 1E18);
 
                 Action method = () =>
                 {
-                    _ = Com.PointD4D.OffsetMatrix(pt);
+                    _ = Com.PointD4D.ScaleMatrix(index, s);
                 };
 
-                ExecuteTest(method, "OffsetMatrix(Com.PointD4D)");
+                ExecuteTest(method, "ScaleMatrix(int, double)");
             }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
 
             {
                 double s = Com.Statistics.RandomDouble(-1E18, 1E18);
@@ -16306,6 +17053,17 @@ namespace Test
                 };
 
                 ExecuteTest(method, "ScaleMatrix(double)");
+            }
+
+            {
+                Com.PointD4D pt = _GetRandomPointD4D();
+
+                Action method = () =>
+                {
+                    _ = Com.PointD4D.ScaleMatrix(pt);
+                };
+
+                ExecuteTest(method, "ScaleMatrix(Com.PointD4D)");
             }
 
             {
@@ -16320,17 +17078,6 @@ namespace Test
                 };
 
                 ExecuteTest(method, "ScaleMatrix(double, double, double, double)");
-            }
-
-            {
-                Com.PointD4D pt = _GetRandomPointD4D();
-
-                Action method = () =>
-                {
-                    _ = Com.PointD4D.ScaleMatrix(pt);
-                };
-
-                ExecuteTest(method, "ScaleMatrix(Com.PointD4D)");
             }
 
 #if ComVer1905
@@ -16772,6 +17519,24 @@ namespace Test
 
                 ExecuteTest(method, "operator /(Com.PointD4D, Com.PointD4D)");
             }
+
+            // 类型转换
+
+#if ComVerNext
+            {
+                Com.PointD4D pt = _GetRandomPointD4D();
+                (double, double, double, double) tuple = (pt.X, pt.Y, pt.Z, pt.U);
+
+                Action method = () =>
+                {
+                    _ = (Com.PointD4D)tuple;
+                };
+
+                ExecuteTest(method, "implicit operator Com.PointD4D(System.ValueTuple<double, double, double, double>)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
         }
     }
 
@@ -17890,6 +18655,23 @@ namespace Test
 
             // Offset
 
+#if ComVerNext
+            {
+                Com.PointD5D pointD5D = _GetRandomPointD5D();
+                int index = Com.Statistics.RandomInteger(5);
+                double d = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    pointD5D.Offset(index, d);
+                };
+
+                ExecuteTest(method, "Offset(int, double)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
             {
                 Com.PointD5D pointD5D = _GetRandomPointD5D();
                 double d = Com.Statistics.RandomDouble(-1E18, 1E18);
@@ -17900,6 +18682,18 @@ namespace Test
                 };
 
                 ExecuteTest(method, "Offset(double)");
+            }
+
+            {
+                Com.PointD5D pointD5D = _GetRandomPointD5D();
+                Com.PointD5D pt = _GetRandomPointD5D();
+
+                Action method = () =>
+                {
+                    pointD5D.Offset(pt);
+                };
+
+                ExecuteTest(method, "Offset(Com.PointD5D)");
             }
 
             {
@@ -17918,17 +18712,22 @@ namespace Test
                 ExecuteTest(method, "Offset(double, double, double, double, double)");
             }
 
+#if ComVerNext
             {
                 Com.PointD5D pointD5D = _GetRandomPointD5D();
-                Com.PointD5D pt = _GetRandomPointD5D();
+                int index = Com.Statistics.RandomInteger(5);
+                double d = Com.Statistics.RandomDouble(-1E18, 1E18);
 
                 Action method = () =>
                 {
-                    pointD5D.Offset(pt);
+                    _ = pointD5D.OffsetCopy(index, d);
                 };
 
-                ExecuteTest(method, "Offset(Com.PointD5D)");
+                ExecuteTest(method, "OffsetCopy(int, double)");
             }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
 
             {
                 Com.PointD5D pointD5D = _GetRandomPointD5D();
@@ -17940,6 +18739,18 @@ namespace Test
                 };
 
                 ExecuteTest(method, "OffsetCopy(double)");
+            }
+
+            {
+                Com.PointD5D pointD5D = _GetRandomPointD5D();
+                Com.PointD5D pt = _GetRandomPointD5D();
+
+                Action method = () =>
+                {
+                    _ = pointD5D.OffsetCopy(pt);
+                };
+
+                ExecuteTest(method, "OffsetCopy(Com.PointD5D)");
             }
 
             {
@@ -17958,19 +18769,24 @@ namespace Test
                 ExecuteTest(method, "OffsetCopy(double, double, double, double, double)");
             }
 
+            // Scale
+
+#if ComVerNext
             {
                 Com.PointD5D pointD5D = _GetRandomPointD5D();
-                Com.PointD5D pt = _GetRandomPointD5D();
+                int index = Com.Statistics.RandomInteger(5);
+                double s = Com.Statistics.RandomDouble(-1E18, 1E18);
 
                 Action method = () =>
                 {
-                    _ = pointD5D.OffsetCopy(pt);
+                    pointD5D.Scale(index, s);
                 };
 
-                ExecuteTest(method, "OffsetCopy(Com.PointD5D)");
+                ExecuteTest(method, "Scale(int, double)");
             }
-
-            // Scale
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
 
             {
                 Com.PointD5D pointD5D = _GetRandomPointD5D();
@@ -17982,6 +18798,18 @@ namespace Test
                 };
 
                 ExecuteTest(method, "Scale(double)");
+            }
+
+            {
+                Com.PointD5D pointD5D = _GetRandomPointD5D();
+                Com.PointD5D pt = _GetRandomPointD5D();
+
+                Action method = () =>
+                {
+                    pointD5D.Scale(pt);
+                };
+
+                ExecuteTest(method, "Scale(Com.PointD5D)");
             }
 
             {
@@ -18000,17 +18828,22 @@ namespace Test
                 ExecuteTest(method, "Scale(double, double, double, double, double)");
             }
 
+#if ComVerNext
             {
                 Com.PointD5D pointD5D = _GetRandomPointD5D();
-                Com.PointD5D pt = _GetRandomPointD5D();
+                int index = Com.Statistics.RandomInteger(5);
+                double s = Com.Statistics.RandomDouble(-1E18, 1E18);
 
                 Action method = () =>
                 {
-                    pointD5D.Scale(pt);
+                    _ = pointD5D.ScaleCopy(index, s);
                 };
 
-                ExecuteTest(method, "Scale(Com.PointD5D)");
+                ExecuteTest(method, "ScaleCopy(int, double)");
             }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
 
             {
                 Com.PointD5D pointD5D = _GetRandomPointD5D();
@@ -18022,6 +18855,18 @@ namespace Test
                 };
 
                 ExecuteTest(method, "ScaleCopy(double)");
+            }
+
+            {
+                Com.PointD5D pointD5D = _GetRandomPointD5D();
+                Com.PointD5D pt = _GetRandomPointD5D();
+
+                Action method = () =>
+                {
+                    _ = pointD5D.ScaleCopy(pt);
+                };
+
+                ExecuteTest(method, "ScaleCopy(Com.PointD5D)");
             }
 
             {
@@ -18038,18 +18883,6 @@ namespace Test
                 };
 
                 ExecuteTest(method, "ScaleCopy(double, double, double, double, double)");
-            }
-
-            {
-                Com.PointD5D pointD5D = _GetRandomPointD5D();
-                Com.PointD5D pt = _GetRandomPointD5D();
-
-                Action method = () =>
-                {
-                    _ = pointD5D.ScaleCopy(pt);
-                };
-
-                ExecuteTest(method, "ScaleCopy(Com.PointD5D)");
             }
 
             // Reflect
@@ -18624,6 +19457,22 @@ namespace Test
                 ExecuteTest(method, "IdentityMatrix()");
             }
 
+#if ComVerNext
+            {
+                int index = Com.Statistics.RandomInteger(5);
+                double d = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = Com.PointD5D.OffsetMatrix(index, d);
+                };
+
+                ExecuteTest(method, "OffsetMatrix(int, double)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
             {
                 double d = Com.Statistics.RandomDouble(-1E18, 1E18);
 
@@ -18633,6 +19482,17 @@ namespace Test
                 };
 
                 ExecuteTest(method, "OffsetMatrix(double)");
+            }
+
+            {
+                Com.PointD5D pt = _GetRandomPointD5D();
+
+                Action method = () =>
+                {
+                    _ = Com.PointD5D.OffsetMatrix(pt);
+                };
+
+                ExecuteTest(method, "OffsetMatrix(Com.PointD5D)");
             }
 
             {
@@ -18650,16 +19510,21 @@ namespace Test
                 ExecuteTest(method, "OffsetMatrix(double, double, double, double, double)");
             }
 
+#if ComVerNext
             {
-                Com.PointD5D pt = _GetRandomPointD5D();
+                int index = Com.Statistics.RandomInteger(5);
+                double s = Com.Statistics.RandomDouble(-1E18, 1E18);
 
                 Action method = () =>
                 {
-                    _ = Com.PointD5D.OffsetMatrix(pt);
+                    _ = Com.PointD5D.ScaleMatrix(index, s);
                 };
 
-                ExecuteTest(method, "OffsetMatrix(Com.PointD5D)");
+                ExecuteTest(method, "ScaleMatrix(int, double)");
             }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
 
             {
                 double s = Com.Statistics.RandomDouble(-1E18, 1E18);
@@ -18670,6 +19535,17 @@ namespace Test
                 };
 
                 ExecuteTest(method, "ScaleMatrix(double)");
+            }
+
+            {
+                Com.PointD5D pt = _GetRandomPointD5D();
+
+                Action method = () =>
+                {
+                    _ = Com.PointD5D.ScaleMatrix(pt);
+                };
+
+                ExecuteTest(method, "ScaleMatrix(Com.PointD5D)");
             }
 
             {
@@ -18685,17 +19561,6 @@ namespace Test
                 };
 
                 ExecuteTest(method, "ScaleMatrix(double, double, double, double, double)");
-            }
-
-            {
-                Com.PointD5D pt = _GetRandomPointD5D();
-
-                Action method = () =>
-                {
-                    _ = Com.PointD5D.ScaleMatrix(pt);
-                };
-
-                ExecuteTest(method, "ScaleMatrix(Com.PointD5D)");
             }
 
 #if ComVer1905
@@ -19137,6 +20002,24 @@ namespace Test
 
                 ExecuteTest(method, "operator /(Com.PointD5D, Com.PointD5D)");
             }
+
+            // 类型转换
+
+#if ComVerNext
+            {
+                Com.PointD5D pt = _GetRandomPointD5D();
+                (double, double, double, double, double) tuple = (pt.X, pt.Y, pt.Z, pt.U, pt.V);
+
+                Action method = () =>
+                {
+                    _ = (Com.PointD5D)tuple;
+                };
+
+                ExecuteTest(method, "implicit operator Com.PointD5D(System.ValueTuple<double, double, double, double, double>)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
         }
     }
 
@@ -20337,6 +21220,23 @@ namespace Test
 
             // Offset
 
+#if ComVerNext
+            {
+                Com.PointD6D pointD6D = _GetRandomPointD6D();
+                int index = Com.Statistics.RandomInteger(6);
+                double d = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    pointD6D.Offset(index, d);
+                };
+
+                ExecuteTest(method, "Offset(int, double)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
             {
                 Com.PointD6D pointD6D = _GetRandomPointD6D();
                 double d = Com.Statistics.RandomDouble(-1E18, 1E18);
@@ -20347,6 +21247,18 @@ namespace Test
                 };
 
                 ExecuteTest(method, "Offset(double)");
+            }
+
+            {
+                Com.PointD6D pointD6D = _GetRandomPointD6D();
+                Com.PointD6D pt = _GetRandomPointD6D();
+
+                Action method = () =>
+                {
+                    pointD6D.Offset(pt);
+                };
+
+                ExecuteTest(method, "Offset(Com.PointD6D)");
             }
 
             {
@@ -20366,17 +21278,22 @@ namespace Test
                 ExecuteTest(method, "Offset(double, double, double, double, double, double)");
             }
 
+#if ComVerNext
             {
                 Com.PointD6D pointD6D = _GetRandomPointD6D();
-                Com.PointD6D pt = _GetRandomPointD6D();
+                int index = Com.Statistics.RandomInteger(6);
+                double d = Com.Statistics.RandomDouble(-1E18, 1E18);
 
                 Action method = () =>
                 {
-                    pointD6D.Offset(pt);
+                    _ = pointD6D.OffsetCopy(index, d);
                 };
 
-                ExecuteTest(method, "Offset(Com.PointD6D)");
+                ExecuteTest(method, "OffsetCopy(int, double)");
             }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
 
             {
                 Com.PointD6D pointD6D = _GetRandomPointD6D();
@@ -20388,6 +21305,18 @@ namespace Test
                 };
 
                 ExecuteTest(method, "OffsetCopy(double)");
+            }
+
+            {
+                Com.PointD6D pointD6D = _GetRandomPointD6D();
+                Com.PointD6D pt = _GetRandomPointD6D();
+
+                Action method = () =>
+                {
+                    _ = pointD6D.OffsetCopy(pt);
+                };
+
+                ExecuteTest(method, "OffsetCopy(Com.PointD6D)");
             }
 
             {
@@ -20407,19 +21336,24 @@ namespace Test
                 ExecuteTest(method, "OffsetCopy(double, double, double, double, double, double)");
             }
 
+            // Scale
+
+#if ComVerNext
             {
                 Com.PointD6D pointD6D = _GetRandomPointD6D();
-                Com.PointD6D pt = _GetRandomPointD6D();
+                int index = Com.Statistics.RandomInteger(6);
+                double s = Com.Statistics.RandomDouble(-1E18, 1E18);
 
                 Action method = () =>
                 {
-                    _ = pointD6D.OffsetCopy(pt);
+                    pointD6D.Scale(index, s);
                 };
 
-                ExecuteTest(method, "OffsetCopy(Com.PointD6D)");
+                ExecuteTest(method, "Scale(int, double)");
             }
-
-            // Scale
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
 
             {
                 Com.PointD6D pointD6D = _GetRandomPointD6D();
@@ -20431,6 +21365,18 @@ namespace Test
                 };
 
                 ExecuteTest(method, "Scale(double)");
+            }
+
+            {
+                Com.PointD6D pointD6D = _GetRandomPointD6D();
+                Com.PointD6D pt = _GetRandomPointD6D();
+
+                Action method = () =>
+                {
+                    pointD6D.Scale(pt);
+                };
+
+                ExecuteTest(method, "Scale(Com.PointD6D)");
             }
 
             {
@@ -20450,17 +21396,22 @@ namespace Test
                 ExecuteTest(method, "Scale(double, double, double, double, double, double)");
             }
 
+#if ComVerNext
             {
                 Com.PointD6D pointD6D = _GetRandomPointD6D();
-                Com.PointD6D pt = _GetRandomPointD6D();
+                int index = Com.Statistics.RandomInteger(6);
+                double s = Com.Statistics.RandomDouble(-1E18, 1E18);
 
                 Action method = () =>
                 {
-                    pointD6D.Scale(pt);
+                    _ = pointD6D.ScaleCopy(index, s);
                 };
 
-                ExecuteTest(method, "Scale(Com.PointD6D)");
+                ExecuteTest(method, "ScaleCopy(int, double)");
             }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
 
             {
                 Com.PointD6D pointD6D = _GetRandomPointD6D();
@@ -20472,6 +21423,18 @@ namespace Test
                 };
 
                 ExecuteTest(method, "ScaleCopy(double)");
+            }
+
+            {
+                Com.PointD6D pointD6D = _GetRandomPointD6D();
+                Com.PointD6D pt = _GetRandomPointD6D();
+
+                Action method = () =>
+                {
+                    _ = pointD6D.ScaleCopy(pt);
+                };
+
+                ExecuteTest(method, "ScaleCopy(Com.PointD6D)");
             }
 
             {
@@ -20489,18 +21452,6 @@ namespace Test
                 };
 
                 ExecuteTest(method, "ScaleCopy(double, double, double, double, double, double)");
-            }
-
-            {
-                Com.PointD6D pointD6D = _GetRandomPointD6D();
-                Com.PointD6D pt = _GetRandomPointD6D();
-
-                Action method = () =>
-                {
-                    _ = pointD6D.ScaleCopy(pt);
-                };
-
-                ExecuteTest(method, "ScaleCopy(Com.PointD6D)");
             }
 
             // Reflect
@@ -21092,6 +22043,22 @@ namespace Test
                 ExecuteTest(method, "IdentityMatrix()");
             }
 
+#if ComVerNext
+            {
+                int index = Com.Statistics.RandomInteger(6);
+                double d = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = Com.PointD6D.OffsetMatrix(index, d);
+                };
+
+                ExecuteTest(method, "OffsetMatrix(int, double)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
             {
                 double d = Com.Statistics.RandomDouble(-1E18, 1E18);
 
@@ -21101,6 +22068,17 @@ namespace Test
                 };
 
                 ExecuteTest(method, "OffsetMatrix(double)");
+            }
+
+            {
+                Com.PointD6D pt = _GetRandomPointD6D();
+
+                Action method = () =>
+                {
+                    _ = Com.PointD6D.OffsetMatrix(pt);
+                };
+
+                ExecuteTest(method, "OffsetMatrix(Com.PointD6D)");
             }
 
             {
@@ -21119,16 +22097,21 @@ namespace Test
                 ExecuteTest(method, "OffsetMatrix(double, double, double, double, double, double)");
             }
 
+#if ComVerNext
             {
-                Com.PointD6D pt = _GetRandomPointD6D();
+                int index = Com.Statistics.RandomInteger(6);
+                double s = Com.Statistics.RandomDouble(-1E18, 1E18);
 
                 Action method = () =>
                 {
-                    _ = Com.PointD6D.OffsetMatrix(pt);
+                    _ = Com.PointD6D.ScaleMatrix(index, s);
                 };
 
-                ExecuteTest(method, "OffsetMatrix(Com.PointD6D)");
+                ExecuteTest(method, "ScaleMatrix(int, double)");
             }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
 
             {
                 double s = Com.Statistics.RandomDouble(-1E18, 1E18);
@@ -21139,6 +22122,17 @@ namespace Test
                 };
 
                 ExecuteTest(method, "ScaleMatrix(double)");
+            }
+
+            {
+                Com.PointD6D pt = _GetRandomPointD6D();
+
+                Action method = () =>
+                {
+                    _ = Com.PointD6D.ScaleMatrix(pt);
+                };
+
+                ExecuteTest(method, "ScaleMatrix(Com.PointD6D)");
             }
 
             {
@@ -21155,17 +22149,6 @@ namespace Test
                 };
 
                 ExecuteTest(method, "ScaleMatrix(double, double, double, double, double, double)");
-            }
-
-            {
-                Com.PointD6D pt = _GetRandomPointD6D();
-
-                Action method = () =>
-                {
-                    _ = Com.PointD6D.ScaleMatrix(pt);
-                };
-
-                ExecuteTest(method, "ScaleMatrix(Com.PointD6D)");
             }
 
 #if ComVer1905
@@ -21607,6 +22590,24 @@ namespace Test
 
                 ExecuteTest(method, "operator /(Com.PointD6D, Com.PointD6D)");
             }
+
+            // 类型转换
+
+#if ComVerNext
+            {
+                Com.PointD6D pt = _GetRandomPointD6D();
+                (double, double, double, double, double, double) tuple = (pt.X, pt.Y, pt.Z, pt.U, pt.V, pt.W);
+
+                Action method = () =>
+                {
+                    _ = (Com.PointD6D)tuple;
+                };
+
+                ExecuteTest(method, "implicit operator Com.PointD6D(System.ValueTuple<double, double, double, double, double, double>)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
         }
     }
 
@@ -26291,6 +27292,23 @@ namespace Test
 
             // Offset
 
+#if ComVerNext
+            {
+                Com.Vector vector = _GetRandomVector(32);
+                int index = Com.Statistics.RandomInteger(32);
+                double d = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    vector.Offset(index, d);
+                };
+
+                ExecuteTest(method, "Offset(int, double)", "dimension at 32");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
             {
                 Com.Vector vector = _GetRandomVector(32);
                 double d = Com.Statistics.RandomDouble(-1E18, 1E18);
@@ -26314,6 +27332,23 @@ namespace Test
 
                 ExecuteTest(method, "Offset(Com.Vector)", "dimension at 32");
             }
+
+#if ComVerNext
+            {
+                Com.Vector vector = _GetRandomVector(32);
+                int index = Com.Statistics.RandomInteger(32);
+                double d = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = vector.OffsetCopy(index, d);
+                };
+
+                ExecuteTest(method, "OffsetCopy(int, double)", "dimension at 32");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
 
             {
                 Com.Vector vector = _GetRandomVector(32);
@@ -26341,6 +27376,23 @@ namespace Test
 
             // Scale
 
+#if ComVerNext
+            {
+                Com.Vector vector = _GetRandomVector(32);
+                int index = Com.Statistics.RandomInteger(32);
+                double d = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    vector.Scale(index, d);
+                };
+
+                ExecuteTest(method, "Scale(int, double)", "dimension at 32");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
             {
                 Com.Vector vector = _GetRandomVector(32);
                 double d = Com.Statistics.RandomDouble(-1E18, 1E18);
@@ -26364,6 +27416,23 @@ namespace Test
 
                 ExecuteTest(method, "Scale(Com.Vector)", "dimension at 32");
             }
+
+#if ComVerNext
+            {
+                Com.Vector vector = _GetRandomVector(32);
+                int index = Com.Statistics.RandomInteger(32);
+                double s = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = vector.ScaleCopy(index, s);
+                };
+
+                ExecuteTest(method, "ScaleCopy(int, double)", "dimension at 32");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
 
             {
                 Com.Vector vector = _GetRandomVector(32);
@@ -26897,6 +27966,24 @@ namespace Test
 
             // Matrix
 
+#if ComVerNext
+            {
+                Com.Vector.Type type = Com.Vector.Type.ColumnVector;
+                int dimension = 32;
+                int index = Com.Statistics.RandomInteger(32);
+                double d = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = Com.Vector.OffsetMatrix(type, dimension, index, d);
+                };
+
+                ExecuteTest(method, "OffsetMatrix(Com.Vector.Type, int, int, double)", "dimension at 32");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
             {
                 Com.Vector.Type type = Com.Vector.Type.ColumnVector;
                 int dimension = 32;
@@ -26920,6 +28007,24 @@ namespace Test
 
                 ExecuteTest(method, "OffsetMatrix(Com.Vector)", "dimension at 32");
             }
+
+#if ComVerNext
+            {
+                Com.Vector.Type type = Com.Vector.Type.ColumnVector;
+                int dimension = 32;
+                int index = Com.Statistics.RandomInteger(32);
+                double s = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = Com.Vector.ScaleMatrix(type, dimension, index, s);
+                };
+
+                ExecuteTest(method, "ScaleMatrix(Com.Vector.Type, int, int, double)", "dimension at 32");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
 
             {
                 Com.Vector.Type type = Com.Vector.Type.ColumnVector;
@@ -26949,7 +28054,7 @@ namespace Test
             {
                 Com.Vector.Type type = Com.Vector.Type.ColumnVector;
                 int dimension = 32;
-                int index = Com.Statistics.RandomInteger(16);
+                int index = Com.Statistics.RandomInteger(32);
 
                 Action method = () =>
                 {
