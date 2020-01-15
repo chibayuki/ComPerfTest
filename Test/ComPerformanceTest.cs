@@ -7536,6 +7536,29 @@ namespace Test
             }
         }
 
+        private static Com.Vector _GetRandomVector(Com.Vector.Type type, int dimension)
+        {
+            if (dimension > 0)
+            {
+                Com.Vector vector = Com.Vector.Zero(type, dimension);
+
+                for (int i = 0; i < dimension; i++)
+                {
+                    vector[i] = Com.Statistics.RandomDouble(-1000, 1000);
+                }
+
+                return vector;
+            }
+            else
+            {
+#if ComVer1905
+                return Com.Vector.Empty;
+#else
+                return Com.Vector.NonVector;
+#endif
+            }
+        }
+
         //
 
         protected override void Constructor()
@@ -7936,7 +7959,7 @@ namespace Test
                 ExecuteTest(method, "SubMatrix(int, int, int, int)", "size at 32x32, SubMatrix is 16x16 at (8,8)");
             }
 
-            // 获取行列
+            // get/set行列
 
             {
                 Com.Matrix matrix = _GetRandomMatrix(32, 32);
@@ -7950,6 +7973,23 @@ namespace Test
                 ExecuteTest(method, "GetColumn(int)", "size at 32x32");
             }
 
+#if ComVerNext
+            {
+                Com.Matrix matrix = _GetRandomMatrix(32, 32);
+                int x = Com.Statistics.RandomInteger(32);
+                Com.Vector vector = _GetRandomVector(Com.Vector.Type.ColumnVector, 32);
+
+                Action method = () =>
+                {
+                    matrix.SetColumn(x, vector);
+                };
+
+                ExecuteTest(method, "SetColumn(int, Com.Vector)", "size at 32x32");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
             {
                 Com.Matrix matrix = _GetRandomMatrix(32, 32);
                 int y = Com.Statistics.RandomInteger(32);
@@ -7961,6 +8001,23 @@ namespace Test
 
                 ExecuteTest(method, "GetRow(int)", "size at 32x32");
             }
+
+#if ComVerNext
+            {
+                Com.Matrix matrix = _GetRandomMatrix(32, 32);
+                int x = Com.Statistics.RandomInteger(32);
+                Com.Vector vector = _GetRandomVector(Com.Vector.Type.RowVector, 32);
+
+                Action method = () =>
+                {
+                    matrix.SetRow(x, vector);
+                };
+
+                ExecuteTest(method, "SetRow(int, Com.Vector)", "size at 32x32");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
 
             // ToArray
 
@@ -8319,12 +8376,7 @@ namespace Test
 
             {
                 Com.Matrix matrix = _GetRandomMatrix(8, 8);
-                Com.Vector vector = new Com.Vector(new double[8]);
-
-                for (int i = 0; i < 8; i++)
-                {
-                    vector[i] = Com.Statistics.RandomDouble(-1E18, 1E18);
-                }
+                Com.Vector vector = _GetRandomVector(Com.Vector.Type.ColumnVector, 8);
 
                 Action method = () =>
                 {
