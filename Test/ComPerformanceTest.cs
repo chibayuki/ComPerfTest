@@ -27,7 +27,7 @@ namespace Test
 {
     static class ComInfo // Com 信息
     {
-        public const int TotalMemberCount = 1828; // 成员总数量
+        public const int TotalMemberCount = 1838; // 成员总数量
 
 #if ComVerNext
         public const string ComVersionString = "<master>"; // Com 版本字符串
@@ -8292,6 +8292,66 @@ namespace Test
                 ExecuteTest(method, "Multiply(Com.Matrix, Com.Matrix)", "size at 32x32");
             }
 
+#if ComVerNext
+            {
+                Com.Matrix left = _GetRandomMatrix(32, 32);
+                Com.Vector right = _GetRandomVector(Com.Vector.Type.ColumnVector, 32);
+
+                Action method = () =>
+                {
+                    _ = Com.Matrix.Multiply(left, right);
+                };
+
+                ExecuteTest(method, "Multiply(Com.Matrix, Com.Vector)", "size at 32x32");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+#if ComVerNext
+            {
+                Com.Vector left = _GetRandomVector(Com.Vector.Type.RowVector, 32);
+                Com.Matrix right = _GetRandomMatrix(32, 32);
+
+                Action method = () =>
+                {
+                    _ = Com.Matrix.Multiply(left, right);
+                };
+
+                ExecuteTest(method, "Multiply(Com.Vector, Com.Matrix)", "size at 32x32");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+#if ComVerNext
+            {
+                List<Com.Matrix> list = new List<Com.Matrix>(8);
+
+                for (int i = 0; i < 8; i++)
+                {
+                    list.Add(_GetRandomMatrix(32, 32));
+                }
+
+                Com.Matrix[] matrices = list.ToArray();
+
+                Action method = () =>
+                {
+                    _ = Com.Matrix.MultiplyLeft(matrices);
+                };
+
+                ExecuteTest(method, "MultiplyLeft(Com.Matrix[])", "size at 32x32, total 8 matrices");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+#if ComVerNext
+            ExecuteTest("MultiplyLeft(System.Collections.Generic.IEnumerable<Com.Matrix>)");
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
             {
                 List<Com.Matrix> list = new List<Com.Matrix>(8);
 
@@ -8307,6 +8367,34 @@ namespace Test
 
                 ExecuteTest(method, "MultiplyLeft(System.Collections.Generic.List<Com.Matrix>)", "size at 32x32, total 8 matrices");
             }
+
+#if ComVerNext
+            {
+                List<Com.Matrix> list = new List<Com.Matrix>(8);
+
+                for (int i = 0; i < 8; i++)
+                {
+                    list.Add(_GetRandomMatrix(32, 32));
+                }
+
+                Com.Matrix[] matrices = list.ToArray();
+
+                Action method = () =>
+                {
+                    _ = Com.Matrix.MultiplyRight(matrices);
+                };
+
+                ExecuteTest(method, "MultiplyRight(Com.Matrix[])", "size at 32x32, total 8 matrices");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+#if ComVerNext
+            ExecuteTest("MultiplyRight(System.Collections.Generic.IEnumerable<Com.Matrix>)");
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
 
             {
                 List<Com.Matrix> list = new List<Com.Matrix>(8);
@@ -8360,6 +8448,22 @@ namespace Test
                 ExecuteTest(method, "DivideLeft(Com.Matrix, Com.Matrix)", "size at 8x8");
             }
 
+#if ComVerNext
+            {
+                Com.Matrix left = _GetRandomMatrix(8, 8);
+                Com.Vector right = _GetRandomVector(Com.Vector.Type.ColumnVector, 8);
+
+                Action method = () =>
+                {
+                    _ = Com.Matrix.DivideLeft(left, right);
+                };
+
+                ExecuteTest(method, "DivideLeft(Com.Matrix, Com.Vector)", "size at 8x8");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
             {
                 Com.Matrix left = _GetRandomMatrix(8, 8);
                 Com.Matrix right = _GetRandomMatrix(8, 8);
@@ -8371,6 +8475,22 @@ namespace Test
 
                 ExecuteTest(method, "DivideRight(Com.Matrix, Com.Matrix)", "size at 8x8");
             }
+
+#if ComVerNext
+            {
+                Com.Vector left = _GetRandomVector(Com.Vector.Type.RowVector, 8);
+                Com.Matrix right = _GetRandomMatrix(8, 8);
+
+                Action method = () =>
+                {
+                    _ = Com.Matrix.DivideRight(left, right);
+                };
+
+                ExecuteTest(method, "DivideRight(Com.Vector, Com.Matrix)", "size at 8x8");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
 
             // 求解线性方程组
 
