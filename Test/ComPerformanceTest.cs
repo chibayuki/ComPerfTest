@@ -27,7 +27,7 @@ namespace Test
 {
     static class ComInfo // Com 信息
     {
-        public const int TotalMemberCount = 1838; // 成员总数量
+        public const int TotalMemberCount = 1907; // 成员总数量
 
 #if ComVerNext
         public const string ComVersionString = "<master>"; // Com 版本字符串
@@ -576,6 +576,864 @@ namespace Test
             Method();
             StaticMethod();
             Operator();
+        }
+    }
+
+    sealed class AffineTransformationTest : ClassPerfTestBase
+    {
+        private const string _NamespaceName = "Com";
+        private const string _ClassName = "AffineTransformation";
+
+        private void ExecuteTest(Action method, string methodName, string comment)
+        {
+            base.ExecuteTest(method, _NamespaceName, _ClassName, methodName, comment);
+        }
+
+        private void ExecuteTest(Action method, string methodName)
+        {
+            base.ExecuteTest(method, _NamespaceName, _ClassName, methodName);
+        }
+
+        private void ExecuteTest(string methodName, UnsupportedReason unsupportedReason)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, methodName, unsupportedReason);
+        }
+
+        private void ExecuteTest(string methodName)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, methodName);
+        }
+
+        private void ExecuteTest(UnsupportedReason unsupportedReason)
+        {
+            base.ExecuteTest(_NamespaceName, _ClassName, string.Empty, unsupportedReason);
+        }
+
+        //
+
+        private static Com.Matrix _GetRandomMatrix(int width, int height)
+        {
+            if (width > 0 && height > 0)
+            {
+                Com.Matrix matrix = new Com.Matrix(width, height);
+
+                for (int x = 0; x < width; x++)
+                {
+                    for (int y = 0; y < height; y++)
+                    {
+                        matrix[x, y] = Com.Statistics.RandomDouble(-10, 10);
+                    }
+                }
+
+                return matrix;
+            }
+            else
+            {
+#if ComVer1905
+                return Com.Matrix.Empty;
+#else
+                return Com.Matrix.NonMatrix;
+#endif
+            }
+        }
+
+        private static Com.AffineTransformation _GetRandomAffineTransformation(int size)
+        {
+            Com.AffineTransformation affineTransformation = Com.AffineTransformation.Empty;
+
+            if (size > 0)
+            {
+                for (int i = 0; i < size; i++)
+                {
+                    switch (i % 5)
+                    {
+                        case 0: affineTransformation.Offset(0, Com.Statistics.RandomDouble(-10, 10)); break;
+                        case 1: affineTransformation.Scale(0, Com.Statistics.RandomDouble(-10, 10)); break;
+                        case 2: affineTransformation.Reflect(0); break;
+                        case 3: affineTransformation.Shear(0, 1, Com.Statistics.RandomDouble(2 * Math.PI)); break;
+                        case 4: affineTransformation.Rotate(0, 1, Com.Statistics.RandomDouble(2 * Math.PI)); break;
+                    }
+                }
+            }
+
+            return affineTransformation;
+        }
+
+        //
+
+        protected override void Constructor()
+        {
+
+        }
+
+        protected override void Property()
+        {
+            // Is
+
+#if ComVerNext
+            {
+                Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
+
+                Action method = () =>
+                {
+                    _ = affineTransformation.IsEmpty;
+                };
+
+                ExecuteTest(method, "IsEmpty.get()", "include 10 transformations, except matrix");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+#if ComVerNext
+            {
+                Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
+
+                Action method = () =>
+                {
+                    _ = affineTransformation.IsSingle;
+                };
+
+                ExecuteTest(method, "IsSingle.get()", "include 10 transformations, except matrix");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+#if ComVerNext
+            {
+                Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
+
+                Action method = () =>
+                {
+                    _ = affineTransformation.IsMultiple;
+                };
+
+                ExecuteTest(method, "IsMultiple.get()", "include 10 transformations, except matrix");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+        }
+
+        protected override void StaticProperty()
+        {
+            // Empty
+
+#if ComVerNext
+            {
+                Action method = () =>
+                {
+                    _ = Com.AffineTransformation.Empty;
+                };
+
+                ExecuteTest(method, "Empty.get()");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+        }
+
+        protected override void Method()
+        {
+            // object
+
+#if ComVerNext
+            {
+                Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
+                object obj = affineTransformation.Copy();
+
+                Action method = () =>
+                {
+                    _ = affineTransformation.Equals(obj);
+                };
+
+                ExecuteTest(method, "Equals(object)", "include 10 transformations, except matrix");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+#if ComVerNext
+            {
+                Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
+
+                Action method = () =>
+                {
+                    _ = affineTransformation.GetHashCode();
+                };
+
+                ExecuteTest(method, "GetHashCode()", "include 10 transformations, except matrix");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+#if ComVerNext
+            {
+                Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
+
+                Action method = () =>
+                {
+                    _ = affineTransformation.ToString();
+                };
+
+                ExecuteTest(method, "ToString()", "include 10 transformations, except matrix");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+            // Equals
+
+#if ComVerNext
+            {
+                Com.AffineTransformation left = _GetRandomAffineTransformation(10);
+                Com.AffineTransformation right = left.Copy();
+
+                Action method = () =>
+                {
+                    _ = left.Equals(right);
+                };
+
+                ExecuteTest(method, "Equals(Com.AffineTransformation)", "include 10 transformations, except matrix");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+            // Copy
+
+#if ComVerNext
+            {
+                Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
+
+                Action method = () =>
+                {
+                    _ = affineTransformation.Copy();
+                };
+
+                ExecuteTest(method, "Copy()", "include 10 transformations, except matrix");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+            // Split
+
+#if ComVerNext
+            {
+                Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
+
+                Action method = () =>
+                {
+                    _ = affineTransformation.Split();
+                };
+
+                ExecuteTest(method, "Split()", "include 10 transformations, except matrix");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+            // ToMatrix
+
+#if ComVerNext
+            {
+                Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
+
+                Action method = () =>
+                {
+                    _ = affineTransformation.ToMatrix(Com.Vector.Type.ColumnVector, 3);
+                };
+
+                ExecuteTest(method, "ToMatrix()", "include 10 transformations, except matrix, to matrix for 3D column vector");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+            // Inverse
+
+#if ComVerNext
+            {
+                Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
+
+                Action method = () =>
+                {
+                    affineTransformation.InverseTransform();
+                };
+
+                ExecuteTest(method, "InverseTransform()", "include 10 transformations, except matrix");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+#if ComVerNext
+            {
+                Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
+
+                Action method = () =>
+                {
+                    _ = affineTransformation.InverseTransformCopy();
+                };
+
+                ExecuteTest(method, "InverseTransformCopy()", "include 10 transformations, except matrix");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+            // Offset
+
+#if ComVerNext
+            {
+                Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
+                int index = Com.Statistics.RandomInteger(32);
+                double d = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    affineTransformation.Offset(index, d);
+                };
+
+                ExecuteTest(method, "Offset(int, double)", "include 10 transformations, except matrix");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+#if ComVerNext
+            {
+                Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
+                double d = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    affineTransformation.Offset(d);
+                };
+
+                ExecuteTest(method, "Offset(double)", "include 10 transformations, except matrix");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+#if ComVerNext
+            {
+                Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
+                int index = Com.Statistics.RandomInteger(32);
+                double d = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = affineTransformation.OffsetCopy(index, d);
+                };
+
+                ExecuteTest(method, "OffsetCopy(int, double)", "include 10 transformations, except matrix");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+#if ComVerNext
+            {
+                Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
+                double d = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = affineTransformation.OffsetCopy(d);
+                };
+
+                ExecuteTest(method, "OffsetCopy(double)", "include 10 transformations, except matrix");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+            // Scale
+
+#if ComVerNext
+            {
+                Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
+                int index = Com.Statistics.RandomInteger(32);
+                double s = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    affineTransformation.Scale(index, s);
+                };
+
+                ExecuteTest(method, "Scale(int, double)", "include 10 transformations, except matrix");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+#if ComVerNext
+            {
+                Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
+                double s = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    affineTransformation.Scale(s);
+                };
+
+                ExecuteTest(method, "Scale(double)", "include 10 transformations, except matrix");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+#if ComVerNext
+            {
+                Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
+                int index = Com.Statistics.RandomInteger(32);
+                double s = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = affineTransformation.ScaleCopy(index, s);
+                };
+
+                ExecuteTest(method, "ScaleCopy(int, double)", "include 10 transformations, except matrix");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+#if ComVerNext
+            {
+                Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
+                double s = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = affineTransformation.ScaleCopy(s);
+                };
+
+                ExecuteTest(method, "ScaleCopy(double)", "include 10 transformations, except matrix");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+            // Reflect
+
+#if ComVerNext
+            {
+                Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
+                int index = Com.Statistics.RandomInteger(32);
+
+                Action method = () =>
+                {
+                    affineTransformation.Reflect(index);
+                };
+
+                ExecuteTest(method, "Reflect(int)", "include 10 transformations, except matrix");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+#if ComVerNext
+            {
+                Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
+                int index = Com.Statistics.RandomInteger(32);
+
+                Action method = () =>
+                {
+                    _ = affineTransformation.ReflectCopy(index);
+                };
+
+                ExecuteTest(method, "ReflectCopy(int)", "include 10 transformations, except matrix");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+            // Shear
+
+#if ComVerNext
+            {
+                Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
+                int index1 = Com.Statistics.RandomInteger(16);
+                int index2 = Com.Statistics.RandomInteger(16, 32);
+                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
+
+                Action method = () =>
+                {
+                    affineTransformation.Shear(index1, index2, angle);
+                };
+
+                ExecuteTest(method, "Shear(int, int, double)", "include 10 transformations, except matrix");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+#if ComVerNext
+            {
+                Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
+                int index1 = Com.Statistics.RandomInteger(16);
+                int index2 = Com.Statistics.RandomInteger(16, 32);
+                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
+
+                Action method = () =>
+                {
+                    _ = affineTransformation.ShearCopy(index1, index2, angle);
+                };
+
+                ExecuteTest(method, "ShearCopy(int, int, double)", "include 10 transformations, except matrix");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+            // Rotate
+
+#if ComVerNext
+            {
+                Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
+                int index1 = Com.Statistics.RandomInteger(16);
+                int index2 = Com.Statistics.RandomInteger(16, 32);
+                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
+
+                Action method = () =>
+                {
+                    affineTransformation.Rotate(index1, index2, angle);
+                };
+
+                ExecuteTest(method, "Rotate(int, int, double)", "include 10 transformations, except matrix");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+#if ComVerNext
+            {
+                Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
+                int index1 = Com.Statistics.RandomInteger(16);
+                int index2 = Com.Statistics.RandomInteger(16, 32);
+                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
+
+                Action method = () =>
+                {
+                    _ = affineTransformation.RotateCopy(index1, index2, angle);
+                };
+
+                ExecuteTest(method, "RotateCopy(int, int, double)", "include 10 transformations, except matrix");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+            // MatrixTransform
+
+#if ComVerNext
+            {
+                Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
+                Com.Matrix matrix = _GetRandomMatrix(4, 4);
+
+                Action method = () =>
+                {
+                    affineTransformation.MatrixTransform(matrix);
+                };
+
+                ExecuteTest(method, "MatrixTransform(Com.Matrix)", "include 10 transformations, except matrix, matrix size at 4x4");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+#if ComVerNext
+            {
+                Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
+                Com.Matrix matrix = _GetRandomMatrix(4, 4);
+
+                Action method = () =>
+                {
+                    _ = affineTransformation.MatrixTransformCopy(matrix);
+                };
+
+                ExecuteTest(method, "MatrixTransformCopy(Com.Matrix)", "include 10 transformations, except matrix, matrix size at 4x4");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+            // AffineTransform
+
+#if ComVerNext
+            {
+                Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
+                Com.AffineTransformation affineTransformation_a = _GetRandomAffineTransformation(10);
+
+                Action method = () =>
+                {
+                    affineTransformation.AffineTransform(affineTransformation_a);
+                };
+
+                ExecuteTest(method, "AffineTransform(Com.AffineTransformation)", "include 10 transformations, except matrix");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+#if ComVerNext
+            {
+                Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
+                Com.AffineTransformation affineTransformation_a = _GetRandomAffineTransformation(10);
+
+                Action method = () =>
+                {
+                    _ = affineTransformation.AffineTransformCopy(affineTransformation_a);
+                };
+
+                ExecuteTest(method, "AffineTransformCopy(Com.Matrix)", "include 10 transformations, except matrix");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+        }
+
+        protected override void StaticMethod()
+        {
+            // IsNullOrEmpty
+
+#if ComVerNext
+            {
+                Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
+
+                Action method = () =>
+                {
+                    _ = Com.AffineTransformation.IsNullOrEmpty(affineTransformation);
+                };
+
+                ExecuteTest(method, "IsNullOrEmpty(Com.AffineTransformation)", "include 10 transformations, except matrix");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+            // Equals
+
+#if ComVerNext
+            {
+                Com.AffineTransformation left = _GetRandomAffineTransformation(10);
+                Com.AffineTransformation right = left.Copy();
+
+                Action method = () =>
+                {
+                    _ = Com.AffineTransformation.Equals(left, right);
+                };
+
+                ExecuteTest(method, "Equals(Com.AffineTransformation, Com.AffineTransformation)", "include 10 transformations, except matrix");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+            // Join
+
+#if ComVerNext
+            {
+                Com.AffineTransformation[] affineTransformations = _GetRandomAffineTransformation(10).Split();
+
+                Action method = () =>
+                {
+                    _ = Com.AffineTransformation.Join(affineTransformations);
+                };
+
+                ExecuteTest(method, "Join(params Com.AffineTransformation[])", "10 transformations, except matrix");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+#if ComVerNext
+            ExecuteTest("Join(System.Collections.Generic.IEnumerable<Com.AffineTransformation>)");
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+            // FromOffset
+
+#if ComVerNext
+            {
+                int index = Com.Statistics.RandomInteger(32);
+                double d = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = Com.AffineTransformation.FromOffset(index, d);
+                };
+
+                ExecuteTest(method, "FromOffset(int, double)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+#if ComVerNext
+            {
+                double d = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = Com.AffineTransformation.FromOffset(d);
+                };
+
+                ExecuteTest(method, "FromOffset(double)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+            // FromScale
+
+#if ComVerNext
+            {
+                int index = Com.Statistics.RandomInteger(32);
+                double s = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = Com.AffineTransformation.FromScale(index, s);
+                };
+
+                ExecuteTest(method, "FromScale(int, double)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+#if ComVerNext
+            {
+                double s = Com.Statistics.RandomDouble(-1E18, 1E18);
+
+                Action method = () =>
+                {
+                    _ = Com.AffineTransformation.FromScale(s);
+                };
+
+                ExecuteTest(method, "FromScale(double)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+            // FromReflect
+
+#if ComVerNext
+            {
+                int index = Com.Statistics.RandomInteger(32);
+
+                Action method = () =>
+                {
+                    _ = Com.AffineTransformation.FromReflect(index);
+                };
+
+                ExecuteTest(method, "FromReflect(int)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+            // FromShear
+
+#if ComVerNext
+            {
+                int index1 = Com.Statistics.RandomInteger(16);
+                int index2 = Com.Statistics.RandomInteger(16, 32);
+                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
+
+                Action method = () =>
+                {
+                    _ = Com.AffineTransformation.FromShear(index1, index2, angle);
+                };
+
+                ExecuteTest(method, "FromShear(int, int, double)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+            // FromRotate
+
+#if ComVerNext
+            {
+                int index1 = Com.Statistics.RandomInteger(16);
+                int index2 = Com.Statistics.RandomInteger(16, 32);
+                double angle = Com.Statistics.RandomDouble(2 * Math.PI);
+
+                Action method = () =>
+                {
+                    _ = Com.AffineTransformation.FromRotate(index1, index2, angle);
+                };
+
+                ExecuteTest(method, "FromRotate(int, int, double)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+            // FromMatrixTransform
+
+#if ComVerNext
+            {
+                Com.Matrix matrix = _GetRandomMatrix(4, 4);
+
+                Action method = () =>
+                {
+                    _ = Com.AffineTransformation.FromMatrixTransform(matrix);
+                };
+
+                ExecuteTest(method, "FromMatrixTransform(Com.Matrix)", "matrix size at 4x4");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+        }
+
+        protected override void Operator()
+        {
+            // 比较
+
+#if ComVerNext
+            {
+                Com.AffineTransformation left = _GetRandomAffineTransformation(10);
+                Com.AffineTransformation right = left.Copy();
+
+                Action method = () =>
+                {
+                    _ = (left == right);
+                };
+
+                ExecuteTest(method, "operator ==(Com.AffineTransformation, Com.AffineTransformation)", "include 10 transformations, except matrix");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+#if ComVerNext
+            {
+                Com.AffineTransformation left = _GetRandomAffineTransformation(10);
+                Com.AffineTransformation right = left.Copy();
+
+                Action method = () =>
+                {
+                    _ = (left != right);
+                };
+
+                ExecuteTest(method, "operator !=(Com.AffineTransformation, Com.AffineTransformation)", "include 10 transformations, except matrix");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
         }
     }
 
@@ -8960,6 +9818,28 @@ namespace Test
             }
         }
 
+        private static Com.AffineTransformation _GetRandomAffineTransformation(int size)
+        {
+            Com.AffineTransformation affineTransformation = Com.AffineTransformation.Empty;
+
+            if (size > 0)
+            {
+                for (int i = 0; i < size; i++)
+                {
+                    switch (i % 5)
+                    {
+                        case 0: affineTransformation.Offset(0, Com.Statistics.RandomDouble(-10, 10)); break;
+                        case 1: affineTransformation.Scale(0, Com.Statistics.RandomDouble(-10, 10)); break;
+                        case 2: affineTransformation.Reflect(0); break;
+                        case 3: affineTransformation.Shear(0, 1, Com.Statistics.RandomDouble(2 * Math.PI)); break;
+                        case 4: affineTransformation.Rotate(0, 1, Com.Statistics.RandomDouble(2 * Math.PI)); break;
+                    }
+                }
+            }
+
+            return affineTransformation;
+        }
+
         //
 
         protected override void Constructor()
@@ -10531,7 +11411,75 @@ namespace Test
                 ExecuteTest(method, "RotateCopy(double, Com.PointD)");
             }
 
-            // Affine
+            // MatrixTransform
+
+#if ComVerNext
+            {
+                Com.PointD pointD = _GetRandomPointD();
+                Com.Matrix matrix = _GetRandomMatrix(3, 3);
+
+                Action method = () =>
+                {
+                    pointD.MatrixTransform(matrix);
+                };
+
+                ExecuteTest(method, "MatrixTransform(Com.Matrix)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+#if ComVerNext
+            {
+                Com.PointD pointD = _GetRandomPointD();
+                Com.Matrix matrix = _GetRandomMatrix(3, 3);
+
+                Action method = () =>
+                {
+                    _ = pointD.MatrixTransformCopy(matrix);
+                };
+
+                ExecuteTest(method, "MatrixTransformCopy(Com.Matrix)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+            // AffineTransform
+
+#if ComVerNext
+            {
+                Com.PointD pointD = _GetRandomPointD();
+                Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
+
+                Action method = () =>
+                {
+                    pointD.AffineTransform(affineTransformation);
+                };
+
+                ExecuteTest(method, "AffineTransform(Com.AffineTransformation)", "include 10 transformations, except matrix");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+#if ComVerNext
+            {
+                Com.PointD pointD = _GetRandomPointD();
+                Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
+
+                Action method = () =>
+                {
+                    _ = pointD.AffineTransformCopy(affineTransformation);
+                };
+
+                ExecuteTest(method, "AffineTransformCopy(Com.AffineTransformation)", "include 10 transformations, except matrix");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+            // Old Affine
 
             {
                 Com.PointD pointD = _GetRandomPointD();
@@ -12403,6 +13351,28 @@ namespace Test
             }
         }
 
+        private static Com.AffineTransformation _GetRandomAffineTransformation(int size)
+        {
+            Com.AffineTransformation affineTransformation = Com.AffineTransformation.Empty;
+
+            if (size > 0)
+            {
+                for (int i = 0; i < size; i++)
+                {
+                    switch (i % 5)
+                    {
+                        case 0: affineTransformation.Offset(0, Com.Statistics.RandomDouble(-10, 10)); break;
+                        case 1: affineTransformation.Scale(0, Com.Statistics.RandomDouble(-10, 10)); break;
+                        case 2: affineTransformation.Reflect(0); break;
+                        case 3: affineTransformation.Shear(0, 1, Com.Statistics.RandomDouble(2 * Math.PI)); break;
+                        case 4: affineTransformation.Rotate(0, 1, Com.Statistics.RandomDouble(2 * Math.PI)); break;
+                    }
+                }
+            }
+
+            return affineTransformation;
+        }
+
         //
 
         protected override void Constructor()
@@ -14116,7 +15086,75 @@ namespace Test
                 ExecuteTest(method, "RotateZCopy(double)");
             }
 
-            // Affine
+            // MatrixTransform
+
+#if ComVerNext
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+                Com.Matrix matrix = _GetRandomMatrix(4, 4);
+
+                Action method = () =>
+                {
+                    pointD3D.MatrixTransform(matrix);
+                };
+
+                ExecuteTest(method, "MatrixTransform(Com.Matrix)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+#if ComVerNext
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+                Com.Matrix matrix = _GetRandomMatrix(4, 4);
+
+                Action method = () =>
+                {
+                    _ = pointD3D.MatrixTransformCopy(matrix);
+                };
+
+                ExecuteTest(method, "MatrixTransformCopy(Com.Matrix)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+            // AffineTransform
+
+#if ComVerNext
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+                Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
+
+                Action method = () =>
+                {
+                    pointD3D.AffineTransform(affineTransformation);
+                };
+
+                ExecuteTest(method, "AffineTransform(Com.AffineTransformation)", "include 10 transformations, except matrix");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+#if ComVerNext
+            {
+                Com.PointD3D pointD3D = _GetRandomPointD3D();
+                Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
+
+                Action method = () =>
+                {
+                    _ = pointD3D.AffineTransformCopy(affineTransformation);
+                };
+
+                ExecuteTest(method, "AffineTransformCopy(Com.AffineTransformation)", "include 10 transformations, except matrix");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+            // Old Affine
 
             {
                 Com.PointD3D pointD3D = _GetRandomPointD3D();
@@ -15432,6 +16470,28 @@ namespace Test
             }
         }
 
+        private static Com.AffineTransformation _GetRandomAffineTransformation(int size)
+        {
+            Com.AffineTransformation affineTransformation = Com.AffineTransformation.Empty;
+
+            if (size > 0)
+            {
+                for (int i = 0; i < size; i++)
+                {
+                    switch (i % 5)
+                    {
+                        case 0: affineTransformation.Offset(0, Com.Statistics.RandomDouble(-10, 10)); break;
+                        case 1: affineTransformation.Scale(0, Com.Statistics.RandomDouble(-10, 10)); break;
+                        case 2: affineTransformation.Reflect(0); break;
+                        case 3: affineTransformation.Shear(0, 1, Com.Statistics.RandomDouble(2 * Math.PI)); break;
+                        case 4: affineTransformation.Rotate(0, 1, Com.Statistics.RandomDouble(2 * Math.PI)); break;
+                    }
+                }
+            }
+
+            return affineTransformation;
+        }
+
         //
 
         protected override void Constructor()
@@ -16715,7 +17775,75 @@ namespace Test
             ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
-            // Affine
+            // MatrixTransform
+
+#if ComVerNext
+            {
+                Com.PointD4D pointD4D = _GetRandomPointD4D();
+                Com.Matrix matrix = _GetRandomMatrix(5, 5);
+
+                Action method = () =>
+                {
+                    pointD4D.MatrixTransform(matrix);
+                };
+
+                ExecuteTest(method, "MatrixTransform(Com.Matrix)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+#if ComVerNext
+            {
+                Com.PointD4D pointD4D = _GetRandomPointD4D();
+                Com.Matrix matrix = _GetRandomMatrix(5, 5);
+
+                Action method = () =>
+                {
+                    _ = pointD4D.MatrixTransformCopy(matrix);
+                };
+
+                ExecuteTest(method, "MatrixTransformCopy(Com.Matrix)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+            // AffineTransform
+
+#if ComVerNext
+            {
+                Com.PointD4D pointD4D = _GetRandomPointD4D();
+                Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
+
+                Action method = () =>
+                {
+                    pointD4D.AffineTransform(affineTransformation);
+                };
+
+                ExecuteTest(method, "AffineTransform(Com.AffineTransformation)", "include 10 transformations, except matrix");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+#if ComVerNext
+            {
+                Com.PointD4D pointD4D = _GetRandomPointD4D();
+                Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
+
+                Action method = () =>
+                {
+                    _ = pointD4D.AffineTransformCopy(affineTransformation);
+                };
+
+                ExecuteTest(method, "AffineTransformCopy(Com.AffineTransformation)", "include 10 transformations, except matrix");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+            // Old Affine
 
             {
                 Com.PointD4D pointD4D = _GetRandomPointD4D();
@@ -17795,6 +18923,28 @@ namespace Test
                 return Com.Matrix.NonMatrix;
 #endif
             }
+        }
+
+        private static Com.AffineTransformation _GetRandomAffineTransformation(int size)
+        {
+            Com.AffineTransformation affineTransformation = Com.AffineTransformation.Empty;
+
+            if (size > 0)
+            {
+                for (int i = 0; i < size; i++)
+                {
+                    switch (i % 5)
+                    {
+                        case 0: affineTransformation.Offset(0, Com.Statistics.RandomDouble(-10, 10)); break;
+                        case 1: affineTransformation.Scale(0, Com.Statistics.RandomDouble(-10, 10)); break;
+                        case 2: affineTransformation.Reflect(0); break;
+                        case 3: affineTransformation.Shear(0, 1, Com.Statistics.RandomDouble(2 * Math.PI)); break;
+                        case 4: affineTransformation.Rotate(0, 1, Com.Statistics.RandomDouble(2 * Math.PI)); break;
+                    }
+                }
+            }
+
+            return affineTransformation;
         }
 
         //
@@ -19179,7 +20329,75 @@ namespace Test
             ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
-            // Affine
+            // MatrixTransform
+
+#if ComVerNext
+            {
+                Com.PointD5D pointD5D = _GetRandomPointD5D();
+                Com.Matrix matrix = _GetRandomMatrix(6, 6);
+
+                Action method = () =>
+                {
+                    pointD5D.MatrixTransform(matrix);
+                };
+
+                ExecuteTest(method, "MatrixTransform(Com.Matrix)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+#if ComVerNext
+            {
+                Com.PointD5D pointD5D = _GetRandomPointD5D();
+                Com.Matrix matrix = _GetRandomMatrix(6, 6);
+
+                Action method = () =>
+                {
+                    _ = pointD5D.MatrixTransformCopy(matrix);
+                };
+
+                ExecuteTest(method, "MatrixTransformCopy(Com.Matrix)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+            // AffineTransform
+
+#if ComVerNext
+            {
+                Com.PointD5D pointD5D = _GetRandomPointD5D();
+                Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
+
+                Action method = () =>
+                {
+                    pointD5D.AffineTransform(affineTransformation);
+                };
+
+                ExecuteTest(method, "AffineTransform(Com.AffineTransformation)", "include 10 transformations, except matrix");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+#if ComVerNext
+            {
+                Com.PointD5D pointD5D = _GetRandomPointD5D();
+                Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
+
+                Action method = () =>
+                {
+                    _ = pointD5D.AffineTransformCopy(affineTransformation);
+                };
+
+                ExecuteTest(method, "AffineTransformCopy(Com.AffineTransformation)", "include 10 transformations, except matrix");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+            // Old Affine
 
             {
                 Com.PointD5D pointD5D = _GetRandomPointD5D();
@@ -20278,6 +21496,28 @@ namespace Test
                 return Com.Matrix.NonMatrix;
 #endif
             }
+        }
+
+        private static Com.AffineTransformation _GetRandomAffineTransformation(int size)
+        {
+            Com.AffineTransformation affineTransformation = Com.AffineTransformation.Empty;
+
+            if (size > 0)
+            {
+                for (int i = 0; i < size; i++)
+                {
+                    switch (i % 5)
+                    {
+                        case 0: affineTransformation.Offset(0, Com.Statistics.RandomDouble(-10, 10)); break;
+                        case 1: affineTransformation.Scale(0, Com.Statistics.RandomDouble(-10, 10)); break;
+                        case 2: affineTransformation.Reflect(0); break;
+                        case 3: affineTransformation.Shear(0, 1, Com.Statistics.RandomDouble(2 * Math.PI)); break;
+                        case 4: affineTransformation.Rotate(0, 1, Com.Statistics.RandomDouble(2 * Math.PI)); break;
+                    }
+                }
+            }
+
+            return affineTransformation;
         }
 
         //
@@ -21748,7 +22988,75 @@ namespace Test
             ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
-            // Affine
+            // MatrixTransform
+
+#if ComVerNext
+            {
+                Com.PointD6D pointD6D = _GetRandomPointD6D();
+                Com.Matrix matrix = _GetRandomMatrix(7, 7);
+
+                Action method = () =>
+                {
+                    pointD6D.MatrixTransform(matrix);
+                };
+
+                ExecuteTest(method, "MatrixTransform(Com.Matrix)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+#if ComVerNext
+            {
+                Com.PointD6D pointD6D = _GetRandomPointD6D();
+                Com.Matrix matrix = _GetRandomMatrix(7, 7);
+
+                Action method = () =>
+                {
+                    _ = pointD6D.MatrixTransformCopy(matrix);
+                };
+
+                ExecuteTest(method, "MatrixTransformCopy(Com.Matrix)");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+            // AffineTransform
+
+#if ComVerNext
+            {
+                Com.PointD6D pointD6D = _GetRandomPointD6D();
+                Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
+
+                Action method = () =>
+                {
+                    pointD6D.AffineTransform(affineTransformation);
+                };
+
+                ExecuteTest(method, "AffineTransform(Com.AffineTransformation)", "include 10 transformations, except matrix");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+#if ComVerNext
+            {
+                Com.PointD6D pointD6D = _GetRandomPointD6D();
+                Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
+
+                Action method = () =>
+                {
+                    _ = pointD6D.AffineTransformCopy(affineTransformation);
+                };
+
+                ExecuteTest(method, "AffineTransformCopy(Com.AffineTransformation)", "include 10 transformations, except matrix");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+            // Old Affine
 
             {
                 Com.PointD6D pointD6D = _GetRandomPointD6D();
@@ -26846,6 +28154,28 @@ namespace Test
             }
         }
 
+        private static Com.AffineTransformation _GetRandomAffineTransformation(int size)
+        {
+            Com.AffineTransformation affineTransformation = Com.AffineTransformation.Empty;
+
+            if (size > 0)
+            {
+                for (int i = 0; i < size; i++)
+                {
+                    switch (i % 5)
+                    {
+                        case 0: affineTransformation.Offset(0, Com.Statistics.RandomDouble(-10, 10)); break;
+                        case 1: affineTransformation.Scale(0, Com.Statistics.RandomDouble(-10, 10)); break;
+                        case 2: affineTransformation.Reflect(0); break;
+                        case 3: affineTransformation.Shear(0, 1, Com.Statistics.RandomDouble(2 * Math.PI)); break;
+                        case 4: affineTransformation.Rotate(0, 1, Com.Statistics.RandomDouble(2 * Math.PI)); break;
+                    }
+                }
+            }
+
+            return affineTransformation;
+        }
+
         //
 
         protected override void Constructor()
@@ -27560,11 +28890,11 @@ namespace Test
             {
                 Com.Vector vector = _GetRandomVector(32);
                 int index = Com.Statistics.RandomInteger(32);
-                double d = Com.Statistics.RandomDouble(-1E18, 1E18);
+                double s = Com.Statistics.RandomDouble(-1E18, 1E18);
 
                 Action method = () =>
                 {
-                    vector.Scale(index, d);
+                    vector.Scale(index, s);
                 };
 
                 ExecuteTest(method, "Scale(int, double)", "dimension at 32");
@@ -27575,11 +28905,11 @@ namespace Test
 
             {
                 Com.Vector vector = _GetRandomVector(32);
-                double d = Com.Statistics.RandomDouble(-1E18, 1E18);
+                double s = Com.Statistics.RandomDouble(-1E18, 1E18);
 
                 Action method = () =>
                 {
-                    vector.Scale(d);
+                    vector.Scale(s);
                 };
 
                 ExecuteTest(method, "Scale(double)", "dimension at 32");
@@ -27587,11 +28917,11 @@ namespace Test
 
             {
                 Com.Vector vector = _GetRandomVector(32);
-                Com.Vector vector_d = _GetRandomVector(32);
+                Com.Vector vector_s = _GetRandomVector(32);
 
                 Action method = () =>
                 {
-                    vector.Scale(vector_d);
+                    vector.Scale(vector_s);
                 };
 
                 ExecuteTest(method, "Scale(Com.Vector)", "dimension at 32");
@@ -27740,7 +29070,75 @@ namespace Test
                 ExecuteTest(method, "RotateCopy(int, int, double)", "dimension at 32");
             }
 
-            // Affine
+            // MatrixTransform
+
+#if ComVerNext
+            {
+                Com.Vector vector = _GetRandomVector(8);
+                Com.Matrix matrix = _GetRandomMatrix(9, 9);
+
+                Action method = () =>
+                {
+                    vector.MatrixTransform(matrix);
+                };
+
+                ExecuteTest(method, "MatrixTransform(Com.Matrix)", "dimension at 8");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+#if ComVerNext
+            {
+                Com.Vector vector = _GetRandomVector(8);
+                Com.Matrix matrix = _GetRandomMatrix(9, 9);
+
+                Action method = () =>
+                {
+                    _ = vector.MatrixTransformCopy(matrix);
+                };
+
+                ExecuteTest(method, "MatrixTransformCopy(Com.Matrix)", "dimension at 8");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+            // AffineTransform
+
+#if ComVerNext
+            {
+                Com.Vector vector = _GetRandomVector(8);
+                Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
+
+                Action method = () =>
+                {
+                    vector.AffineTransform(affineTransformation);
+                };
+
+                ExecuteTest(method, "AffineTransform(Com.AffineTransformation)", "include 10 transformations, except matrix");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+#if ComVerNext
+            {
+                Com.Vector vector = _GetRandomVector(8);
+                Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
+
+                Action method = () =>
+                {
+                    _ = vector.AffineTransformCopy(affineTransformation);
+                };
+
+                ExecuteTest(method, "AffineTransformCopy(Com.AffineTransformation)", "include 10 transformations, except matrix");
+            }
+#else
+            ExecuteTest(UnsupportedReason.NeedComVerNext);
+#endif
+
+            // Old Affine
 
             {
                 Com.Vector vector = _GetRandomVector(8);

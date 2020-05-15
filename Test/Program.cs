@@ -2,7 +2,7 @@
 Copyright © 2019 chibayuki@foxmail.com
 
 Com性能测试 (ComPerformanceTest)
-Version 19.11.25.1900
+Version 20.4.21.0000
 
 This file is part of "Com性能测试" (ComPerformanceTest)
 
@@ -23,6 +23,7 @@ namespace Test
         {
             ClassPerfTestBase[] TestClass = new ClassPerfTestBase[]
             {
+                new AffineTransformationTest(),
                 new AnimationTest(),
                 new BitOperationTest(),
                 new BitSetTest(),
