@@ -9,7 +9,8 @@ This file is part of "Com性能测试" (ComPerformanceTest)
 "Com性能测试" (ComPerformanceTest) is released under the GPLv3 license
 * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#define ComVerNext
+//#define ComVerNext
+#define ComVer2008
 #define ComVer1910
 #define ComVer1905
 #define ComVer1809
@@ -30,15 +31,17 @@ namespace Test
         public const int TotalMemberCount = 1907; // 成员总数量
 
 #if ComVerNext
-        public const string ComVersionString = "<master>"; // Com 版本字符串
+        public const string ComVersionString = "vNext"; // Com 版本字符串
+#elif ComVer2008
+        public const string ComVersionString = "20v1[20.8.15.1420]"; // Com 版本字符串
 #elif ComVer1910
-        public const string ComVersionString = "19.10.14.2100"; // Com 版本字符串
+        public const string ComVersionString = "19v2[19.10.14.2100]"; // Com 版本字符串
 #elif ComVer1905
-        public const string ComVersionString = "19.5.11.1720"; // Com 版本字符串
+        public const string ComVersionString = "19v1[19.5.11.1720]"; // Com 版本字符串
 #elif ComVer1809
-        public const string ComVersionString = "18.9.28.2200"; // Com 版本字符串
+        public const string ComVersionString = "18v2[18.9.28.2200]"; // Com 版本字符串
 #else
-        public const string ComVersionString = "<unknown>"; // Com 版本字符串
+        public const string ComVersionString = "unknown"; // Com 版本字符串
 #endif
     }
 
@@ -98,6 +101,10 @@ namespace Test
                     {
                         sw.WriteLine(_ResultList[i]);
                     }
+                }
+                catch
+                {
+                    filePath = string.Empty;
                 }
                 finally
                 {
@@ -345,6 +352,7 @@ namespace Test
         protected enum UnsupportedReason // 不支持原因
         {
             NeedComVerNext,
+            NeedComVer2008,
             NeedComVer1910,
             NeedComVer1905,
             NeedComVer1809
@@ -531,19 +539,23 @@ namespace Test
             switch (unsupportedReason)
             {
                 case UnsupportedReason.NeedComVerNext:
-                    ExecuteTest(WillNotTest, namespaceName, className, methodName, "<unsupported member: need Com <master>>");
+                    ExecuteTest(WillNotTest, namespaceName, className, methodName, "<unsupported member: need Com next version>");
+                    break;
+
+                case UnsupportedReason.NeedComVer2008:
+                    ExecuteTest(WillNotTest, namespaceName, className, methodName, "<unsupported member: need Com 20v1 (20.8.15.1420) or later>");
                     break;
 
                 case UnsupportedReason.NeedComVer1910:
-                    ExecuteTest(WillNotTest, namespaceName, className, methodName, "<unsupported member: need Com 19.10.14.2100 or later>");
+                    ExecuteTest(WillNotTest, namespaceName, className, methodName, "<unsupported member: need Com 19v2 (19.10.14.2100) or later>");
                     break;
 
                 case UnsupportedReason.NeedComVer1905:
-                    ExecuteTest(WillNotTest, namespaceName, className, methodName, "<unsupported member: need Com 19.5.11.1720 or later>");
+                    ExecuteTest(WillNotTest, namespaceName, className, methodName, "<unsupported member: need Com 19v1 (19.5.11.1720) or later>");
                     break;
 
                 case UnsupportedReason.NeedComVer1809:
-                    ExecuteTest(WillNotTest, namespaceName, className, methodName, "<unsupported member: need Com 18.9.28.2200 or later>");
+                    ExecuteTest(WillNotTest, namespaceName, className, methodName, "<unsupported member: need Com 18v2 (18.9.28.2200) or later>");
                     break;
 
                 default:
@@ -670,7 +682,7 @@ namespace Test
         {
             // Is
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
 
@@ -682,10 +694,10 @@ namespace Test
                 ExecuteTest(method, "IsEmpty.get()", "include 10 transformations, except matrix");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
 
@@ -697,10 +709,10 @@ namespace Test
                 ExecuteTest(method, "IsSingle.get()", "include 10 transformations, except matrix");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
 
@@ -712,7 +724,7 @@ namespace Test
                 ExecuteTest(method, "IsMultiple.get()", "include 10 transformations, except matrix");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
         }
 
@@ -720,7 +732,7 @@ namespace Test
         {
             // Empty
 
-#if ComVerNext
+#if ComVer2008
             {
                 Action method = () =>
                 {
@@ -730,7 +742,7 @@ namespace Test
                 ExecuteTest(method, "Empty.get()");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
         }
 
@@ -738,7 +750,7 @@ namespace Test
         {
             // object
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
                 object obj = affineTransformation.Copy();
@@ -751,10 +763,10 @@ namespace Test
                 ExecuteTest(method, "Equals(object)", "include 10 transformations, except matrix");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
 
@@ -766,10 +778,10 @@ namespace Test
                 ExecuteTest(method, "GetHashCode()", "include 10 transformations, except matrix");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
 
@@ -781,12 +793,12 @@ namespace Test
                 ExecuteTest(method, "ToString()", "include 10 transformations, except matrix");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             // Equals
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.AffineTransformation left = _GetRandomAffineTransformation(10);
                 Com.AffineTransformation right = left.Copy();
@@ -799,12 +811,12 @@ namespace Test
                 ExecuteTest(method, "Equals(Com.AffineTransformation)", "include 10 transformations, except matrix");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             // Copy
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
 
@@ -816,12 +828,12 @@ namespace Test
                 ExecuteTest(method, "Copy()", "include 10 transformations, except matrix");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             // Split
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
 
@@ -833,12 +845,12 @@ namespace Test
                 ExecuteTest(method, "Split()", "include 10 transformations, except matrix");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             // ToMatrix
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
 
@@ -850,12 +862,12 @@ namespace Test
                 ExecuteTest(method, "ToMatrix()", "include 10 transformations, except matrix, to matrix for 3D column vector");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             // Inverse
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
 
@@ -867,10 +879,10 @@ namespace Test
                 ExecuteTest(method, "InverseTransform()", "include 10 transformations, except matrix");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
 
@@ -882,12 +894,12 @@ namespace Test
                 ExecuteTest(method, "InverseTransformCopy()", "include 10 transformations, except matrix");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             // Offset
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
                 int index = Com.Statistics.RandomInteger(32);
@@ -901,10 +913,10 @@ namespace Test
                 ExecuteTest(method, "Offset(int, double)", "include 10 transformations, except matrix");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
                 double d = Com.Statistics.RandomDouble(-1E18, 1E18);
@@ -917,10 +929,10 @@ namespace Test
                 ExecuteTest(method, "Offset(double)", "include 10 transformations, except matrix");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
                 int index = Com.Statistics.RandomInteger(32);
@@ -934,10 +946,10 @@ namespace Test
                 ExecuteTest(method, "OffsetCopy(int, double)", "include 10 transformations, except matrix");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
                 double d = Com.Statistics.RandomDouble(-1E18, 1E18);
@@ -950,12 +962,12 @@ namespace Test
                 ExecuteTest(method, "OffsetCopy(double)", "include 10 transformations, except matrix");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             // Scale
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
                 int index = Com.Statistics.RandomInteger(32);
@@ -969,10 +981,10 @@ namespace Test
                 ExecuteTest(method, "Scale(int, double)", "include 10 transformations, except matrix");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
                 double s = Com.Statistics.RandomDouble(-1E18, 1E18);
@@ -985,10 +997,10 @@ namespace Test
                 ExecuteTest(method, "Scale(double)", "include 10 transformations, except matrix");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
                 int index = Com.Statistics.RandomInteger(32);
@@ -1002,10 +1014,10 @@ namespace Test
                 ExecuteTest(method, "ScaleCopy(int, double)", "include 10 transformations, except matrix");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
                 double s = Com.Statistics.RandomDouble(-1E18, 1E18);
@@ -1018,12 +1030,12 @@ namespace Test
                 ExecuteTest(method, "ScaleCopy(double)", "include 10 transformations, except matrix");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             // Reflect
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
                 int index = Com.Statistics.RandomInteger(32);
@@ -1036,10 +1048,10 @@ namespace Test
                 ExecuteTest(method, "Reflect(int)", "include 10 transformations, except matrix");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
                 int index = Com.Statistics.RandomInteger(32);
@@ -1052,12 +1064,12 @@ namespace Test
                 ExecuteTest(method, "ReflectCopy(int)", "include 10 transformations, except matrix");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             // Shear
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
                 int index1 = Com.Statistics.RandomInteger(16);
@@ -1072,10 +1084,10 @@ namespace Test
                 ExecuteTest(method, "Shear(int, int, double)", "include 10 transformations, except matrix");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
                 int index1 = Com.Statistics.RandomInteger(16);
@@ -1090,12 +1102,12 @@ namespace Test
                 ExecuteTest(method, "ShearCopy(int, int, double)", "include 10 transformations, except matrix");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             // Rotate
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
                 int index1 = Com.Statistics.RandomInteger(16);
@@ -1110,10 +1122,10 @@ namespace Test
                 ExecuteTest(method, "Rotate(int, int, double)", "include 10 transformations, except matrix");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
                 int index1 = Com.Statistics.RandomInteger(16);
@@ -1128,12 +1140,12 @@ namespace Test
                 ExecuteTest(method, "RotateCopy(int, int, double)", "include 10 transformations, except matrix");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             // MatrixTransform
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
                 Com.Matrix matrix = _GetRandomMatrix(4, 4);
@@ -1146,10 +1158,10 @@ namespace Test
                 ExecuteTest(method, "MatrixTransform(Com.Matrix)", "include 10 transformations, except matrix, matrix size at 4x4");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
                 Com.Matrix matrix = _GetRandomMatrix(4, 4);
@@ -1162,12 +1174,12 @@ namespace Test
                 ExecuteTest(method, "MatrixTransformCopy(Com.Matrix)", "include 10 transformations, except matrix, matrix size at 4x4");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             // AffineTransform
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
                 Com.AffineTransformation affineTransformation_a = _GetRandomAffineTransformation(10);
@@ -1180,10 +1192,10 @@ namespace Test
                 ExecuteTest(method, "AffineTransform(Com.AffineTransformation)", "include 10 transformations, except matrix");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
                 Com.AffineTransformation affineTransformation_a = _GetRandomAffineTransformation(10);
@@ -1196,7 +1208,7 @@ namespace Test
                 ExecuteTest(method, "AffineTransformCopy(Com.Matrix)", "include 10 transformations, except matrix");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
         }
 
@@ -1204,7 +1216,7 @@ namespace Test
         {
             // IsNullOrEmpty
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
 
@@ -1216,12 +1228,12 @@ namespace Test
                 ExecuteTest(method, "IsNullOrEmpty(Com.AffineTransformation)", "include 10 transformations, except matrix");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             // Equals
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.AffineTransformation left = _GetRandomAffineTransformation(10);
                 Com.AffineTransformation right = left.Copy();
@@ -1234,12 +1246,12 @@ namespace Test
                 ExecuteTest(method, "Equals(Com.AffineTransformation, Com.AffineTransformation)", "include 10 transformations, except matrix");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             // Join
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.AffineTransformation[] affineTransformations = _GetRandomAffineTransformation(10).Split();
 
@@ -1251,18 +1263,18 @@ namespace Test
                 ExecuteTest(method, "Join(params Com.AffineTransformation[])", "10 transformations, except matrix");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
-#if ComVerNext
+#if ComVer2008
             ExecuteTest("Join(System.Collections.Generic.IEnumerable<Com.AffineTransformation>)");
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             // FromOffset
 
-#if ComVerNext
+#if ComVer2008
             {
                 int index = Com.Statistics.RandomInteger(32);
                 double d = Com.Statistics.RandomDouble(-1E18, 1E18);
@@ -1275,10 +1287,10 @@ namespace Test
                 ExecuteTest(method, "FromOffset(int, double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
-#if ComVerNext
+#if ComVer2008
             {
                 double d = Com.Statistics.RandomDouble(-1E18, 1E18);
 
@@ -1290,12 +1302,12 @@ namespace Test
                 ExecuteTest(method, "FromOffset(double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             // FromScale
 
-#if ComVerNext
+#if ComVer2008
             {
                 int index = Com.Statistics.RandomInteger(32);
                 double s = Com.Statistics.RandomDouble(-1E18, 1E18);
@@ -1308,10 +1320,10 @@ namespace Test
                 ExecuteTest(method, "FromScale(int, double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
-#if ComVerNext
+#if ComVer2008
             {
                 double s = Com.Statistics.RandomDouble(-1E18, 1E18);
 
@@ -1323,12 +1335,12 @@ namespace Test
                 ExecuteTest(method, "FromScale(double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             // FromReflect
 
-#if ComVerNext
+#if ComVer2008
             {
                 int index = Com.Statistics.RandomInteger(32);
 
@@ -1340,12 +1352,12 @@ namespace Test
                 ExecuteTest(method, "FromReflect(int)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             // FromShear
 
-#if ComVerNext
+#if ComVer2008
             {
                 int index1 = Com.Statistics.RandomInteger(16);
                 int index2 = Com.Statistics.RandomInteger(16, 32);
@@ -1359,12 +1371,12 @@ namespace Test
                 ExecuteTest(method, "FromShear(int, int, double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             // FromRotate
 
-#if ComVerNext
+#if ComVer2008
             {
                 int index1 = Com.Statistics.RandomInteger(16);
                 int index2 = Com.Statistics.RandomInteger(16, 32);
@@ -1378,12 +1390,12 @@ namespace Test
                 ExecuteTest(method, "FromRotate(int, int, double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             // FromMatrixTransform
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.Matrix matrix = _GetRandomMatrix(4, 4);
 
@@ -1395,7 +1407,7 @@ namespace Test
                 ExecuteTest(method, "FromMatrixTransform(Com.Matrix)", "matrix size at 4x4");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
         }
 
@@ -1403,7 +1415,7 @@ namespace Test
         {
             // 比较
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.AffineTransformation left = _GetRandomAffineTransformation(10);
                 Com.AffineTransformation right = left.Copy();
@@ -1416,10 +1428,10 @@ namespace Test
                 ExecuteTest(method, "operator ==(Com.AffineTransformation, Com.AffineTransformation)", "include 10 transformations, except matrix");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.AffineTransformation left = _GetRandomAffineTransformation(10);
                 Com.AffineTransformation right = left.Copy();
@@ -1432,7 +1444,7 @@ namespace Test
                 ExecuteTest(method, "operator !=(Com.AffineTransformation, Com.AffineTransformation)", "include 10 transformations, except matrix");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
         }
     }
@@ -8831,7 +8843,7 @@ namespace Test
                 ExecuteTest(method, "GetColumn(int)", "size at 32x32");
             }
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.Matrix matrix = _GetRandomMatrix(32, 32);
                 int x = Com.Statistics.RandomInteger(32);
@@ -8845,7 +8857,7 @@ namespace Test
                 ExecuteTest(method, "SetColumn(int, Com.Vector)", "size at 32x32");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             {
@@ -8860,7 +8872,7 @@ namespace Test
                 ExecuteTest(method, "GetRow(int)", "size at 32x32");
             }
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.Matrix matrix = _GetRandomMatrix(32, 32);
                 int x = Com.Statistics.RandomInteger(32);
@@ -8874,7 +8886,7 @@ namespace Test
                 ExecuteTest(method, "SetRow(int, Com.Vector)", "size at 32x32");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             // ToArray
@@ -9150,7 +9162,7 @@ namespace Test
                 ExecuteTest(method, "Multiply(Com.Matrix, Com.Matrix)", "size at 32x32");
             }
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.Matrix left = _GetRandomMatrix(32, 32);
                 Com.Vector right = _GetRandomVector(Com.Vector.Type.ColumnVector, 32);
@@ -9163,10 +9175,10 @@ namespace Test
                 ExecuteTest(method, "Multiply(Com.Matrix, Com.Vector)", "size at 32x32");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.Vector left = _GetRandomVector(Com.Vector.Type.RowVector, 32);
                 Com.Matrix right = _GetRandomMatrix(32, 32);
@@ -9179,10 +9191,10 @@ namespace Test
                 ExecuteTest(method, "Multiply(Com.Vector, Com.Matrix)", "size at 32x32");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
-#if ComVerNext
+#if ComVer2008
             {
                 List<Com.Matrix> list = new List<Com.Matrix>(8);
 
@@ -9201,13 +9213,13 @@ namespace Test
                 ExecuteTest(method, "MultiplyLeft(Com.Matrix[])", "size at 32x32, total 8 matrices");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
-#if ComVerNext
+#if ComVer2008
             ExecuteTest("MultiplyLeft(System.Collections.Generic.IEnumerable<Com.Matrix>)");
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             {
@@ -9226,7 +9238,7 @@ namespace Test
                 ExecuteTest(method, "MultiplyLeft(System.Collections.Generic.List<Com.Matrix>)", "size at 32x32, total 8 matrices");
             }
 
-#if ComVerNext
+#if ComVer2008
             {
                 List<Com.Matrix> list = new List<Com.Matrix>(8);
 
@@ -9245,13 +9257,13 @@ namespace Test
                 ExecuteTest(method, "MultiplyRight(Com.Matrix[])", "size at 32x32, total 8 matrices");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
-#if ComVerNext
+#if ComVer2008
             ExecuteTest("MultiplyRight(System.Collections.Generic.IEnumerable<Com.Matrix>)");
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             {
@@ -9306,7 +9318,7 @@ namespace Test
                 ExecuteTest(method, "DivideLeft(Com.Matrix, Com.Matrix)", "size at 8x8");
             }
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.Matrix left = _GetRandomMatrix(8, 8);
                 Com.Vector right = _GetRandomVector(Com.Vector.Type.ColumnVector, 8);
@@ -9319,7 +9331,7 @@ namespace Test
                 ExecuteTest(method, "DivideLeft(Com.Matrix, Com.Vector)", "size at 8x8");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             {
@@ -9334,7 +9346,7 @@ namespace Test
                 ExecuteTest(method, "DivideRight(Com.Matrix, Com.Matrix)", "size at 8x8");
             }
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.Vector left = _GetRandomVector(Com.Vector.Type.RowVector, 8);
                 Com.Matrix right = _GetRandomMatrix(8, 8);
@@ -9347,7 +9359,7 @@ namespace Test
                 ExecuteTest(method, "DivideRight(Com.Vector, Com.Matrix)", "size at 8x8");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             // 求解线性方程组
@@ -10589,7 +10601,7 @@ namespace Test
 
             // Offset
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD pointD = _GetRandomPointD();
                 int index = Com.Statistics.RandomInteger(2);
@@ -10603,7 +10615,7 @@ namespace Test
                 ExecuteTest(method, "Offset(int, double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             {
@@ -10643,7 +10655,7 @@ namespace Test
                 ExecuteTest(method, "Offset(double, double)");
             }
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD pointD = _GetRandomPointD();
                 double d = Com.Statistics.RandomDouble(-1E18, 1E18);
@@ -10656,10 +10668,10 @@ namespace Test
                 ExecuteTest(method, "OffsetX(double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD pointD = _GetRandomPointD();
                 double d = Com.Statistics.RandomDouble(-1E18, 1E18);
@@ -10672,7 +10684,7 @@ namespace Test
                 ExecuteTest(method, "OffsetY(double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             {
@@ -10723,7 +10735,7 @@ namespace Test
                 ExecuteTest(method, "Offset(System.Drawing.SizeF)");
             }
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD pointD = _GetRandomPointD();
                 int index = Com.Statistics.RandomInteger(2);
@@ -10737,7 +10749,7 @@ namespace Test
                 ExecuteTest(method, "OffsetCopy(int, double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             {
@@ -10777,7 +10789,7 @@ namespace Test
                 ExecuteTest(method, "OffsetCopy(double, double)");
             }
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD pointD = _GetRandomPointD();
                 double d = Com.Statistics.RandomDouble(-1E18, 1E18);
@@ -10790,10 +10802,10 @@ namespace Test
                 ExecuteTest(method, "OffsetXCopy(double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD pointD = _GetRandomPointD();
                 double d = Com.Statistics.RandomDouble(-1E18, 1E18);
@@ -10806,7 +10818,7 @@ namespace Test
                 ExecuteTest(method, "OffsetYCopy(double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             {
@@ -10859,7 +10871,7 @@ namespace Test
 
             // Scale
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD pointD = _GetRandomPointD();
                 int index = Com.Statistics.RandomInteger(2);
@@ -10873,7 +10885,7 @@ namespace Test
                 ExecuteTest(method, "Scale(int, double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             {
@@ -10913,7 +10925,7 @@ namespace Test
                 ExecuteTest(method, "Scale(double, double)");
             }
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD pointD = _GetRandomPointD();
                 double s = Com.Statistics.RandomDouble(-1E18, 1E18);
@@ -10926,10 +10938,10 @@ namespace Test
                 ExecuteTest(method, "ScaleX(double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD pointD = _GetRandomPointD();
                 double s = Com.Statistics.RandomDouble(-1E18, 1E18);
@@ -10942,7 +10954,7 @@ namespace Test
                 ExecuteTest(method, "ScaleY(double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             {
@@ -10993,7 +11005,7 @@ namespace Test
                 ExecuteTest(method, "Scale(System.Drawing.SizeF)");
             }
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD pointD = _GetRandomPointD();
                 int index = Com.Statistics.RandomInteger(2);
@@ -11007,7 +11019,7 @@ namespace Test
                 ExecuteTest(method, "ScaleCopy(int, double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             {
@@ -11047,7 +11059,7 @@ namespace Test
                 ExecuteTest(method, "ScaleCopy(double, double)");
             }
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD pointD = _GetRandomPointD();
                 double s = Com.Statistics.RandomDouble(-1E18, 1E18);
@@ -11060,10 +11072,10 @@ namespace Test
                 ExecuteTest(method, "ScaleXCopy(double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD pointD = _GetRandomPointD();
                 double s = Com.Statistics.RandomDouble(-1E18, 1E18);
@@ -11076,7 +11088,7 @@ namespace Test
                 ExecuteTest(method, "ScaleYCopy(double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             {
@@ -11413,7 +11425,7 @@ namespace Test
 
             // MatrixTransform
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD pointD = _GetRandomPointD();
                 Com.Matrix matrix = _GetRandomMatrix(3, 3);
@@ -11426,10 +11438,10 @@ namespace Test
                 ExecuteTest(method, "MatrixTransform(Com.Matrix)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD pointD = _GetRandomPointD();
                 Com.Matrix matrix = _GetRandomMatrix(3, 3);
@@ -11442,12 +11454,12 @@ namespace Test
                 ExecuteTest(method, "MatrixTransformCopy(Com.Matrix)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             // AffineTransform
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD pointD = _GetRandomPointD();
                 Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
@@ -11460,10 +11472,10 @@ namespace Test
                 ExecuteTest(method, "AffineTransform(Com.AffineTransformation)", "include 10 transformations, except matrix");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD pointD = _GetRandomPointD();
                 Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
@@ -11476,7 +11488,7 @@ namespace Test
                 ExecuteTest(method, "AffineTransformCopy(Com.AffineTransformation)", "include 10 transformations, except matrix");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             // Old Affine
@@ -11970,7 +11982,7 @@ namespace Test
                 ExecuteTest(method, "IdentityMatrix()");
             }
 
-#if ComVerNext
+#if ComVer2008
             {
                 int index = Com.Statistics.RandomInteger(2);
                 double d = Com.Statistics.RandomDouble(-1E18, 1E18);
@@ -11983,7 +11995,7 @@ namespace Test
                 ExecuteTest(method, "OffsetMatrix(int, double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             {
@@ -12020,7 +12032,7 @@ namespace Test
                 ExecuteTest(method, "OffsetMatrix(double, double)");
             }
 
-#if ComVerNext
+#if ComVer2008
             {
                 double d = Com.Statistics.RandomDouble(-1E18, 1E18);
 
@@ -12032,10 +12044,10 @@ namespace Test
                 ExecuteTest(method, "OffsetXMatrix(double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
-#if ComVerNext
+#if ComVer2008
             {
                 double d = Com.Statistics.RandomDouble(-1E18, 1E18);
 
@@ -12047,7 +12059,7 @@ namespace Test
                 ExecuteTest(method, "OffsetYMatrix(double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             {
@@ -12094,7 +12106,7 @@ namespace Test
                 ExecuteTest(method, "OffsetMatrix(System.Drawing.SizeF)");
             }
 
-#if ComVerNext
+#if ComVer2008
             {
                 int index = Com.Statistics.RandomInteger(2);
                 double s = Com.Statistics.RandomDouble(-1E18, 1E18);
@@ -12107,7 +12119,7 @@ namespace Test
                 ExecuteTest(method, "ScaleMatrix(int, double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             {
@@ -12144,7 +12156,7 @@ namespace Test
                 ExecuteTest(method, "ScaleMatrix(double, double)");
             }
 
-#if ComVerNext
+#if ComVer2008
             {
                 double s = Com.Statistics.RandomDouble(-1E18, 1E18);
 
@@ -12156,10 +12168,10 @@ namespace Test
                 ExecuteTest(method, "ScaleXMatrix(double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
-#if ComVerNext
+#if ComVer2008
             {
                 double s = Com.Statistics.RandomDouble(-1E18, 1E18);
 
@@ -12171,7 +12183,7 @@ namespace Test
                 ExecuteTest(method, "ScaleYMatrix(double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             {
@@ -13256,7 +13268,7 @@ namespace Test
             ExecuteTest(UnsupportedReason.NeedComVer1905);
 #endif
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD pt = _GetRandomPointD();
                 (double, double) tuple = (pt.X, pt.Y);
@@ -13269,7 +13281,7 @@ namespace Test
                 ExecuteTest(method, "implicit operator Com.PointD(System.ValueTuple<double, double>)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
         }
     }
@@ -14269,7 +14281,7 @@ namespace Test
 
             // Offset
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD3D pointD3D = _GetRandomPointD3D();
                 int index = Com.Statistics.RandomInteger(3);
@@ -14283,7 +14295,7 @@ namespace Test
                 ExecuteTest(method, "Offset(int, double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             {
@@ -14324,7 +14336,7 @@ namespace Test
                 ExecuteTest(method, "Offset(double, double, double)");
             }
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD3D pointD3D = _GetRandomPointD3D();
                 double d = Com.Statistics.RandomDouble(-1E18, 1E18);
@@ -14337,10 +14349,10 @@ namespace Test
                 ExecuteTest(method, "OffsetX(double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD3D pointD3D = _GetRandomPointD3D();
                 double d = Com.Statistics.RandomDouble(-1E18, 1E18);
@@ -14353,10 +14365,10 @@ namespace Test
                 ExecuteTest(method, "OffsetY(double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD3D pointD3D = _GetRandomPointD3D();
                 double d = Com.Statistics.RandomDouble(-1E18, 1E18);
@@ -14369,10 +14381,10 @@ namespace Test
                 ExecuteTest(method, "OffsetZ(double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD3D pointD3D = _GetRandomPointD3D();
                 int index = Com.Statistics.RandomInteger(3);
@@ -14386,7 +14398,7 @@ namespace Test
                 ExecuteTest(method, "OffsetCopy(int, double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             {
@@ -14427,7 +14439,7 @@ namespace Test
                 ExecuteTest(method, "OffsetCopy(double, double, double)");
             }
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD3D pointD3D = _GetRandomPointD3D();
                 double d = Com.Statistics.RandomDouble(-1E18, 1E18);
@@ -14440,10 +14452,10 @@ namespace Test
                 ExecuteTest(method, "OffsetXCopy(double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD3D pointD3D = _GetRandomPointD3D();
                 double d = Com.Statistics.RandomDouble(-1E18, 1E18);
@@ -14456,10 +14468,10 @@ namespace Test
                 ExecuteTest(method, "OffsetYCopy(double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD3D pointD3D = _GetRandomPointD3D();
                 double d = Com.Statistics.RandomDouble(-1E18, 1E18);
@@ -14472,12 +14484,12 @@ namespace Test
                 ExecuteTest(method, "OffsetZCopy(double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             // Scale
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD3D pointD3D = _GetRandomPointD3D();
                 int index = Com.Statistics.RandomInteger(3);
@@ -14491,7 +14503,7 @@ namespace Test
                 ExecuteTest(method, "Scale(int, double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             {
@@ -14532,7 +14544,7 @@ namespace Test
                 ExecuteTest(method, "Scale(double, double, double)");
             }
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD3D pointD3D = _GetRandomPointD3D();
                 double s = Com.Statistics.RandomDouble(-1E18, 1E18);
@@ -14545,10 +14557,10 @@ namespace Test
                 ExecuteTest(method, "ScaleX(double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD3D pointD3D = _GetRandomPointD3D();
                 double s = Com.Statistics.RandomDouble(-1E18, 1E18);
@@ -14561,10 +14573,10 @@ namespace Test
                 ExecuteTest(method, "ScaleY(double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD3D pointD3D = _GetRandomPointD3D();
                 double s = Com.Statistics.RandomDouble(-1E18, 1E18);
@@ -14577,7 +14589,7 @@ namespace Test
                 ExecuteTest(method, "ScaleZ(double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             {
@@ -15088,7 +15100,7 @@ namespace Test
 
             // MatrixTransform
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD3D pointD3D = _GetRandomPointD3D();
                 Com.Matrix matrix = _GetRandomMatrix(4, 4);
@@ -15101,10 +15113,10 @@ namespace Test
                 ExecuteTest(method, "MatrixTransform(Com.Matrix)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD3D pointD3D = _GetRandomPointD3D();
                 Com.Matrix matrix = _GetRandomMatrix(4, 4);
@@ -15117,12 +15129,12 @@ namespace Test
                 ExecuteTest(method, "MatrixTransformCopy(Com.Matrix)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             // AffineTransform
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD3D pointD3D = _GetRandomPointD3D();
                 Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
@@ -15135,10 +15147,10 @@ namespace Test
                 ExecuteTest(method, "AffineTransform(Com.AffineTransformation)", "include 10 transformations, except matrix");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD3D pointD3D = _GetRandomPointD3D();
                 Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
@@ -15151,7 +15163,7 @@ namespace Test
                 ExecuteTest(method, "AffineTransformCopy(Com.AffineTransformation)", "include 10 transformations, except matrix");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             // Old Affine
@@ -15579,7 +15591,7 @@ namespace Test
                 ExecuteTest(method, "IdentityMatrix()");
             }
 
-#if ComVerNext
+#if ComVer2008
             {
                 int index = Com.Statistics.RandomInteger(3);
                 double d = Com.Statistics.RandomDouble(-1E18, 1E18);
@@ -15592,7 +15604,7 @@ namespace Test
                 ExecuteTest(method, "OffsetMatrix(int, double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             {
@@ -15630,7 +15642,7 @@ namespace Test
                 ExecuteTest(method, "OffsetMatrix(double, double, double)");
             }
 
-#if ComVerNext
+#if ComVer2008
             {
                 double d = Com.Statistics.RandomDouble(-1E18, 1E18);
 
@@ -15642,10 +15654,10 @@ namespace Test
                 ExecuteTest(method, "OffsetXMatrix(double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
-#if ComVerNext
+#if ComVer2008
             {
                 double d = Com.Statistics.RandomDouble(-1E18, 1E18);
 
@@ -15657,10 +15669,10 @@ namespace Test
                 ExecuteTest(method, "OffsetYMatrix(double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
-#if ComVerNext
+#if ComVer2008
             {
                 double d = Com.Statistics.RandomDouble(-1E18, 1E18);
 
@@ -15672,10 +15684,10 @@ namespace Test
                 ExecuteTest(method, "OffsetZMatrix(double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
-#if ComVerNext
+#if ComVer2008
             {
                 int index = Com.Statistics.RandomInteger(3);
                 double s = Com.Statistics.RandomDouble(-1E18, 1E18);
@@ -15688,7 +15700,7 @@ namespace Test
                 ExecuteTest(method, "ScaleMatrix(int, double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             {
@@ -15726,7 +15738,7 @@ namespace Test
                 ExecuteTest(method, "ScaleMatrix(double, double, double)");
             }
 
-#if ComVerNext
+#if ComVer2008
             {
                 double s = Com.Statistics.RandomDouble(-1E18, 1E18);
 
@@ -15738,10 +15750,10 @@ namespace Test
                 ExecuteTest(method, "ScaleXMatrix(double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
-#if ComVerNext
+#if ComVer2008
             {
                 double s = Com.Statistics.RandomDouble(-1E18, 1E18);
 
@@ -15753,10 +15765,10 @@ namespace Test
                 ExecuteTest(method, "ScaleYMatrix(double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
-#if ComVerNext
+#if ComVer2008
             {
                 double s = Com.Statistics.RandomDouble(-1E18, 1E18);
 
@@ -15768,7 +15780,7 @@ namespace Test
                 ExecuteTest(method, "ScaleZMatrix(double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
 #if ComVer1905
@@ -16375,7 +16387,7 @@ namespace Test
 
             // 类型转换
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD3D pt = _GetRandomPointD3D();
                 (double, double, double) tuple = (pt.X, pt.Y, pt.Z);
@@ -16388,7 +16400,7 @@ namespace Test
                 ExecuteTest(method, "implicit operator Com.PointD3D(System.ValueTuple<double, double, double>)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
         }
     }
@@ -17435,7 +17447,7 @@ namespace Test
 
             // Offset
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD4D pointD4D = _GetRandomPointD4D();
                 int index = Com.Statistics.RandomInteger(4);
@@ -17449,7 +17461,7 @@ namespace Test
                 ExecuteTest(method, "Offset(int, double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             {
@@ -17491,7 +17503,7 @@ namespace Test
                 ExecuteTest(method, "Offset(double, double, double, double)");
             }
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD4D pointD4D = _GetRandomPointD4D();
                 int index = Com.Statistics.RandomInteger(4);
@@ -17505,7 +17517,7 @@ namespace Test
                 ExecuteTest(method, "OffsetCopy(int, double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             {
@@ -17549,7 +17561,7 @@ namespace Test
 
             // Scale
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD4D pointD4D = _GetRandomPointD4D();
                 int index = Com.Statistics.RandomInteger(4);
@@ -17563,7 +17575,7 @@ namespace Test
                 ExecuteTest(method, "Scale(int, double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             {
@@ -17605,7 +17617,7 @@ namespace Test
                 ExecuteTest(method, "Scale(double, double, double, double)");
             }
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD4D pointD4D = _GetRandomPointD4D();
                 int index = Com.Statistics.RandomInteger(4);
@@ -17619,7 +17631,7 @@ namespace Test
                 ExecuteTest(method, "ScaleCopy(int, double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             {
@@ -17777,7 +17789,7 @@ namespace Test
 
             // MatrixTransform
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD4D pointD4D = _GetRandomPointD4D();
                 Com.Matrix matrix = _GetRandomMatrix(5, 5);
@@ -17790,10 +17802,10 @@ namespace Test
                 ExecuteTest(method, "MatrixTransform(Com.Matrix)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD4D pointD4D = _GetRandomPointD4D();
                 Com.Matrix matrix = _GetRandomMatrix(5, 5);
@@ -17806,12 +17818,12 @@ namespace Test
                 ExecuteTest(method, "MatrixTransformCopy(Com.Matrix)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             // AffineTransform
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD4D pointD4D = _GetRandomPointD4D();
                 Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
@@ -17824,10 +17836,10 @@ namespace Test
                 ExecuteTest(method, "AffineTransform(Com.AffineTransformation)", "include 10 transformations, except matrix");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD4D pointD4D = _GetRandomPointD4D();
                 Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
@@ -17840,7 +17852,7 @@ namespace Test
                 ExecuteTest(method, "AffineTransformCopy(Com.AffineTransformation)", "include 10 transformations, except matrix");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             // Old Affine
@@ -18284,7 +18296,7 @@ namespace Test
                 ExecuteTest(method, "IdentityMatrix()");
             }
 
-#if ComVerNext
+#if ComVer2008
             {
                 int index = Com.Statistics.RandomInteger(4);
                 double d = Com.Statistics.RandomDouble(-1E18, 1E18);
@@ -18297,7 +18309,7 @@ namespace Test
                 ExecuteTest(method, "OffsetMatrix(int, double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             {
@@ -18336,7 +18348,7 @@ namespace Test
                 ExecuteTest(method, "OffsetMatrix(double, double, double, double)");
             }
 
-#if ComVerNext
+#if ComVer2008
             {
                 int index = Com.Statistics.RandomInteger(4);
                 double s = Com.Statistics.RandomDouble(-1E18, 1E18);
@@ -18349,7 +18361,7 @@ namespace Test
                 ExecuteTest(method, "ScaleMatrix(int, double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             {
@@ -18830,7 +18842,7 @@ namespace Test
 
             // 类型转换
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD4D pt = _GetRandomPointD4D();
                 (double, double, double, double) tuple = (pt.X, pt.Y, pt.Z, pt.U);
@@ -18843,7 +18855,7 @@ namespace Test
                 ExecuteTest(method, "implicit operator Com.PointD4D(System.ValueTuple<double, double, double, double>)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
         }
     }
@@ -19985,7 +19997,7 @@ namespace Test
 
             // Offset
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD5D pointD5D = _GetRandomPointD5D();
                 int index = Com.Statistics.RandomInteger(5);
@@ -19999,7 +20011,7 @@ namespace Test
                 ExecuteTest(method, "Offset(int, double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             {
@@ -20042,7 +20054,7 @@ namespace Test
                 ExecuteTest(method, "Offset(double, double, double, double, double)");
             }
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD5D pointD5D = _GetRandomPointD5D();
                 int index = Com.Statistics.RandomInteger(5);
@@ -20056,7 +20068,7 @@ namespace Test
                 ExecuteTest(method, "OffsetCopy(int, double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             {
@@ -20101,7 +20113,7 @@ namespace Test
 
             // Scale
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD5D pointD5D = _GetRandomPointD5D();
                 int index = Com.Statistics.RandomInteger(5);
@@ -20115,7 +20127,7 @@ namespace Test
                 ExecuteTest(method, "Scale(int, double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             {
@@ -20158,7 +20170,7 @@ namespace Test
                 ExecuteTest(method, "Scale(double, double, double, double, double)");
             }
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD5D pointD5D = _GetRandomPointD5D();
                 int index = Com.Statistics.RandomInteger(5);
@@ -20172,7 +20184,7 @@ namespace Test
                 ExecuteTest(method, "ScaleCopy(int, double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             {
@@ -20331,7 +20343,7 @@ namespace Test
 
             // MatrixTransform
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD5D pointD5D = _GetRandomPointD5D();
                 Com.Matrix matrix = _GetRandomMatrix(6, 6);
@@ -20344,10 +20356,10 @@ namespace Test
                 ExecuteTest(method, "MatrixTransform(Com.Matrix)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD5D pointD5D = _GetRandomPointD5D();
                 Com.Matrix matrix = _GetRandomMatrix(6, 6);
@@ -20360,12 +20372,12 @@ namespace Test
                 ExecuteTest(method, "MatrixTransformCopy(Com.Matrix)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             // AffineTransform
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD5D pointD5D = _GetRandomPointD5D();
                 Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
@@ -20378,10 +20390,10 @@ namespace Test
                 ExecuteTest(method, "AffineTransform(Com.AffineTransformation)", "include 10 transformations, except matrix");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD5D pointD5D = _GetRandomPointD5D();
                 Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
@@ -20394,7 +20406,7 @@ namespace Test
                 ExecuteTest(method, "AffineTransformCopy(Com.AffineTransformation)", "include 10 transformations, except matrix");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             // Old Affine
@@ -20855,7 +20867,7 @@ namespace Test
                 ExecuteTest(method, "IdentityMatrix()");
             }
 
-#if ComVerNext
+#if ComVer2008
             {
                 int index = Com.Statistics.RandomInteger(5);
                 double d = Com.Statistics.RandomDouble(-1E18, 1E18);
@@ -20868,7 +20880,7 @@ namespace Test
                 ExecuteTest(method, "OffsetMatrix(int, double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             {
@@ -20908,7 +20920,7 @@ namespace Test
                 ExecuteTest(method, "OffsetMatrix(double, double, double, double, double)");
             }
 
-#if ComVerNext
+#if ComVer2008
             {
                 int index = Com.Statistics.RandomInteger(5);
                 double s = Com.Statistics.RandomDouble(-1E18, 1E18);
@@ -20921,7 +20933,7 @@ namespace Test
                 ExecuteTest(method, "ScaleMatrix(int, double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             {
@@ -21403,7 +21415,7 @@ namespace Test
 
             // 类型转换
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD5D pt = _GetRandomPointD5D();
                 (double, double, double, double, double) tuple = (pt.X, pt.Y, pt.Z, pt.U, pt.V);
@@ -21416,7 +21428,7 @@ namespace Test
                 ExecuteTest(method, "implicit operator Com.PointD5D(System.ValueTuple<double, double, double, double, double>)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
         }
     }
@@ -22640,7 +22652,7 @@ namespace Test
 
             // Offset
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD6D pointD6D = _GetRandomPointD6D();
                 int index = Com.Statistics.RandomInteger(6);
@@ -22654,7 +22666,7 @@ namespace Test
                 ExecuteTest(method, "Offset(int, double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             {
@@ -22698,7 +22710,7 @@ namespace Test
                 ExecuteTest(method, "Offset(double, double, double, double, double, double)");
             }
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD6D pointD6D = _GetRandomPointD6D();
                 int index = Com.Statistics.RandomInteger(6);
@@ -22712,7 +22724,7 @@ namespace Test
                 ExecuteTest(method, "OffsetCopy(int, double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             {
@@ -22758,7 +22770,7 @@ namespace Test
 
             // Scale
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD6D pointD6D = _GetRandomPointD6D();
                 int index = Com.Statistics.RandomInteger(6);
@@ -22772,7 +22784,7 @@ namespace Test
                 ExecuteTest(method, "Scale(int, double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             {
@@ -22816,7 +22828,7 @@ namespace Test
                 ExecuteTest(method, "Scale(double, double, double, double, double, double)");
             }
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD6D pointD6D = _GetRandomPointD6D();
                 int index = Com.Statistics.RandomInteger(6);
@@ -22830,7 +22842,7 @@ namespace Test
                 ExecuteTest(method, "ScaleCopy(int, double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             {
@@ -22990,7 +23002,7 @@ namespace Test
 
             // MatrixTransform
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD6D pointD6D = _GetRandomPointD6D();
                 Com.Matrix matrix = _GetRandomMatrix(7, 7);
@@ -23003,10 +23015,10 @@ namespace Test
                 ExecuteTest(method, "MatrixTransform(Com.Matrix)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD6D pointD6D = _GetRandomPointD6D();
                 Com.Matrix matrix = _GetRandomMatrix(7, 7);
@@ -23019,12 +23031,12 @@ namespace Test
                 ExecuteTest(method, "MatrixTransformCopy(Com.Matrix)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             // AffineTransform
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD6D pointD6D = _GetRandomPointD6D();
                 Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
@@ -23037,10 +23049,10 @@ namespace Test
                 ExecuteTest(method, "AffineTransform(Com.AffineTransformation)", "include 10 transformations, except matrix");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD6D pointD6D = _GetRandomPointD6D();
                 Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
@@ -23053,7 +23065,7 @@ namespace Test
                 ExecuteTest(method, "AffineTransformCopy(Com.AffineTransformation)", "include 10 transformations, except matrix");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             // Old Affine
@@ -23531,7 +23543,7 @@ namespace Test
                 ExecuteTest(method, "IdentityMatrix()");
             }
 
-#if ComVerNext
+#if ComVer2008
             {
                 int index = Com.Statistics.RandomInteger(6);
                 double d = Com.Statistics.RandomDouble(-1E18, 1E18);
@@ -23544,7 +23556,7 @@ namespace Test
                 ExecuteTest(method, "OffsetMatrix(int, double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             {
@@ -23585,7 +23597,7 @@ namespace Test
                 ExecuteTest(method, "OffsetMatrix(double, double, double, double, double, double)");
             }
 
-#if ComVerNext
+#if ComVer2008
             {
                 int index = Com.Statistics.RandomInteger(6);
                 double s = Com.Statistics.RandomDouble(-1E18, 1E18);
@@ -23598,7 +23610,7 @@ namespace Test
                 ExecuteTest(method, "ScaleMatrix(int, double)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             {
@@ -24081,7 +24093,7 @@ namespace Test
 
             // 类型转换
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.PointD6D pt = _GetRandomPointD6D();
                 (double, double, double, double, double, double) tuple = (pt.X, pt.Y, pt.Z, pt.U, pt.V, pt.W);
@@ -24094,7 +24106,7 @@ namespace Test
                 ExecuteTest(method, "implicit operator Com.PointD6D(System.ValueTuple<double, double, double, double, double, double>)");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
         }
     }
@@ -28802,7 +28814,7 @@ namespace Test
 
             // Offset
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.Vector vector = _GetRandomVector(32);
                 int index = Com.Statistics.RandomInteger(32);
@@ -28816,7 +28828,7 @@ namespace Test
                 ExecuteTest(method, "Offset(int, double)", "dimension at 32");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             {
@@ -28843,7 +28855,7 @@ namespace Test
                 ExecuteTest(method, "Offset(Com.Vector)", "dimension at 32");
             }
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.Vector vector = _GetRandomVector(32);
                 int index = Com.Statistics.RandomInteger(32);
@@ -28857,7 +28869,7 @@ namespace Test
                 ExecuteTest(method, "OffsetCopy(int, double)", "dimension at 32");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             {
@@ -28886,7 +28898,7 @@ namespace Test
 
             // Scale
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.Vector vector = _GetRandomVector(32);
                 int index = Com.Statistics.RandomInteger(32);
@@ -28900,7 +28912,7 @@ namespace Test
                 ExecuteTest(method, "Scale(int, double)", "dimension at 32");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             {
@@ -28927,7 +28939,7 @@ namespace Test
                 ExecuteTest(method, "Scale(Com.Vector)", "dimension at 32");
             }
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.Vector vector = _GetRandomVector(32);
                 int index = Com.Statistics.RandomInteger(32);
@@ -28941,7 +28953,7 @@ namespace Test
                 ExecuteTest(method, "ScaleCopy(int, double)", "dimension at 32");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             {
@@ -29072,7 +29084,7 @@ namespace Test
 
             // MatrixTransform
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.Vector vector = _GetRandomVector(8);
                 Com.Matrix matrix = _GetRandomMatrix(9, 9);
@@ -29085,10 +29097,10 @@ namespace Test
                 ExecuteTest(method, "MatrixTransform(Com.Matrix)", "dimension at 8");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.Vector vector = _GetRandomVector(8);
                 Com.Matrix matrix = _GetRandomMatrix(9, 9);
@@ -29101,12 +29113,12 @@ namespace Test
                 ExecuteTest(method, "MatrixTransformCopy(Com.Matrix)", "dimension at 8");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             // AffineTransform
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.Vector vector = _GetRandomVector(8);
                 Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
@@ -29119,10 +29131,10 @@ namespace Test
                 ExecuteTest(method, "AffineTransform(Com.AffineTransformation)", "include 10 transformations, except matrix");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.Vector vector = _GetRandomVector(8);
                 Com.AffineTransformation affineTransformation = _GetRandomAffineTransformation(10);
@@ -29135,7 +29147,7 @@ namespace Test
                 ExecuteTest(method, "AffineTransformCopy(Com.AffineTransformation)", "include 10 transformations, except matrix");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             // Old Affine
@@ -29544,7 +29556,7 @@ namespace Test
 
             // Matrix
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.Vector.Type type = Com.Vector.Type.ColumnVector;
                 int dimension = 32;
@@ -29559,7 +29571,7 @@ namespace Test
                 ExecuteTest(method, "OffsetMatrix(Com.Vector.Type, int, int, double)", "dimension at 32");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             {
@@ -29586,7 +29598,7 @@ namespace Test
                 ExecuteTest(method, "OffsetMatrix(Com.Vector)", "dimension at 32");
             }
 
-#if ComVerNext
+#if ComVer2008
             {
                 Com.Vector.Type type = Com.Vector.Type.ColumnVector;
                 int dimension = 32;
@@ -29601,7 +29613,7 @@ namespace Test
                 ExecuteTest(method, "ScaleMatrix(Com.Vector.Type, int, int, double)", "dimension at 32");
             }
 #else
-            ExecuteTest(UnsupportedReason.NeedComVerNext);
+            ExecuteTest(UnsupportedReason.NeedComVer2008);
 #endif
 
             {

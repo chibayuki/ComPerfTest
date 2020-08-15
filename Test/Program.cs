@@ -87,7 +87,7 @@ namespace Test
             else
             {
                 Console.ForegroundColor = ConsoleColor.DarkMagenta;
-                Console.Write("Test completed. Press any key to exit.");
+                Console.Write("Test completed. Log file not be saved. Press any key to exit.");
             }
 
             //
