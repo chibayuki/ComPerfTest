@@ -1,5 +1,5 @@
 ﻿/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-Copyright © 2019 chibayuki@foxmail.com
+Copyright © 2020 chibayuki@foxmail.com
 
 Com性能测试 (ComPerformanceTest)
 Version 20.4.21.0000
@@ -87,7 +87,7 @@ namespace Test
             else
             {
                 Console.ForegroundColor = ConsoleColor.DarkMagenta;
-                Console.Write("Test completed. Log file not be saved. Press any key to exit.");
+                Console.Write("Test completed. Log file has not been saved. Press any key to exit.");
             }
 
             //

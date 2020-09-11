@@ -1,5 +1,5 @@
 ﻿/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-Copyright © 2019 chibayuki@foxmail.com
+Copyright © 2020 chibayuki@foxmail.com
 
 Com性能测试 (ComPerformanceTest)
 Version 19.12.5.0000
@@ -205,14 +205,14 @@ namespace Test
 
     abstract class ClassPerfTestBase // 类性能测试类的基类
     {
-#if !DEBUG
-        private const int _MinMSOfPerMember = 100; // 被测试类每个成员的最短执行时长的毫秒数
-        private const int _MinCycOfPerMember = 10; // 被测试类每个成员的最小执行次数
-        private const int _MaxCycOfPerMember = 1000000000; // 被测试类每个成员的最大执行次数
-#else
+#if DEBUG
         private const int _MinMSOfPerMember = 1; // 被测试类每个成员的最短执行时长的毫秒数
         private const int _MinCycOfPerMember = 1; // 被测试类每个成员的最小执行次数
         private const int _MaxCycOfPerMember = 10000000; // 被测试类每个成员的最大执行次数
+#else
+        private const int _MinMSOfPerMember = 100; // 被测试类每个成员的最短执行时长的毫秒数
+        private const int _MinCycOfPerMember = 10; // 被测试类每个成员的最小执行次数
+        private const int _MaxCycOfPerMember = 1000000000; // 被测试类每个成员的最大执行次数
 #endif
 
         //
