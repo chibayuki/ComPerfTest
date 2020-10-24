@@ -2,7 +2,7 @@
 Copyright © 2020 chibayuki@foxmail.com
 
 Com性能测试 (ComPerformanceTest)
-Version 20.4.21.0000
+Version 20.10.24.1820
 
 This file is part of "Com性能测试" (ComPerformanceTest)
 

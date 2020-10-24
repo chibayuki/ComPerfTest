@@ -2,7 +2,7 @@
 Copyright © 2020 chibayuki@foxmail.com
 
 Com性能测试 (ComPerformanceTest)
-Version 19.12.5.0000
+Version 20.10.24.1820
 
 This file is part of "Com性能测试" (ComPerformanceTest)
 
@@ -33,13 +33,13 @@ namespace Test
 #if ComVerNext
         public const string ComVersionString = "vNext"; // Com 版本字符串
 #elif ComVer2008
-        public const string ComVersionString = "20v1[20.8.15.1420]"; // Com 版本字符串
+        public const string ComVersionString = "20v1(20.8.15.1420)"; // Com 版本字符串
 #elif ComVer1910
-        public const string ComVersionString = "19v2[19.10.14.2100]"; // Com 版本字符串
+        public const string ComVersionString = "19v2(19.10.14.2100)"; // Com 版本字符串
 #elif ComVer1905
-        public const string ComVersionString = "19v1[19.5.11.1720]"; // Com 版本字符串
+        public const string ComVersionString = "19v1(19.5.11.1720)"; // Com 版本字符串
 #elif ComVer1809
-        public const string ComVersionString = "18v2[18.9.28.2200]"; // Com 版本字符串
+        public const string ComVersionString = "18v2(18.9.28.2200)"; // Com 版本字符串
 #else
         public const string ComVersionString = "unknown"; // Com 版本字符串
 #endif
@@ -155,7 +155,7 @@ namespace Test
             Console.Write(new string(' ', _FullWidth));
             Console.SetCursorPosition(2, 3);
             Console.ForegroundColor = ConsoleColor.DarkCyan;
-            Console.Write(string.Concat(Math.Floor(progress * 1000) / 10, "% (", _CompletedMemberCount, " of ", ComInfo.TotalMemberCount, ") completed"));
+            Console.Write(string.Concat(Math.Floor(progress * 10000) / 100, "% (", _CompletedMemberCount, " of ", ComInfo.TotalMemberCount, ") completed"));
             Console.ForegroundColor = ConsoleColor.Black;
             Console.SetCursorPosition(0, 5);
             Console.WindowTop = 0;
@@ -649,6 +649,7 @@ namespace Test
             }
         }
 
+#if ComVer2008
         private static Com.AffineTransformation _GetRandomAffineTransformation(int size)
         {
             Com.AffineTransformation affineTransformation = Com.AffineTransformation.Empty;
@@ -670,6 +671,7 @@ namespace Test
 
             return affineTransformation;
         }
+#endif
 
         //
 
@@ -9830,6 +9832,7 @@ namespace Test
             }
         }
 
+#if ComVer2008
         private static Com.AffineTransformation _GetRandomAffineTransformation(int size)
         {
             Com.AffineTransformation affineTransformation = Com.AffineTransformation.Empty;
@@ -9851,6 +9854,7 @@ namespace Test
 
             return affineTransformation;
         }
+#endif
 
         //
 
@@ -13363,6 +13367,7 @@ namespace Test
             }
         }
 
+#if ComVer2008
         private static Com.AffineTransformation _GetRandomAffineTransformation(int size)
         {
             Com.AffineTransformation affineTransformation = Com.AffineTransformation.Empty;
@@ -13384,6 +13389,7 @@ namespace Test
 
             return affineTransformation;
         }
+#endif
 
         //
 
@@ -16482,6 +16488,7 @@ namespace Test
             }
         }
 
+#if ComVer2008
         private static Com.AffineTransformation _GetRandomAffineTransformation(int size)
         {
             Com.AffineTransformation affineTransformation = Com.AffineTransformation.Empty;
@@ -16503,6 +16510,7 @@ namespace Test
 
             return affineTransformation;
         }
+#endif
 
         //
 
@@ -18937,6 +18945,7 @@ namespace Test
             }
         }
 
+#if ComVer2008
         private static Com.AffineTransformation _GetRandomAffineTransformation(int size)
         {
             Com.AffineTransformation affineTransformation = Com.AffineTransformation.Empty;
@@ -18958,6 +18967,7 @@ namespace Test
 
             return affineTransformation;
         }
+#endif
 
         //
 
@@ -21510,6 +21520,7 @@ namespace Test
             }
         }
 
+#if ComVer2008
         private static Com.AffineTransformation _GetRandomAffineTransformation(int size)
         {
             Com.AffineTransformation affineTransformation = Com.AffineTransformation.Empty;
@@ -21531,6 +21542,7 @@ namespace Test
 
             return affineTransformation;
         }
+#endif
 
         //
 
@@ -28166,6 +28178,7 @@ namespace Test
             }
         }
 
+#if ComVer2008
         private static Com.AffineTransformation _GetRandomAffineTransformation(int size)
         {
             Com.AffineTransformation affineTransformation = Com.AffineTransformation.Empty;
@@ -28187,6 +28200,7 @@ namespace Test
 
             return affineTransformation;
         }
+#endif
 
         //
 
